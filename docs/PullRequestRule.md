@@ -47,7 +47,7 @@
 - **PR 번호 순서대로** 병합한다. 앞 PR을 건너뛰고 뒤 PR을 병합하지 않는다.
 - 병합은 사용자가 한다. Claude는 사용자가 요청할 때만 병합한다.
 - CI가 통과하지 않은 PR은 병합하지 않는다.
-- 병합한 뒤 작업 브랜치는 지우고, 로컬 `main`을 원격과 맞춘다(`git switch main && git pull`).
+- 병합한 뒤 원격 작업 브랜치는 GitHub가 자동으로 지운다(저장소 설정 "Automatically delete head branches", I22). Claude는 로컬 `main`을 원격과 맞추고(`git switch main && git pull`), 병합된 로컬 작업 브랜치를 `git branch -d`로 지운다.
 
 **앞 PR을 고쳐야 할 때**: 뒤 브랜치가 쌓여 있는 상태에서 앞 PR을 고치면, 앞 브랜치에 고친 커밋을 올린 뒤 뒤 브랜치들에 차례로 앞 브랜치를 병합(`git merge`)하고 push한다. rebase로 이력을 바꾸지 않는다. 이미 push된 커밋을 바꾸면 쌓인 브랜치들이 서로 어긋나기 때문이다.
 
