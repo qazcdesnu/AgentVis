@@ -4,6 +4,7 @@
 """
 
 import io
+import json
 import os
 import tomllib
 import unittest
@@ -93,6 +94,56 @@ class ServeTest(RepoTestCase):
             with self.assertRaises(SystemExit):
                 self.run_main("serve")
         self.assertEqual(self.closed, 1)
+
+
+class HooksCommandTest(RepoTestCase):
+    """@doc: docs/design/Cli.md#4-테스트"""
+
+    def setUp(self) -> None:
+        super().setUp()
+        patcher = mock.patch.dict(os.environ, {"AGENTVIS_HOME": str(self.root / "home")})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.original = '{\n  "model": "opus",\n  "hooks": {\n    "Stop": [{"hooks": [{"type": "command", "command": "x"}]}]\n  }\n}\n'
+        self.settings = self.write("claude/settings.json", self.original)
+        self.backups = self.root / "home" / "backups"
+
+    def run_main(self, *args: str) -> tuple[int, str, str]:
+        output, errors = io.StringIO(), io.StringIO()
+        with redirect_stdout(output), redirect_stderr(errors):
+            code = main(list(args))
+        return code, output.getvalue(), errors.getvalue()
+
+    def test_install_then_uninstall_restores_settings(self) -> None:
+        code, output, _ = self.run_main("hooks", "install", "--settings", str(self.settings))
+        self.assertEqual(code, 0)
+        self.assertIn("추가한 hook: 15개 (http://127.0.0.1:8765/hooks?client=agentvis)", output)
+        self.assertEqual(len(list(self.backups.iterdir())), 1)
+        code, output, _ = self.run_main("hooks", "uninstall", "--settings", str(self.settings))
+        self.assertEqual(code, 0)
+        self.assertIn("제거한 hook: 15개", output)
+        self.assertEqual(json.loads(self.settings.read_text(encoding="utf-8")), json.loads(self.original))
+        self.assertEqual(len(list(self.backups.iterdir())), 2)
+
+    def test_repeating_install_changes_nothing(self) -> None:
+        self.run_main("hooks", "install", "--settings", str(self.settings))
+        before = self.settings.read_text(encoding="utf-8")
+        code, output, _ = self.run_main("hooks", "install", "--settings", str(self.settings))
+        self.assertEqual(code, 0)
+        self.assertIn("변경 없음", output)
+        self.assertEqual(self.settings.read_text(encoding="utf-8"), before)
+        self.assertEqual(len(list(self.backups.iterdir())), 1)
+        code, output, _ = self.run_main("hooks", "uninstall", "--settings", str(self.settings))
+        code, output, _ = self.run_main("hooks", "uninstall", "--settings", str(self.settings))
+        self.assertIn("제거할 AgentVis hook 없음", output)
+
+    def test_invalid_settings_exit_1_and_file_unchanged(self) -> None:
+        self.settings.write_text('{"hooks": []}', encoding="utf-8")
+        code, _, errors = self.run_main("hooks", "install", "--settings", str(self.settings))
+        self.assertEqual(code, 1)
+        self.assertIn("오류:", errors)
+        self.assertEqual(self.settings.read_text(encoding="utf-8"), '{"hooks": []}')
+        self.assertFalse(self.backups.exists())
 
 
 if __name__ == "__main__":

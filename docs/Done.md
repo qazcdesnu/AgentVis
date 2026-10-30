@@ -2,6 +2,40 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## M1-T5 `agentvis hooks install` / `uninstall` 명령 구현
+
+- 시작일: 2026-10-31
+- 완료일: 2026-10-31
+- 근거 문서: [CLI 설계](design/Cli.md#3-hook-설정-편집), [데이터 소스](DataSource.md#23-사용하는-이벤트)
+
+### 계획
+- [CLI 설계](design/Cli.md)의 hook 설정 편집과 명령 동작의 빈틈을 메우고 코드 포인터를 건다.
+- `src/agentvis/hook_settings.py`와 `cli.py`의 `hooks install`, `hooks uninstall`을 구현한다.
+- 테스트는 임시 설정 파일로만 한다. 실제 `~/.claude/settings.json`은 이 태스크에서 건드리지 않는다(실제 설치는 M1-T7에서 사용자 확인 후).
+
+### 진행 기록
+- 2026-10-31: 로드맵을 `[~]`로 바꾸고 시작했다.
+- 2026-10-31: 실제 사용자 설정을 고치는 기능이라 설계의 빈틈을 먼저 메웠다. 심볼릭 링크 설정 파일(dotfiles)을 일반 파일로 덮지 않기, 파일 권한 유지, 예상과 다른 구조는 덮어쓰지 않고 `SettingsError`, 변경이 없으면 백업도 만들지 않기, 백업 이름 충돌 방지, 사용자 hook과 섞인 그룹 처리, 명령의 출력·종료 코드가 대상이었다. 그런 뒤 코드 포인터를 걸고 포인터 검사기가 미구현 13건을 보고하는 것을 확인했다.
+- 2026-10-31: `hook_settings.py`와 `cli.py`의 `hooks install`/`uninstall`을 작성했다. 처음 쓴 코드에서 도움말 처리와 기본 경로 채우기가 읽기 어려워 처리 함수 안으로 옮겨 정리했다.
+- 2026-10-31: 모든 테스트는 임시 설정 파일로만 실행했다. 작업 후 실제 `~/.claude/settings.json`의 수정 시각(10월 19일)이 그대로이고 AgentVis hook이 없음을, `~/.agentvis`가 생기지 않았음을 확인했다.
+
+### 결정 사항
+- 이벤트 그룹에 `matcher`를 두지 않는다. 도구 이벤트도 모든 도구를 받아야 하기 때문이다. `matcher` 없는 `http` hook 그룹이 동작하는 것은 M0-T4 실측에서 확인했다.
+- 설치는 "기존 AgentVis hook 제거 후 추가"로 구현해, 여러 번 실행하거나 포트를 바꿔도 hook이 하나씩만 남게 했다.
+- 변경 여부는 설정 객체 비교로 판단한다. 바뀌지 않으면 파일, 백업 모두 손대지 않는다.
+
+### 변경 파일
+- 신규: `src/agentvis/hook_settings.py`, `tests/test_hook_settings.py`
+- 수정: `src/agentvis/cli.py`, `tests/test_cli.py`, `docs/design/Cli.md`, `docs/Roadmap.md`, `docs/Ongoing.md`, `docs/Done.md`
+
+### 결과
+- `uv run agentvis hooks install`로 Claude Code 사용자 설정에 15개 이벤트의 AgentVis hook을 설치하고, `uninstall`로 AgentVis hook만 제거할 수 있다. 바꾸기 전 설정은 `~/.agentvis/backups/`에 백업된다.
+
+### 검증
+- `uv run python -m tools.check_docs`, `check_pointers`, `check_tasks`, `check_commits`: 통과
+- `uv run python -m unittest discover -s tests -t .`: 68개 통과
+- 실제 설정 파일 무변경 확인: 위 진행 기록 참고
+
 ## M1-T4 `agentvis serve` 명령 구현
 
 - 시작일: 2026-10-31
