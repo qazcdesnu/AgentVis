@@ -2,6 +2,39 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## M1-T4 `agentvis serve` 명령 구현
+
+- 시작일: 2026-10-31
+- 완료일: 2026-10-31
+- 근거 문서: [CLI 설계](design/Cli.md#2-명령), [수집기 설계](design/Collector.md#2-http-엔드포인트)
+
+### 계획
+- [CLI 설계](design/Cli.md)의 `serve` 동작(시작 안내, 포트 검증, 포트 충돌, 종료 시 정리)을 명확히 하고 코드 포인터를 건다.
+- `cli.py`에 `serve` 하위 명령을 추가하고 테스트한다.
+- 실제로 서버를 띄워 hook 이벤트를 POST하고 저장되는지 확인한다.
+
+### 진행 기록
+- 2026-10-31: 로드맵을 `[~]`로 바꾸고 시작했다.
+- 2026-10-31: [CLI 설계](design/Cli.md#21-serve)에 `serve`의 세부 동작(기본 포트 상수, 포트 검증, 시작 안내, 종료 시 정리, 포트 충돌)과 테스트 항목을 먼저 적었다. 이벤트 저장소 기본 경로를 코드 포인터로 걸었다가 포인터 검사기가 역방향 포인터 누락을 보고해, 근거 문서인 [이벤트 저장소 설계](design/Store.md#1-데이터-디렉터리)를 가리키도록 고쳤다.
+- 2026-10-31: `cli.py`에 `serve` 하위 명령과 `DEFAULT_PORT`를 추가하고, `uvicorn.run`을 가짜로 바꾼 테스트를 작성했다.
+- 2026-10-31: 임시 데이터 디렉터리로 실제 서버를 띄워 확인했다. `/health`, `POST /hooks` 저장, 잘못된 본문 400, SIGINT 정상 종료, 스키마 버전 1·WAL 모드가 설계대로였다. 종료 후 WAL 파일이 0바이트로 정리되어 이벤트 저장소가 닫혔음을 확인했다.
+- 2026-10-31: 실측에서 설계와 다른 점 두 가지를 찾아 문서부터 고쳤다. 포트 충돌 시 종료 코드는 1이 아니라 uvicorn의 시작 실패 코드 3이었다(uvicorn 소스의 `sys.exit(STARTUP_FAILURE)`로 확인). 출력이 터미널이 아닐 때 시작 안내가 uvicorn 로그보다 늦게 나와 `flush`를 추가했다.
+
+### 결정 사항
+- `serve`는 `--host` 옵션 없이 `127.0.0.1`에만 바인딩한다([설계 원칙](Architecture.md#2-설계-원칙)).
+- 포트 충돌 같은 uvicorn의 종료 코드는 그대로 전달한다. 감싸서 바꾸면 원인을 알아보기 어려워진다.
+
+### 변경 파일
+- 수정: `src/agentvis/cli.py`, `tests/test_cli.py`, `docs/design/Cli.md`, `docs/Roadmap.md`, `docs/Ongoing.md`, `docs/Done.md`
+
+### 결과
+- `uv run agentvis serve [--port N]`으로 로컬 서버를 띄우면 hook 이벤트를 받아 `~/.agentvis/agentvis.db`에 저장한다.
+
+### 검증
+- `uv run python -m tools.check_docs`, `check_pointers`, `check_tasks`, `check_commits`: 통과
+- `uv run python -m unittest discover -s tests -t .`: 54개 통과
+- 실제 서버 실측: 위 진행 기록 참고
+
 ## M1-T3 수집기 구현
 
 - 시작일: 2026-10-31
