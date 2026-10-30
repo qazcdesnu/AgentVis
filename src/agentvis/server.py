@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from agentvis.analysis.catalog import get_session, list_sessions
+from agentvis.analysis.catalog import get_session, list_projects, list_sessions
 from agentvis.collector import InvalidHookEvent, hook_event_to_raw
 from agentvis.store import EventStore
 from agentvis.transcript import TranscriptReader, paths_to_read
@@ -62,6 +62,10 @@ def create_app(store: EventStore, reader: TranscriptReader | None = None) -> Fas
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/api/projects")
+    def projects() -> dict:
+        return {"projects": jsonable_encoder(list_projects(store))}
 
     @app.get("/api/sessions")
     def sessions(project: str | None = None) -> dict:

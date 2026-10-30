@@ -2,6 +2,37 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## M3-T5 프로젝트 판정(세션 기록의 첫 `cwd`)과 프로젝트 목록 API (`/api/projects`)
+
+- 시작일: 2026-10-31
+- 완료일: 2026-10-31
+- 근거 문서: [분석기 설계의 프로젝트](design/Analysis.md#2-프로젝트), [조회 API](design/Analysis.md#8-조회-api)
+
+### 계획
+- [분석기 설계](design/Analysis.md#2-프로젝트)의 프로젝트 목록 계산과 응답 형태를 정하고 코드 포인터를 건다. 프로젝트 판정 자체는 M3-T2의 `build_session`에 이미 있다.
+- `list_projects`와 `GET /api/projects`를 구현하고 테스트한다.
+- PR #6(`i23-probe-isolation`) 위에 쌓은 브랜치 `m3-t5-project-api`에서 진행한다.
+
+### 진행 기록
+- 2026-10-31: 로드맵을 `[~]`로 바꾸고 시작했다.
+- 2026-10-31: [분석기 설계](design/Analysis.md#2-프로젝트)에 프로젝트 목록 계산(`list_sessions`의 세션을 프로젝트 경로로 묶음, 경로 없는 세션 제외)과 응답 형태(`{"projects": [...]}`)를 정하고 코드 포인터를 걸었다.
+- 2026-10-31: `ProjectView`, `list_projects`, `GET /api/projects`를 구현했다. 테스트를 쓰기 전에, 마지막 활동이 없는 프로젝트의 정렬 기본값(`datetime.min`)이 시간대 없는 값이라 시간대 있는 시각과 비교하면 오류가 나는 버그를 발견해 고쳤다.
+- 2026-10-31: 미리보기 사본으로 확인했다. 프로젝트 6개가 마지막 활동 순으로 나왔고, `AI윤리`처럼 세션 기록 디렉터리 이름에서는 사라지는 한글 폴더 이름도 정확히 나왔다. 폴더가 지워진 H2 실측 세션은 `exists`가 거짓이었다.
+
+### 결정 사항
+- 프로젝트 판정(세션 기록의 첫 `cwd`)은 M3-T2의 `build_session`이 이미 하므로, 이번 태스크는 묶기와 목록 API만 구현했다.
+- 상위 경로는 홈 디렉터리 아래면 `~`로 줄인다.
+
+### 변경 파일
+- 수정: `src/agentvis/analysis/catalog.py`, `src/agentvis/server.py`, `tests/test_api.py`, `docs/design/Analysis.md`, `docs/Roadmap.md`, `docs/Ongoing.md`, `docs/Done.md`
+
+### 결과
+- `GET /api/projects`로 Claude Code를 쓴 프로젝트 목록(이름, 상위 경로, 세션 수, 마지막 활동, 폴더 존재 여부)을 볼 수 있다. M4 화면의 첫 단계(프로젝트 선택)가 이 목록을 쓴다.
+
+### 검증
+- `uv run python -m tools.check_docs`, `check_pointers`, `check_tasks`, `check_commits`: 통과
+- `uv run python -m unittest discover -s tests -t .`: 102개 통과
+
 ## I23 실측용 `claude -p` 세션이 실제 이벤트 저장소에 섞임
 
 - 시작일: 2026-10-31

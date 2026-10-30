@@ -3,7 +3,9 @@
 @doc: docs/design/Analysis.md#9-테스트
 """
 
+import os
 from dataclasses import replace
+from unittest import mock
 
 from fastapi.testclient import TestClient
 
@@ -54,3 +56,21 @@ class SessionApiTest(RepoTestCase):
         self.assertEqual((call["tool_name"], call["status"]), ("Bash", "error"))
         self.assertEqual(self.client.get("/api/sessions/nope").status_code, 404)
         self.assertEqual(self.client.get("/api/sessions", headers={"Host": "attacker.example"}).status_code, 400)
+
+    def test_project_list_groups_sessions(self) -> None:
+        real = self.root / "home" / "work" / "real-app"
+        real.mkdir(parents=True)
+        built = _Session()
+        built.clock = 200
+        built.record(type="user", uuid="w1", promptId="x1", origin={"kind": "human"}, cwd=str(real), message={"content": "실재하는 폴더"})
+        self.store.append_batch([replace(event, session_id="s-real", id=None) for event in built.events])
+        self.store.append(replace(built.events[0], session_id="s-nocwd", cwd=None, dedup_key="uuid:nocwd",
+                                  payload='{"type": "system", "subtype": "turn_duration"}', id=None))
+        with mock.patch.dict(os.environ, {"HOME": str(self.root / "home")}):
+            projects = self.client.get("/api/projects").json()["projects"]
+        self.assertEqual([item["name"] for item in projects], ["real-app", "app", "other"])
+        self.assertEqual((projects[0]["parent"], projects[0]["exists"], projects[0]["session_count"]), ("~/work", True, 1))
+        self.assertEqual((projects[1]["path"], projects[1]["parent"], projects[1]["exists"], projects[1]["session_count"]),
+                         ("/Users/me/app", "/Users/me", False, 2))
+        self.assertTrue(projects[1]["last_activity"].endswith("+00:00"))
+
