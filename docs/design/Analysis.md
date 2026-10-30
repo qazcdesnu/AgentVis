@@ -130,16 +130,21 @@
 | 경로 | 응답 | 태스크 |
 | --- | --- | --- |
 | `GET /api/projects` | 프로젝트 목록(2절 필드) | M3-T5 |
-| `GET /api/sessions?project=<프로젝트 경로>` | 그 프로젝트의 세션 목록(7절 필드, `turns` 제외). 마지막 활동이 늦은 것부터 | M3-T4 |
-| `GET /api/sessions/{session_id}` | 세션 상세(7절 필드와 `turns`) | M3-T4 |
+| `GET /api/sessions?project=<프로젝트 경로>` | `{"sessions": [...]}`. 세션 목록(7절 필드, `turns`·`preamble` 제외). 마지막 활동이 늦은 것부터. `project`를 생략하면 모든 세션 | M3-T4 |
+| `GET /api/sessions/{session_id}` | 세션 상세(7절 필드와 `turns`, `preamble`) | M3-T4 |
 
-- 응답은 JSON이며 필드 이름은 이 문서의 이름(`snake_case`)을 쓴다. 시각은 ISO 8601(UTC)이다.
+- 응답은 JSON이며 필드 이름은 이 문서의 이름(`snake_case`)을 쓴다. 시각은 ISO 8601(UTC)이다. 모델 객체는 FastAPI의 `jsonable_encoder`로 바꾼다.
+- [catalog 모듈](../../src/agentvis/analysis/catalog.py)이 이벤트 저장소에서 원시 이벤트를 읽어 분석기를 부른다.
+  - [list_sessions](../../src/agentvis/analysis/catalog.py#list_sessions)`(store, project: str | None = None) -> list[SessionView]`: 이벤트 저장소의 모든 세션([이벤트 저장소의 세션 ID 조회](Store.md#8-조회-보조))마다 `build_session`을 계산하고, `project`가 있으면 그 프로젝트 경로의 세션만 남긴다. 목록 응답에서는 `turns`, `preamble`을 뺀다. 세션이 많아져 느려지면 세션 단위 캐시를 설계한다.
+  - [get_session](../../src/agentvis/analysis/catalog.py#get_session)`(store, session_id) -> SessionView | None`: 원시 이벤트가 없는 세션이면 `None`이다.
+- 경로는 [서버 앱](../../src/agentvis/server.py#create_app)에 있다. 경로 처리 함수는 동기 함수(`def`)로 작성해 FastAPI 스레드 풀에서 실행한다. SQLite 조회와 분석 계산이 이벤트 루프를 막지 않게 하기 위해서다.
+- FastAPI가 자동으로 만드는 API 문서 화면(`/docs`)과 명세(`/openapi.json`)로 브라우저에서 조회 API를 직접 시험할 수 있다. 문서 화면은 화면 구성 파일을 외부 CDN에서 받지만 세션 데이터는 보내지 않는다.
 - 모든 경로는 [요청 검증](Collector.md#21-요청-검증)의 `Host` 검사를 받는다.
 - 없는 세션은 `404`다.
 
 ## 9. 테스트
 
-[tests/test_analysis.py](../../tests/test_analysis.py)에서 실측 형태의 원시 이벤트 목록으로 확인한다. 원시 이벤트는 실제 변환 경로(`record_to_raw`, `hook_event_to_raw`)로 만든다. 조회 API 항목은 M3-T4, M3-T5에서 추가한다.
+[tests/test_analysis.py](../../tests/test_analysis.py)에서 실측 형태의 원시 이벤트 목록으로 확인한다. 원시 이벤트는 실제 변환 경로(`record_to_raw`, `hook_event_to_raw`)로 만든다. 조회 API 항목 중 프로젝트 목록은 M3-T5에서 추가한다. 조회 API는 [tests/test_api.py](../../tests/test_api.py)에서 `TestClient`로 확인한다.
 
 - 사람 입력만 턴을 시작하고, 하위 에이전트 보고·작업 알림·메타 기록은 턴을 만들지 않는다.
 - `promptId`가 없는 기록이 `parentUuid`를 따라 올바른 턴에 들어간다.
@@ -147,4 +152,4 @@
 - 작업 중 사람 메시지·작업 알림·hook 전달 실패가 각 단계 종류로 나온다.
 - 서브에이전트 단계가 띄운 도구 호출 아래에 들어간다.
 - 프로젝트 경로는 세션 기록의 첫 `cwd`이며, 하위 폴더 `cwd`를 가진 hook 이벤트에 끌려가지 않는다.
-- 조회 API가 필드와 정렬, `404`를 지킨다.
+- 세션 목록이 프로젝트 조건과 마지막 활동 순서를 지키고 `turns`·`preamble`을 빼며, 세션 상세가 턴과 단계를 담고, 없는 세션은 `404`다.

@@ -2,16 +2,19 @@
 
 @doc: docs/design/Collector.md#2-http-엔드포인트
 @doc: docs/design/Collector.md#21-요청-검증
+@doc: docs/design/Analysis.md#8-조회-api
 """
 
 import json
 from datetime import UTC, datetime
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from agentvis.analysis.catalog import get_session, list_sessions
 from agentvis.collector import InvalidHookEvent, hook_event_to_raw
 from agentvis.store import EventStore
 from agentvis.transcript import TranscriptReader, paths_to_read
@@ -59,5 +62,21 @@ def create_app(store: EventStore, reader: TranscriptReader | None = None) -> Fas
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/api/sessions")
+    def sessions(project: str | None = None) -> dict:
+        summaries = []
+        for view in list_sessions(store, project):
+            summary = jsonable_encoder(view)
+            del summary["turns"], summary["preamble"]
+            summaries.append(summary)
+        return {"sessions": summaries}
+
+    @app.get("/api/sessions/{session_id}")
+    def session(session_id: str) -> dict:
+        view = get_session(store, session_id)
+        if view is None:
+            raise HTTPException(status_code=404, detail="세션 없음")
+        return jsonable_encoder(view)
 
     return app

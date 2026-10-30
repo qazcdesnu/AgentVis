@@ -3,6 +3,7 @@
 @doc: docs/design/Store.md
 @doc: docs/design/Store.md#6-m2-변경
 @doc: docs/design/Store.md#7-m3-변경
+@doc: docs/design/Store.md#8-조회-보조
 """
 
 import os
@@ -274,6 +275,17 @@ class EventStore:
         with self._lock:
             row = self._connection.execute("SELECT received_at FROM raw_events ORDER BY id LIMIT 1").fetchone()
         return datetime.fromisoformat(row[0]) if row else None
+
+    def session_ids(self) -> list[str]:
+        """Return the session ids that appear in raw events, in order of first appearance.
+
+        @doc: docs/design/Store.md#8-조회-보조
+        """
+        with self._lock:
+            rows = self._connection.execute(
+                "SELECT session_id FROM raw_events WHERE session_id IS NOT NULL GROUP BY session_id ORDER BY MIN(id)"
+            ).fetchall()
+        return [row[0] for row in rows]
 
     def events(self, session_id: str | None = None, after_id: int = 0) -> list[RawEvent]:
         """Return events with id greater than after_id in id order, optionally for one session.
