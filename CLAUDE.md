@@ -8,7 +8,7 @@
 2. 문서를 작성·수정할 때는 [문서 작업 규칙](docs/DocumentationRule.md)을 따른다.
 3. 코드를 작성·수정할 때는 [코드 작업 규칙](docs/CodeRule.md)을 따른다.
 4. 모든 작업은 [로드맵](docs/Roadmap.md)의 태스크(`M<n>-T<m>`) 또는 [이슈](docs/Issue.md)(`I<n>`, `H<n>`)의 ID로 시작하고 끝낸다. 시작·진행·완료 처리는 [작업 관리 규칙](docs/TaskRule.md)을 따른다. 사용자가 계획과 별도로 무언가를 지시하면 이슈로 등록한다.
-5. 커밋은 [커밋 규칙](docs/CommitRule.md)에 따라 작업 ID로 한다. 저장소를 새로 받으면 `git config core.hooksPath .githooks`로 커밋 메시지 검사 hook을 켠다.
+5. 작업마다 작업 브랜치를 만들고, 커밋은 [커밋 규칙](docs/CommitRule.md)에 따라 작업 ID로 하며 바로 push한다. `main`에는 [PR 규칙](docs/PullRequestRule.md)에 따라 PR로만 합친다. 저장소를 새로 받으면 `git config core.hooksPath .githooks`로 커밋 메시지 검사 hook을 켠다.
 
 ## 핵심 원칙
 

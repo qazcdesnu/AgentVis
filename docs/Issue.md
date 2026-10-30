@@ -75,3 +75,6 @@
 - [x] I19 GitHub 원격 저장소(`qazcdesnu/AgentVis`)에 올리기 (사용자 지시)
   - 등록일: 2026-10-31
   - 내용: 사용자가 만든 GitHub 저장소 `git@github-qazcdesnu:qazcdesnu/AgentVis.git`를 원격 `origin`으로 추가하고 지금까지의 커밋을 올린다.
+- [x] I20 PR 규칙과 커밋 후 push 규칙 추가 (사용자 지시)
+  - 등록일: 2026-10-31
+  - 내용: GitHub 저장소를 쓰게 되었으므로, 일반적인 방식대로 작업마다 브랜치를 만들어 PR로 `main`에 합치는 규칙, PR 제목·본문 형식, 병합 방식, CI 검증을 정한다. 커밋하면 바로 원격에 push한다.

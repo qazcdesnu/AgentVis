@@ -25,6 +25,8 @@
 | `src/` | 제품 코드. 패키지 구성과 기술 스택은 [시스템 구조](Architecture.md#7-코드-구성)를 따른다. |
 | `tools/` | 개발용 도구(검증 스크립트 등). [검증 도구](VerificationTools.md)에 규정된다. |
 | `tests/` | 자동 테스트. |
+| `.githooks/` | git hook. 커밋 메시지 검사([커밋 규칙](CommitRule.md#5-강제)). |
+| `.github/` | PR 템플릿과 CI([PR 규칙](PullRequestRule.md)). |
 | `pyproject.toml`, `.python-version`, `uv.lock` | uv 프로젝트 설정. [3. 언어와 스타일](#3-언어와-스타일)을 따른다. |
 
 새로운 최상위 디렉터리가 필요하면 이 표를 먼저 수정한다.

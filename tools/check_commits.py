@@ -17,6 +17,7 @@ SUBJECT_MAX_LENGTH = 72
 
 _ID = r"M\d+-T\d+|[IH]\d+"
 _SUBJECT_RE = re.compile(rf"^((?:{_ID})(?:, (?:{_ID}))*): (\S.*)$")
+_BRANCH_RE = re.compile(r"^(m\d+-t\d+|[ih]\d+)((?:-[a-z0-9]+)+)$")
 # Field and record separators that cannot appear in commit messages.
 _FIELD_SEP, _RECORD_SEP = "\x1f", "\x1e"
 
@@ -79,6 +80,20 @@ def check_message(message: str, statuses: dict[str, str], require_started: bool)
     return problems
 
 
+def check_branch(name: str, statuses: dict[str, str]) -> list[str]:
+    """Return the convention violations of a work branch name.
+
+    @doc: docs/VerificationTools.md#7-커밋-검사기
+    """
+    match = _BRANCH_RE.match(name)
+    if not match:
+        return [f"브랜치 이름 형식 오류: '<작업 ID 소문자>-<설명>'이어야 함: {name}"]
+    work_id = match.group(1).upper()
+    if work_id not in statuses:
+        return [f"로드맵·이슈에 없는 작업 ID의 브랜치: {work_id}"]
+    return []
+
+
 def commit_messages(root: Path, revision_range: str) -> list[tuple[str, str]]:
     """Return (short hash, message) of the non-merge commits in a revision range.
 
@@ -107,11 +122,21 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--root", type=Path, default=REPO_ROOT)
     parser.add_argument("--message-file", type=Path)
+    parser.add_argument("--subject")
+    parser.add_argument("--branch")
     args = parser.parse_args(argv)
     root = args.root.resolve()
     statuses = work_statuses(root)
     problems = []
-    if args.message_file is not None:
+    if args.subject is not None or args.branch is not None:
+        texts = []
+        if args.subject is not None:
+            texts += [f"PR 제목: {text}" for text in check_message(args.subject, statuses, True)]
+        if args.branch is not None:
+            texts += check_branch(args.branch, statuses)
+        problems = [Problem(Path("PR"), 1, text) for text in texts]
+        checked = 1
+    elif args.message_file is not None:
         message = args.message_file.read_text(encoding="utf-8")
         problems = [Problem(args.message_file, 1, text) for text in check_message(message, statuses, True)]
         checked = 1

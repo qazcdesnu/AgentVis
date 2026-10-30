@@ -1,0 +1,32 @@
+# Runs every verification command from docs/VerificationTools.md (section 8).
+name: verify
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v6
+      - name: 문서 링크·고아 문서
+        run: uv run python -m tools.check_docs
+      - name: 문서 ↔ 코드 포인터
+        run: uv run python -m tools.check_pointers
+      - name: 작업 관리 문서 정합성
+        run: uv run python -m tools.check_tasks
+      - name: 커밋 메시지 이력
+        run: uv run python -m tools.check_commits
+      - name: PR 제목과 브랜치 이름
+        if: github.event_name == 'pull_request'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          BRANCH: ${{ github.head_ref }}
+        run: uv run python -m tools.check_commits --subject "$PR_TITLE" --branch "$BRANCH"
+      - name: 테스트
+        run: uv run python -m unittest discover -s tests -t .
