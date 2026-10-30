@@ -28,7 +28,7 @@ AgentVis가 무엇을 만드는지 이해할 때 읽는다. 제품 기능에 관
 | [완료](Done.md) | 끝난 작업의 상세 기록 |
 | [이슈](Issue.md) | 작업 중 발생한 문제, 계획과 별도의 사용자 요구사항 |
 | [커밋 규칙](CommitRule.md) | 작업 ID 기준 커밋 단위·시점·메시지 형식, `commit-msg` hook |
-| [PR 규칙](PullRequestRule.md) | 작업 브랜치, 커밋 후 push, PR 제목·본문, squash merge, CI |
+| [PR 규칙](PullRequestRule.md) | 쌓는 작업 브랜치, 커밋 후 push, PR 제목·본문, 번호 순서 merge commit, CI |
 
 ### 상세 설계
 
