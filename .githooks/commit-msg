@@ -1,0 +1,4 @@
+#!/bin/sh
+# Enforces docs/CommitRule.md on every commit.
+cd "$(git rev-parse --show-toplevel)" || exit 1
+exec uv run --quiet python -m tools.check_commits --message-file "$1"

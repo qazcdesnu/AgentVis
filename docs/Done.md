@@ -2,6 +2,70 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## I7 작업 ID 기준 커밋 컨벤션과 커밋 메시지 검사기
+
+- 시작일: 2026-10-31
+- 완료일: 2026-10-31
+- 근거 문서: 사용자 지시, [작업 관리 규칙](TaskRule.md), [문서 작업 규칙](DocumentationRule.md#1-문서-우선-원칙)
+
+### 계획
+- 커밋 컨벤션 문서(`docs/CommitRule.md`)를 만든다: 메시지 형식, 커밋 단위와 시점, 예외, 강제 장치.
+- [검증 도구](VerificationTools.md)에 커밋 검사기 명세를 쓰고 `tools/check_commits.py`와 테스트를 구현한다.
+- git `commit-msg` hook(`.githooks/commit-msg`)으로 커밋 시점에 검사기를 실행한다.
+- 작업 관리 규칙의 완료 절차, 검증 명령 목록, 인덱스에 반영한다.
+
+### 진행 기록
+- 2026-10-31: I7을 등록하고 시작했다.
+- 2026-10-31: [커밋 규칙](CommitRule.md)을 먼저 쓰고, [검증 도구](VerificationTools.md#7-커밋-검사기)에 명세를 쓴 뒤 포인터 검사기가 미구현 9건을 보고하는 것을 확인하고 구현했다.
+- 2026-10-31: `.githooks/commit-msg`를 만들고 `git config core.hooksPath .githooks`(저장소 로컬 설정)로 켰다. hook 스크립트를 직접 실행해, 범위 표기 메시지는 막고 정상 메시지는 통과시키는 것을 확인했다.
+
+### 결정 사항
+- 제목 줄은 `<작업 ID>[, <작업 ID>…]: <요약>`이다. 작업 종류는 ID 접두어(M-T, I, H)가 이미 나타내므로 `feat:`·`fix:` 같은 유형 접두어는 두지 않는다.
+- 기존 첫 커밋 `2a80e26`은 이 형식에 맞지 않지만 이력을 고쳐 쓰지 않고 기준 커밋으로 삼아 검사에서 제외한다.
+- 이력 검사는 ID 존재만, 커밋 시점 검사는 시작 여부(`[~]`, `[x]`)까지 확인한다. 지금 문서의 상태가 과거 커밋 당시의 상태와 다를 수 있기 때문이다.
+- ProjInit 로드맵의 `M0-T6`(커밋 메시지와 작업 ID 연결 규칙)과 같은 내용이다. I5에서 정한 대로 두 저장소의 규칙이 갈라지지 않도록 ProjInit에 알릴 필요가 있다.
+
+### 변경 파일
+- 신규: `docs/CommitRule.md`, `tools/check_commits.py`, `tests/test_check_commits.py`, `.githooks/commit-msg`
+- 수정: `docs/VerificationTools.md`, `docs/TaskRule.md`, `docs/CodeRule.md`, `docs/index.md`, `CLAUDE.md`, `docs/Issue.md`, `docs/Ongoing.md`, `docs/Done.md`
+- git 로컬 설정: `core.hooksPath=.githooks`
+
+### 결과
+- 모든 커밋이 작업 ID로 시작하고, 형식에 맞지 않거나 없는·시작하지 않은 작업 ID의 커밋은 커밋 시점에 막힌다.
+- 기준 커밋 이후 이력 전체를 명령 하나로 검사할 수 있다.
+
+### 검증
+- `uv run python -m tools.check_docs`, `check_pointers`, `check_tasks`, `check_commits`: 통과
+- `uv run python -m unittest discover -s tests -t .`: 34개 통과
+
+## I2 hooks 실측 중 생긴 임시 세션 기록 정리 여부 결정
+
+- 시작일: 2026-10-31
+- 완료일: 2026-10-31
+- 근거 문서: 사용자 지시
+
+### 계획
+- 실측 세션 기록이 더 필요한지 확인하고, 필요 없으면 지운다.
+
+### 진행 기록
+- 2026-10-31: 사용자가 "필요 없으면 지워"라고 지시했다. 실측 결과는 [데이터 소스](DataSource.md#2-hook-이벤트)와 M0-T4 완료 기록에 이미 남아 있어 원본 기록은 필요 없다고 판단했다.
+- 2026-10-31: `~/.claude/projects/` 아래 실측용 프로젝트 디렉터리(`-private-tmp-claude-501--…-scratchpad-hookprobe-proj`)를 지웠다. 지우기 전에 내용이 실측 세션 2개(`08b5b271…`, `dc739b66…`, 작업 디렉터리는 임시 `hookprobe/proj`)와 빈 `memory/`뿐임을 확인했다.
+- 2026-10-31: 실측에 쓴 임시 작업 공간의 파일(hook 설정, 이벤트 덤프, 수집 서버 스크립트)도 함께 지웠다.
+
+### 결정 사항
+- 실측 결과는 [데이터 소스](DataSource.md#2-hook-이벤트)와 M0-T4 완료 기록에 문서로 남아 있으므로 원본은 보존하지 않는다.
+
+### 변경 파일
+- 수정: `docs/Issue.md`, `docs/Ongoing.md`, `docs/Done.md`
+- 삭제(저장소 밖): `~/.claude/projects/-private-tmp-claude-501--…-scratchpad-hookprobe-proj/`
+
+### 결과
+- M2-T5(지난 세션 가져오기)에서 실측용 세션이 섞이지 않는다.
+
+### 검증
+- 삭제 후 `~/.claude/projects/`에 실측용 디렉터리가 없음을 확인했다.
+- `uv run python -m tools.check_docs`, `check_pointers`, `check_tasks`: 통과
+
 ## I5 공통 규칙 체계를 ProjInit 저장소로 분리하고 두 저장소를 git으로 관리
 
 - 시작일: 2026-10-31

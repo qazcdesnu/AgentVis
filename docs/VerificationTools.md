@@ -1,6 +1,6 @@
 # 검증 도구
 
-이 문서는 문서와 코드의 규칙 준수를 자동으로 검증하는 도구를 규정한다. 도구는 `tools/` 패키지에 있으며 [코드 작업 규칙](CodeRule.md)에 따라 표준 라이브러리만 사용한다. 검증하는 규칙은 [문서 작업 규칙](DocumentationRule.md), [포인터 규약](Traceability.md), [작업 관리 규칙](TaskRule.md)이다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
+이 문서는 문서와 코드의 규칙 준수를 자동으로 검증하는 도구를 규정한다. 도구는 `tools/` 패키지에 있으며 [코드 작업 규칙](CodeRule.md)에 따라 표준 라이브러리만 사용한다. 검증하는 규칙은 [문서 작업 규칙](DocumentationRule.md), [포인터 규약](Traceability.md), [작업 관리 규칙](TaskRule.md), [커밋 규칙](CommitRule.md)이다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
 ## 1. 실행 방법
 
@@ -10,6 +10,7 @@
 uv run python -m tools.check_docs        # 문서 링크와 고아 문서 검사
 uv run python -m tools.check_pointers    # 문서 ↔ 코드 포인터 검사
 uv run python -m tools.check_tasks       # 작업 ID 기준 작업 관리 문서 정합성 검사
+uv run python -m tools.check_commits     # 기준 커밋 이후 커밋 메시지 검사
 uv run python -m unittest discover -s tests -t .   # 도구 자체의 테스트
 ```
 
@@ -95,6 +96,7 @@ uv run python -m unittest discover -s tests -t .   # 도구 자체의 테스트
 - [tests/test_check_docs.py](../tests/test_check_docs.py): 깨진 링크, 없는 앵커, 고아 문서, 진입 문서 누락, 정상 저장소.
 - [tests/test_check_pointers.py](../tests/test_check_pointers.py): 정상 양방향 포인터, 없는 심볼, 줄 번호 포인터, 주석 포인터, 소속 없는 주석 포인터, 커버리지 누락, 역방향 포인터 누락.
 - [tests/test_check_tasks.py](../tests/test_check_tasks.py): 정상 저장소, 형식 오류, 번호 누락, 상태와 기록의 불일치, 연결 작업, 기록 필드·절 누락, 완료 순서, `없음` 규칙, 알 수 없는 ID 참조(한글 조사가 붙은 ID 포함).
+- [tests/test_check_commits.py](../tests/test_check_commits.py): 정상 메시지(여러 ID, 트레일러, 주석 줄), 제목 형식·길이·마침표·빈 줄 오류, 없는 ID, 시작하지 않은 ID, 임시 git 저장소의 이력 검사와 기준 커밋·병합 커밋 제외.
 
 ## 6. 작업 관리 검사기
 
@@ -127,3 +129,30 @@ uv run python -m unittest discover -s tests -t .   # 도구 자체의 테스트
 - [check_records](../tools/check_tasks.py#check_records): 기록의 필수 필드·절, 날짜 형식, 완료 기록의 순서(`완료일`이 늦은 것부터), 진행 중 문서의 `없음` 규칙을 검사한다.
 - [check_references](../tools/check_tasks.py#check_references): 작업 관리 문서 네 개의 본문(코드 블록·인라인 코드 제외)에 나온 작업 ID가 모두 존재하는지 검사한다. ID 앞뒤가 영문자·숫자·`-`가 아니면 ID로 인식하므로 `M0-T6으로`처럼 한글 조사가 붙어도 찾는다.
 - [main](../tools/check_tasks.py#main): 네 문서를 읽어 위 검사를 실행하고 결과를 [1. 실행 방법](#1-실행-방법)의 형식으로 출력한다. 문서가 없으면 그 자체를 문제로 보고한다.
+
+## 7. 커밋 검사기
+
+[tools/check_commits.py](../tools/check_commits.py)는 [커밋 규칙](CommitRule.md)의 메시지 형식을 검증한다. 두 가지 방식으로 실행한다.
+
+| 방식 | 명령 | 검사 대상 | 작업 상태 확인 |
+| --- | --- | --- | --- |
+| 이력 검사 | `uv run python -m tools.check_commits` | `BASELINE_COMMIT` 이후의 병합이 아닌 모든 커밋 | ID 존재만 확인 |
+| 커밋 시점 검사 | `uv run python -m tools.check_commits --message-file <파일>` | 작성 중인 커밋 메시지 하나 | ID가 `[~]` 또는 `[x]`인지까지 확인 |
+
+커밋 시점 검사는 `.githooks/commit-msg`가 호출한다. 이력 검사에서 작업 상태를 확인하지 않는 이유는, 지금 문서의 상태가 그 커밋 당시의 상태와 다를 수 있기 때문이다. 작업 ID는 지워지지 않으므로 존재 여부는 지금 문서로 확인할 수 있다.
+
+**상수**
+
+- [BASELINE_COMMIT](../tools/check_commits.py#BASELINE_COMMIT): `2a80e26`. 이 커밋과 그 이전 커밋은 검사하지 않는다([커밋 규칙의 예외](CommitRule.md#4-예외)).
+- [SUBJECT_MAX_LENGTH](../tools/check_commits.py#SUBJECT_MAX_LENGTH): `72`
+
+**함수**
+
+- [work_statuses](../tools/check_commits.py#work_statuses): [로드맵](Roadmap.md)과 [이슈](Issue.md)를 [작업 관리 검사기](#6-작업-관리-검사기)의 해석 함수로 읽어 작업 ID → 상태 문자 사전을 만든다.
+- [parse_subject](../tools/check_commits.py#parse_subject): 제목 줄을 (작업 ID 목록, 요약)으로 나눈다. 형식에 맞지 않으면 `None`.
+- [check_message](../tools/check_commits.py#check_message): 메시지 하나를 검사해 문제 문장 목록을 돌려준다.
+  - `#`으로 시작하는 줄(git 주석)은 지우고 검사한다.
+  - 빈 메시지, 제목 형식 오류, 제목 길이 초과, 마침표로 끝나는 요약, 제목 다음 줄이 비어 있지 않음, 제목 안의 중복 ID, 로드맵·이슈에 없는 ID를 보고한다.
+  - 시작 여부 확인을 켜면 상태가 `[ ]`인 ID도 보고한다.
+- [commit_messages](../tools/check_commits.py#commit_messages): `git log --no-merges`로 주어진 범위의 (짧은 해시, 메시지) 목록을 읽는다. git 명령이 실패하면 예외를 낸다.
+- [main](../tools/check_commits.py#main): `--message-file`이 있으면 커밋 시점 검사를, 없으면 `BASELINE_COMMIT..HEAD` 이력 검사를 한다. 결과를 [1. 실행 방법](#1-실행-방법)의 형식으로 출력하며, 커밋 문제의 위치는 `commit <짧은 해시>:1`로 표시한다. 기준 커밋이 저장소에 없는 등 git 오류가 나면 그 자체를 문제로 보고한다.
