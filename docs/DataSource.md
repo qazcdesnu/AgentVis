@@ -57,18 +57,28 @@ Claude Code는 작업 중 정해진 시점에 hook을 실행하고, 이벤트 �
 - `SessionStart`는 `http` hook을 지원하지 않으므로(공식 문서: "Only `type: "command"` and `type: "mcp_tool"` hooks are supported") 사용하지 않는다. M1-T6에서 `http` hook으로 세 세션을 실행해 한 번도 오지 않음을 확인했다. M0-T4에서는 command hook으로 받았다(`source`: `startup`, `resume`, `clear`, `compact`, `fork`).
 - `PostToolBatch`(위 도구 이벤트와 중복)와 `MessageDisplay`(화면 표시용 스트리밍 조각)는 사용하지 않는다.
 
-### 2.4 hook으로 얻을 수 없는 정보
+### 2.4 실측 방법
+
+hook이나 세션 기록을 확인하려고 `claude -p`로 시험 세션을 실행할 때는 사용자 설정을 빼고, 시험용 설정만 쓴다.
+
+```sh
+claude -p --setting-sources project,local --settings <임시 설정 파일> …
+```
+
+AgentVis hook은 사용자 설정(`~/.claude/settings.json`)에 설치되어 있어서, 사용자 설정을 빼지 않으면 시험 세션의 이벤트가 실제 이벤트 저장소에도 들어간다(I23: H2 실측 세션의 이벤트 5개가 섞였다). 시험이 끝나면 `~/.claude/projects/` 아래 시험 세션 기록과 임시 작업 공간을 지운다. 섞여 들어간 원시 이벤트는 [원시 이벤트는 변경하지 않는다](Architecture.md#2-설계-원칙)는 원칙에 따라 지우지 않는다.
+
+### 2.5 hook으로 얻을 수 없는 정보
 
 | 정보 | 상태 | 보완 방법 |
 | --- | --- | --- |
 | 세션 시작과 시작 종류(`SessionStart`) | `http` hook 미지원 | 시작 시각은 세션의 첫 이벤트로, 시작 종류(재개, 압축 후 등)는 세션 기록으로 판정 |
 | 모델의 사고 과정(thinking)과 중간 응답 텍스트 | 이벤트 없음 | 세션 기록의 `assistant` 기록 |
 | 작업 도중 들어온 사용자 메시지 | 이벤트로 문서화되어 있지 않음 | 세션 기록의 `queue-operation` |
-| auto 모드가 아닐 때 사용자의 권한 거부 | 거부 이벤트 없음 | 아래 [실측으로 확인한 동작](#25-실측으로-확인한-동작)의 "완료 이벤트 없는 `PreToolUse`", 세션 기록의 `permissionDecision`과 도구 결과 |
+| auto 모드가 아닐 때 사용자의 권한 거부 | 거부 이벤트 없음 | 아래 [실측으로 확인한 동작](#26-실측으로-확인한-동작)의 "완료 이벤트 없는 `PreToolUse`", 세션 기록의 `permissionDecision`과 도구 결과 |
 | 텍스트 생성 중 사용자 중단(Esc) | 이벤트 없음 (도구 실행 중 중단만 `is_interrupt`로 옴) | 세션 기록 |
 | AgentVis 서버가 꺼져 있던 동안의 이벤트 | 유실 | 세션 기록 |
 
-### 2.5 실측으로 확인한 동작
+### 2.6 실측으로 확인한 동작
 
 M1-T6에서 확인한, 분석에 영향을 주는 동작이다.
 
