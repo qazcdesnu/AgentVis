@@ -12,7 +12,7 @@
 
 ## 2. 프로젝트
 
-- 세션의 **프로젝트 경로**는 그 세션의 세션 기록 중 서브에이전트 기록이 아닌 첫 기록의 `cwd`다([데이터 소스의 실측 동작](../DataSource.md#25-실측으로-확인한-동작)). 세션 기록이 아직 없으면 그 세션의 첫 hook 이벤트 `cwd`를 쓰고, 추정했다는 표시(`project_from_hook`)를 단다.
+- 세션의 **프로젝트 경로**는 그 세션의 세션 기록 중 서브에이전트 기록이 아닌 첫 기록의 `cwd`다([데이터 소스의 실측 동작](../DataSource.md#26-실측으로-확인한-동작)). 세션 기록이 아직 없으면 그 세션의 첫 hook 이벤트 `cwd`를 쓰고, 추정했다는 표시(`project_from_hook`)를 단다.
 - 프로젝트는 같은 프로젝트 경로를 가진 세션들의 묶음이다.
 
 | 필드 | 값 |
@@ -99,7 +99,7 @@
 | `error` | 도구 결과의 `is_error`가 참, 또는 `PostToolUseFailure`(중단 아님) |
 | `interrupted` | `PostToolUseFailure.is_interrupt`가 참, `toolUseResult.interrupted`가 참, 또는 결과에 `[Request interrupted by user` 문구 |
 | `running` | 결과가 없고 턴이 아직 `running` |
-| `unfinished` | 결과가 없는데 턴이 끝남. 권한 거부나 중단의 후보다([실측 동작](../DataSource.md#25-실측으로-확인한-동작)). |
+| `unfinished` | 결과가 없는데 턴이 끝남. 권한 거부나 중단의 후보다([실측 동작](../DataSource.md#26-실측으로-확인한-동작)). |
 
 세션 기록은 실행 중인 도구 호출 하나만큼 늦으므로([두 소스 비교](../DataSource.md#4-두-소스-비교)), 지금 실행 중인 도구는 `PreToolUse` hook만으로 `running` 단계로 나타난다.
 

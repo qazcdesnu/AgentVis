@@ -2,6 +2,31 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## I23 실측용 `claude -p` 세션이 실제 이벤트 저장소에 섞임
+
+- 시작일: 2026-10-31
+- 완료일: 2026-10-31
+- 근거 문서: [데이터 소스의 실측 방법](DataSource.md#24-실측-방법)
+
+### 계획
+- 실측 세션이 실제 수집에 섞이지 않는 실행 방법을 정하고 문서에 적는다.
+
+### 진행 기록
+- 2026-10-31: M3-T4 미리보기에서 `scratchpad/h2/proj` 세션을 발견했다. H2 실측에서 `--settings`로 임시 설정을 더했지만 사용자 설정의 실제 hook도 함께 동작한 것이다. 실제 이벤트 저장소에서 `/private/tmp/` 작업 경로의 세션은 이것 하나(이벤트 5개)였다. M1-T6 실측은 실제 hook 설치(M1-T7) 전이라 영향이 없었다.
+- 2026-10-31: `claude --help`에서 `--setting-sources <sources>`(user, project, local 중 불러올 것)를 확인하고, 실측은 `--setting-sources project,local --settings <임시 설정>`으로 하도록 [데이터 소스](DataSource.md#24-실측-방법)에 적었다. 절 번호가 밀려 2.5·2.6절을 가리키는 링크를 고쳤다.
+
+### 결정 사항
+- 섞여 들어간 이벤트 5개는 지우지 않는다. 원시 이벤트는 변경하지 않는다는 원칙이 있고, 실제로 일어난 세션이며 다른 프로젝트로 분리되어 분석에 영향이 없다.
+
+### 변경 파일
+- 수정: `docs/DataSource.md`(절 추가와 번호 변경), 그 절을 가리키던 문서들, `docs/Issue.md`, `docs/Done.md`
+
+### 결과
+- 이후 실측 세션은 실제 이벤트 저장소에 섞이지 않는다.
+
+### 검증
+- `uv run python -m tools.check_docs`, `check_pointers`, `check_tasks`: 통과
+
 ## M3-T4 조회 API (`/api/sessions`, `/api/sessions/{id}`)
 
 - 시작일: 2026-10-31
@@ -413,7 +438,7 @@
 - 2026-10-31: 로드맵을 `[~]`로 바꾸고 시작했다.
 - 2026-10-31: 설치 전 `~/.claude/settings.json`은 `{"theme": "dark"}`였고 `~/.agentvis`는 없었다. `agentvis serve`를 백그라운드로 띄운 뒤 `agentvis hooks install`을 실행했다. 14개 이벤트가 추가되고 `theme`은 그대로였으며, 백업(`~/.agentvis/backups/settings-20261030T173631155420Z.json`)이 원래 내용과 같았다.
 - 2026-10-31: Claude Code가 바뀐 설정을 실행 중인 세션에 바로 적용해, 설치 직후부터 이벤트가 쌓였다. 이 세션(AgentVis)뿐 아니라 동시에 실행 중이던 ProjInit 세션과 RecommandShopping 세션의 이벤트도 들어와, 세 프로젝트의 18개 이벤트가 `cwd`로 구분되어 저장되었다.
-- 2026-10-31: RecommandShopping 세션의 이벤트 `cwd`가 프로젝트 폴더가 아니라 하위 폴더(`…/backend`)였다. 세션 기록의 시작 경로는 `…/RecommandShopping`이므로, 프로젝트 판정 기준을 "세션의 첫 `cwd`"에서 "세션 기록의 첫 `cwd`"로 [데이터 소스](DataSource.md#25-실측으로-확인한-동작), [시스템 구조](Architecture.md#42-파생-모델), [이벤트 저장소 설계](design/Store.md#3-자료형), [로드맵](Roadmap.md)(M3-T5)에서 바로잡았다.
+- 2026-10-31: RecommandShopping 세션의 이벤트 `cwd`가 프로젝트 폴더가 아니라 하위 폴더(`…/backend`)였다. 세션 기록의 시작 경로는 `…/RecommandShopping`이므로, 프로젝트 판정 기준을 "세션의 첫 `cwd`"에서 "세션 기록의 첫 `cwd`"로 [데이터 소스](DataSource.md#26-실측으로-확인한-동작), [시스템 구조](Architecture.md#42-파생-모델), [이벤트 저장소 설계](design/Store.md#3-자료형), [로드맵](Roadmap.md)(M3-T5)에서 바로잡았다.
 
 ### 결정 사항
 - 실제 설정에 설치한 hook은 그대로 둔다. 서버가 꺼져 있어도 Claude Code 작업은 막히지 않으며(M0-T4 실측), 이후 작업(M2 이후)에서 실제 데이터를 계속 쌓기 위해서다. 되돌리려면 `uv run agentvis hooks uninstall`을 실행한다.
@@ -448,7 +473,7 @@
 - 2026-10-31: 임시 `AGENTVIS_HOME`으로 `agentvis serve --port 8797`을 띄우고, 임시 설정 파일에 `agentvis hooks install --settings`로 hook을 설치한 뒤 `claude -p`(Claude Code 2.1.314)를 세 번 실행했다. 서브에이전트 실행과 허용하지 않은 Write 시도, 같은 세션의 `/compact`, 존재하지 않는 모델 지정이었다. 수집기·이벤트 저장소·설치 명령을 실제 Claude Code와 함께 처음 시험한 것이기도 하다. 이벤트 18개가 저장되었다.
 - 2026-10-31: `PermissionRequest`, `SubagentStart`/`SubagentStop`, `StopFailure`, `PreCompact`/`PostCompact`를 실측으로 확인했다. `PermissionDenied`는 위험한 명령을 일부러 시켜야 해서, `Notification`은 비대화 모드에서 일으킬 수 없어서 "미확인"으로 남겼다.
 - 2026-10-31: `SessionStart`가 `http` hook으로 한 번도 오지 않았다. 공식 hooks 문서에서 `SessionStart`는 `command`, `mcp_tool` hook만 지원한다는 문장을 확인했다. M1-T5의 `HOOK_EVENTS`가 지원하지 않는 이벤트를 등록하고 있었으므로, 문서를 먼저 고친 뒤 `HOOK_EVENTS`에서 빼고 테스트를 맞췄다(15개 → 14개).
-- 2026-10-31: 분석에 영향을 주는 동작을 [실측으로 확인한 동작](DataSource.md#25-실측으로-확인한-동작)에 정리했다. 권한이 없어 막힌 도구는 완료 이벤트가 없다는 점, 서브에이전트 이벤트의 `agent_id`, `/compact` 요약 서브에이전트의 `SubagentStop`이 대상이다. 서브에이전트 기록 파일의 위치와 메타 파일 구조도 [세션 기록 위치](DataSource.md#31-위치)에 적었다.
+- 2026-10-31: 분석에 영향을 주는 동작을 [실측으로 확인한 동작](DataSource.md#26-실측으로-확인한-동작)에 정리했다. 권한이 없어 막힌 도구는 완료 이벤트가 없다는 점, 서브에이전트 이벤트의 `agent_id`, `/compact` 요약 서브에이전트의 `SubagentStop`이 대상이다. 서브에이전트 기록 파일의 위치와 메타 파일 구조도 [세션 기록 위치](DataSource.md#31-위치)에 적었다.
 - 2026-10-31: 실측 세션 기록(`~/.claude/projects/…-scratchpad-m1t6-proj/`, 세션 2개와 서브에이전트 기록)과 임시 작업 공간을 지웠다. 지우기 전에 작업 경로가 모두 실측용 임시 폴더임을 확인했다. 실제 `~/.claude/settings.json`은 바뀌지 않았다.
 
 ### 결정 사항
