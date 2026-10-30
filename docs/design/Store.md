@@ -55,7 +55,7 @@ CREATE INDEX raw_events_cwd ON raw_events (cwd);
 | `session_id` | `str \| None` | |
 | `prompt_id` | `str \| None` | |
 | `tool_use_id` | `str \| None` | |
-| `cwd` | `str \| None` | 프로젝트 판정은 M3 분석기가 세션의 첫 `cwd`로 한다. |
+| `cwd` | `str \| None` | 이벤트에 적힌 그대로다. 프로젝트 판정은 M3 분석기가 세션 기록의 첫 `cwd`로 한다. |
 | `occurred_at` | `datetime` | 시간대 정보 필수 |
 | `payload` | `str` | JSON 원문 |
 | `dedup_key` | `str \| None` | 기본값 `None` |

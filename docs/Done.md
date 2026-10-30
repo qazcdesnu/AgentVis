@@ -2,6 +2,39 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## M1-T7 실제 Claude Code 세션으로 M1 완료 기준 확인
+
+- 시작일: 2026-10-31
+- 완료일: 2026-10-31
+- 근거 문서: [시스템 구조](Architecture.md#8-구현-순서), [CLI 설계](design/Cli.md#34-hooks-명령)
+
+### 계획
+- 사용자 승인에 따라 실제 `~/.claude/settings.json`에 `agentvis hooks install`로 hook을 설치한다.
+- `agentvis serve`를 띄우고, 실제 Claude Code 세션(이 세션)의 작업 이벤트가 `~/.agentvis/agentvis.db`에 쌓이는지 확인한다.
+- M1 완료 기준: "실제 Claude Code 세션의 hook 이벤트가 이벤트 저장소에 쌓인다."
+
+### 진행 기록
+- 2026-10-31: 로드맵을 `[~]`로 바꾸고 시작했다.
+- 2026-10-31: 설치 전 `~/.claude/settings.json`은 `{"theme": "dark"}`였고 `~/.agentvis`는 없었다. `agentvis serve`를 백그라운드로 띄운 뒤 `agentvis hooks install`을 실행했다. 14개 이벤트가 추가되고 `theme`은 그대로였으며, 백업(`~/.agentvis/backups/settings-20261030T173631155420Z.json`)이 원래 내용과 같았다.
+- 2026-10-31: Claude Code가 바뀐 설정을 실행 중인 세션에 바로 적용해, 설치 직후부터 이벤트가 쌓였다. 이 세션(AgentVis)뿐 아니라 동시에 실행 중이던 ProjInit 세션과 RecommandShopping 세션의 이벤트도 들어와, 세 프로젝트의 18개 이벤트가 `cwd`로 구분되어 저장되었다.
+- 2026-10-31: RecommandShopping 세션의 이벤트 `cwd`가 프로젝트 폴더가 아니라 하위 폴더(`…/backend`)였다. 세션 기록의 시작 경로는 `…/RecommandShopping`이므로, 프로젝트 판정 기준을 "세션의 첫 `cwd`"에서 "세션 기록의 첫 `cwd`"로 [데이터 소스](DataSource.md#25-실측으로-확인한-동작), [시스템 구조](Architecture.md#42-파생-모델), [이벤트 저장소 설계](design/Store.md#3-자료형), [로드맵](Roadmap.md)(M3-T5)에서 바로잡았다.
+
+### 결정 사항
+- 실제 설정에 설치한 hook은 그대로 둔다. 서버가 꺼져 있어도 Claude Code 작업은 막히지 않으며(M0-T4 실측), 이후 작업(M2 이후)에서 실제 데이터를 계속 쌓기 위해서다. 되돌리려면 `uv run agentvis hooks uninstall`을 실행한다.
+- 원시 이벤트에 `cwd`를 해석 없이 저장한 결정(I9)이 맞았다. 프로젝트 판정 기준을 바꿔도 이미 쌓인 데이터를 다시 수집할 필요가 없다.
+
+### 변경 파일
+- 수정: `docs/DataSource.md`, `docs/Architecture.md`, `docs/design/Store.md`, `docs/Roadmap.md`, `docs/Ongoing.md`, `docs/Done.md`
+- 저장소 밖: `~/.claude/settings.json`(AgentVis hook 14개 설치), `~/.agentvis/agentvis.db`, `~/.agentvis/backups/`
+
+### 결과
+- M1 완료 기준 "실제 Claude Code 세션의 hook 이벤트가 이벤트 저장소에 쌓인다"를 충족했다. 실행 중인 여러 프로젝트의 세션 이벤트가 실시간으로 저장된다.
+
+### 검증
+- `uv run python -m tools.check_docs`, `check_pointers`, `check_tasks`, `check_commits`: 통과
+- `uv run python -m unittest discover -s tests -t .`: 68개 통과
+- `~/.agentvis/agentvis.db`: 세 세션(AgentVis, ProjInit, RecommandShopping)의 `PreToolUse`·`PostToolUse` 이벤트 저장 확인
+
 ## M1-T6 "문서" 표기 hook 이벤트를 실측해 데이터 소스 문서 갱신
 
 - 시작일: 2026-10-31

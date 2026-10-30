@@ -71,6 +71,7 @@ M1-T6에서 확인한, 분석에 영향을 주는 동작이다.
 
 - **권한이 없어 막힌 도구 호출**: `PreToolUse` → `PermissionRequest` 다음에 `PostToolUse`도 `PostToolUseFailure`도 오지 않는다. 따라서 완료 이벤트가 없는 `PreToolUse`는 권한 거부나 중단의 후보다. `PermissionRequest`에는 `tool_use_id`가 없으므로 같은 턴의 직전 `PreToolUse`(같은 `tool_name`, `tool_input`)와 짝짓는다.
 - **서브에이전트 안의 이벤트**: 서브에이전트가 실행한 도구 이벤트에도 `agent_id`, `agent_type`이 붙는다. 서브에이전트를 띄운 도구(`Agent`) 호출은 `agent_id` 없이 `PreToolUse`·`PostToolUse`로 오고, 그 사이에 `SubagentStart`·서브에이전트의 이벤트·`SubagentStop`이 온다.
+- **이벤트의 `cwd`는 그 시점의 작업 위치다**: 프로젝트의 하위 폴더일 수 있다. M1-T7에서 `…/RecommandShopping`에서 시작한 세션의 이벤트가 `…/RecommandShopping/backend`를 `cwd`로 가지고 왔다. AgentVis를 설치하기 전에 시작된 세션은 받은 첫 이벤트부터 하위 폴더일 수 있으므로, 세션의 프로젝트 경로는 hook 이벤트가 아니라 `transcript_path`가 가리키는 세션 기록의 첫 `cwd`로 정한다.
 - **문맥 압축의 요약 서브에이전트**: `/compact`는 요약을 서브에이전트로 실행하며, `SubagentStart` 없이 `agent_type`이 빈 문자열인 `SubagentStop`만 `PreCompact`와 `PostCompact` 사이에 온다. 사용자 작업의 서브에이전트와 구분해야 한다.
 
 ## 3. 세션 기록 (JSONL)
@@ -115,4 +116,4 @@ M1-T6에서 확인한, 분석에 영향을 주는 동작이다.
 | `tool_result.is_error` | 내용 블록 | 도구 실패 여부 |
 | `toolUseResult` | `user` | 도구 실행 결과의 구조화된 상세 |
 | `permissionDecision` | `user` | 도구 실행에 대한 권한 판정 |
-| `cwd`, `gitBranch`, `version` | 대부분의 기록 | 작업 디렉터리(절대 경로), 브랜치, Claude Code 버전. 세션의 첫 `cwd`가 그 세션의 프로젝트 경로다. |
+| `cwd`, `gitBranch`, `version` | 대부분의 기록 | 작업 디렉터리(절대 경로), 브랜치, Claude Code 버전. 세션 기록의 첫 `cwd`가 그 세션의 프로젝트 경로다. |

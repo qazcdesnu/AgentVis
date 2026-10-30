@@ -19,7 +19,7 @@
 - [x] M1-T4 `agentvis serve` 명령 구현
 - [x] M1-T5 `agentvis hooks install` / `uninstall` 명령 구현
 - [x] M1-T6 "문서" 표기 hook 이벤트를 실측해 데이터 소스 문서 갱신
-- [ ] M1-T7 실제 Claude Code 세션으로 M1 완료 기준 확인
+- [x] M1-T7 실제 Claude Code 세션으로 M1 완료 기준 확인
 
 ## M2 세션 기록 보완
 
@@ -35,7 +35,7 @@
 - [ ] M3-T2 세션·턴·단계·도구 호출 구성
 - [ ] M3-T3 확정 신호 판정 (도구 실패, 권한 거부, 사용자 중단)
 - [ ] M3-T4 조회 API (`/api/sessions`, `/api/sessions/{id}`)
-- [ ] M3-T5 프로젝트 판정(세션의 첫 `cwd`)과 프로젝트 목록 API (`/api/projects`)
+- [ ] M3-T5 프로젝트 판정(세션 기록의 첫 `cwd`)과 프로젝트 목록 API (`/api/projects`)
 
 ## M4 실시간 웹 UI
 
