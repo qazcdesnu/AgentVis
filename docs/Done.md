@@ -2,6 +2,42 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## I20 PR 규칙과 커밋 후 push 규칙 추가
+
+- 시작일: 2026-10-31
+- 완료일: 2026-10-31
+- 근거 문서: 사용자 지시, [커밋 규칙](CommitRule.md), [작업 관리 규칙](TaskRule.md)
+
+### 계획
+- PR 규칙 문서(`docs/PullRequestRule.md`)에 브랜치 이름, PR 단위·시점, 제목·본문 형식, 병합 방식, CI, push 시점을 정한다.
+- PR 템플릿(`.github/pull_request_template.md`)과 CI(`.github/workflows/verify.yml`)를 만든다.
+- 커밋 검사기에 PR 제목·브랜치 이름 검사를 더한다(기계적으로 검사할 수 있는 규칙이므로).
+- 커밋 규칙, 작업 관리 규칙의 완료 절차, `CLAUDE.md`, 인덱스를 맞춘다.
+- 이 작업 자체를 첫 작업 브랜치(`i20-pr-rules`)와 첫 PR로 진행한다.
+
+### 진행 기록
+- 2026-10-31: `main`에서 `i20-pr-rules` 브랜치를 만들고 시작했다. 이 컴퓨터에 GitHub CLI(`gh`)가 없어 PR은 push 후 GitHub가 알려 주는 링크로 사용자가 연다.
+- 2026-10-31: 사용자 지시로 `brew install gh`로 GitHub CLI 2.103.3을 설치했다. 로그인(`gh auth login`)은 브라우저 인증이 필요해 사용자가 한다. PR 규칙의 PR 만들기를 `gh pr create`로 바꿨다.- 2026-10-31: [PR 규칙](PullRequestRule.md)을 작성했다. 브랜치 이름 `<작업 ID 소문자>-<설명>`, 커밋 후 바로 push, 작업 하나에 PR 하나, 커밋 제목과 같은 PR 제목, [PR 템플릿](../.github/pull_request_template.md), squash merge, 사용자가 병합, CI를 정했다.
+- 2026-10-31: 기계적으로 검사할 수 있는 PR 제목·브랜치 이름 규칙을 [커밋 검사기](VerificationTools.md#7-커밋-검사기)의 PR 검사(`--subject`, `--branch`, `check_branch`)로 만들고, 검증 명령 전체와 PR 검사를 실행하는 [CI](VerificationTools.md#8-ci)(`.github/workflows/verify.yml`)를 추가했다.
+- 2026-10-31: [커밋 규칙](CommitRule.md)(작업 브랜치에서 커밋 후 push, `main` 직접 커밋 금지, 검사기가 검증하는 범위), [작업 관리 규칙](TaskRule.md#4-작업-흐름)(시작 시 브랜치, 완료 시 커밋·push·PR), `CLAUDE.md`, 인덱스를 맞췄다. [코드 작업 규칙](CodeRule.md#2-디렉터리-구조)의 디렉터리 표에 `.github/`를 넣으면서 I14에서 지적된 `.githooks/` 누락도 함께 고쳤다.
+
+### 결정 사항
+- 병합은 squash merge로 해 `main`에 작업당 커밋 하나를 남긴다. GitHub가 붙이는 ` (#번호)`는 커밋 제목 형식에 맞고 길이에만 영향을 준다.
+- `main` 보호 규칙(PR 필수, CI 통과 필수)은 GitHub 저장소 설정이라 사용자가 한다.
+- 커밋 규칙의 "사용자가 요청할 때 커밋"을 "작업 브랜치에서 커밋 후 push, `main` 반영은 사용자의 PR 병합"으로 바꿨다. 검토 시점이 커밋에서 PR 병합으로 옮겨 갔다.
+
+### 변경 파일
+- 신규: `docs/PullRequestRule.md`, `.github/pull_request_template.md`, `.github/workflows/verify.yml`
+- 수정: `tools/check_commits.py`, `tests/test_check_commits.py`, `docs/VerificationTools.md`, `docs/CommitRule.md`, `docs/TaskRule.md`, `docs/CodeRule.md`, `docs/index.md`, `CLAUDE.md`, `docs/Issue.md`, `docs/Ongoing.md`, `docs/Done.md`
+
+### 결과
+- 모든 변경이 작업 브랜치와 PR을 거쳐 `main`에 합쳐지고, PR마다 CI가 검증 전체와 PR 제목·브랜치 이름을 검사한다.
+
+### 검증
+- `uv run python -m tools.check_docs`, `check_pointers`, `check_tasks`, `check_commits`: 통과
+- `uv run python -m unittest discover -s tests -t .`: 통과
+- `check_commits --subject "I20: …" --branch i20-pr-rules` 통과, 잘못된 제목·브랜치는 문제 3건 보고
+
 ## M3-T1 분석기 상세 설계 (파생 모델 스키마, 재계산 방식)
 
 - 시작일: 2026-10-31

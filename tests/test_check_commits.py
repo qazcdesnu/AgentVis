@@ -11,7 +11,7 @@ from unittest import mock
 
 from tests.support import RepoTestCase
 from tools import check_commits
-from tools.check_commits import check_message, commit_messages, main, parse_subject
+from tools.check_commits import check_branch, check_message, commit_messages, main, parse_subject
 
 _STATUSES = {"M1-T1": "x", "M1-T2": "~", "M1-T3": " ", "I4": "x"}
 _ROADMAP = "# 로드맵\n\n## M0 기반\n\n- [x] M0-T1 시작\n- [~] M0-T2 진행\n- [ ] M0-T3 예정\n"
@@ -42,6 +42,18 @@ class CheckMessageTest(unittest.TestCase):
         self.assertIn("로드맵·이슈에 없는 작업 ID: M9-T9", problems)
         self.assertIn("시작하지 않은 작업([ ])의 ID: M1-T3", problems)
         self.assertNotIn("시작하지 않은 작업([ ])의 ID: M1-T3", check_message("M1-T3: 요약", _STATUSES, False))
+
+
+class CheckBranchTest(unittest.TestCase):
+    """@doc: docs/VerificationTools.md#5-테스트"""
+
+    def test_branch_names(self) -> None:
+        self.assertEqual(check_branch("m1-t2-store", _STATUSES), [])
+        self.assertEqual(check_branch("i4-pr-rules2", _STATUSES), [])
+        for name in ("main", "feature/x", "M1-T2-store", "m1-t2", "m1-t2-Store", "m1-t2_store"):
+            with self.subTest(name=name):
+                self.assertIn("형식 오류", check_branch(name, _STATUSES)[0])
+        self.assertEqual(check_branch("m9-t9-x", _STATUSES), ["로드맵·이슈에 없는 작업 ID의 브랜치: M9-T9"])
 
 
 class CommitHistoryTest(RepoTestCase):
@@ -93,6 +105,13 @@ class CommitHistoryTest(RepoTestCase):
             code, output = self.run_checker()
         self.assertEqual(code, 1)
         self.assertIn("git log 실패", output)
+
+    def test_pr_subject_and_branch(self) -> None:
+        self.assertEqual(self.run_checker("--subject", "M0-T2: 진행 중 작업 (#3)", "--branch", "m0-t2-work")[0], 0)
+        code, output = self.run_checker("--subject", "M0-T3: 예정 작업", "--branch", "feature")
+        self.assertEqual(code, 1)
+        self.assertIn("PR:1: PR 제목: 시작하지 않은 작업([ ])의 ID: M0-T3", output)
+        self.assertIn("브랜치 이름 형식 오류", output)
 
     def test_message_file_requires_started_work(self) -> None:
         message = self.write("MSG", "M0-T3: 예정 작업\n")
