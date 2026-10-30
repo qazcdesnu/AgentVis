@@ -2,6 +2,39 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## I21 PR을 번호 순서대로 병합하면 충돌이 생기지 않도록 하는 규칙
+
+- 시작일: 2026-10-31
+- 완료일: 2026-10-31
+- 근거 문서: 사용자 지시, [PR 규칙](PullRequestRule.md)
+
+### 계획
+- [PR 규칙](PullRequestRule.md)을 바꾼다: 새 작업 브랜치는 병합되지 않은 가장 최근 작업 브랜치에서 만들고, merge commit으로 PR 번호 순서대로 병합하며, 앞 PR을 고치면 뒤 브랜치에 반영한다.
+- 기계적으로 검사할 수 있는 "PR은 번호가 앞선 열린 PR을 모두 포함한다"를 검사기와 CI로 만든다.
+- 이 작업 자체를 PR #1(`i20-pr-rules`) 위에 쌓은 브랜치(`i21-stacked-prs`)로 진행한다.
+
+### 진행 기록
+- 2026-10-31: `i20-pr-rules`에서 `i21-stacked-prs`를 만들고 시작했다. 사용자가 PR #1을 아직 병합하지 않았다.
+- 2026-10-31: 원인을 정리했다. 모든 작업이 작업 관리 문서를 고치고 특히 [완료](Done.md)의 맨 위에 기록을 넣으므로, 각 브랜치를 `main`에서 따로 만들면 쌓인 PR이 충돌한다. 또 squash·rebase merge는 커밋을 새로 만들어, 그 커밋을 이미 포함한 뒤 PR과 내용이 겹친다.
+- 2026-10-31: [PR 규칙](PullRequestRule.md)을 바꿨다. 새 작업 브랜치는 병합되지 않은 가장 최근 작업 브랜치에서 만들고(없으면 `main`), merge commit으로 PR 번호 순서대로 병합하며, 앞 PR을 고치면 뒤 브랜치에 앞 브랜치를 병합한다(rebase 금지). [작업 관리 규칙](TaskRule.md#41-시작)과 인덱스를 맞췄다.
+- 2026-10-31: "PR은 번호가 앞선 열린 PR을 모두 포함한다"를 [PR 순서 검사기](VerificationTools.md#9-pr-순서-검사기)(`tools/check_pr_order.py`)로 만들고, CI에 `gh pr list`로 열린 PR 목록을 받아 검사하는 단계를 넣었다(`pull-requests: read` 권한). 임시 git 저장소 테스트와, 실제 열린 PR(#1)에 대해 이 브랜치가 통과함을 확인했다.
+
+### 결정 사항
+- 병합 방식을 I20의 squash merge에서 merge commit으로 바꿨다. `main`의 `Merge pull request #…` 커밋은 커밋 이력 검사에서 제외되므로 커밋 규칙과 충돌하지 않는다.
+- PR의 대상은 항상 `main`이다. 앞 PR이 병합되기 전에는 뒤 PR의 변경 목록에 앞 PR의 커밋도 보이지만, 앞 PR이 병합되면 자기 변경만 남는다.
+
+### 변경 파일
+- 신규: `tools/check_pr_order.py`, `tests/test_check_pr_order.py`
+- 수정: `docs/PullRequestRule.md`, `docs/TaskRule.md`, `docs/VerificationTools.md`, `docs/index.md`, `.github/workflows/verify.yml`, `docs/Issue.md`, `docs/Ongoing.md`, `docs/Done.md`
+
+### 결과
+- 작업 브랜치를 쌓고 merge commit으로 번호 순서대로 병합하면 충돌이 생기지 않으며, CI가 앞선 PR을 포함하지 않은 PR을 잡는다.
+
+### 검증
+- `uv run python -m tools.check_docs`, `check_pointers`, `check_tasks`, `check_commits`: 통과
+- `uv run python -m unittest discover -s tests -t .`: 통과
+- 실제 열린 PR 목록으로 `check_pr_order --pr 2`: 통과(앞선 열린 PR 1개 포함)
+
 ## I20 PR 규칙과 커밋 후 push 규칙 추가
 
 - 시작일: 2026-10-31

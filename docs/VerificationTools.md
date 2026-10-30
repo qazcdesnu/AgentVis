@@ -166,6 +166,19 @@ uv run python -m unittest discover -s tests -t .   # 도구 자체의 테스트
 - 실행 시점: PR이 열리거나 갱신될 때, `main`에 push될 때.
 - 커밋 이력 검사가 기준 커밋까지 볼 수 있도록 전체 이력을 받는다(`fetch-depth: 0`).
 - Python은 `astral-sh/setup-uv`로 설치한 uv가 `.python-version`에 따라 준비한다.
-- PR에서는 PR 제목과 브랜치 이름을 [커밋 검사기](#7-커밋-검사기)의 PR 검사로 확인한다.
+- PR에서는 PR 제목과 브랜치 이름을 [커밋 검사기](#7-커밋-검사기)의 PR 검사로, 앞선 열린 PR 포함 여부를 [PR 순서 검사기](#9-pr-순서-검사기)로 확인한다. 열린 PR 목록은 GitHub CLI(`gh pr list`)와 워크플로의 `GITHUB_TOKEN`으로 받는다.
 - CI는 Linux에서 돈다. 파일 이름의 대소문자를 구분하므로, macOS에서 통과한 대소문자가 다른 링크도 여기서 실패한다(I12).
+
+## 9. PR 순서 검사기
+
+[tools/check_pr_order.py](../tools/check_pr_order.py)는 [PR 규칙](PullRequestRule.md#4-병합)의 "PR 번호 순서대로 병합하면 충돌이 없다"를 지키기 위해, 검사하는 PR이 번호가 앞선 열린 PR의 커밋을 모두 포함하는지 확인한다. CI의 PR 실행에서만 쓴다.
+
+```sh
+gh pr list --state open --json number,headRefName,headRefOid > open-prs.json
+uv run python -m tools.check_pr_order --pr <PR 번호> --open-prs open-prs.json
+```
+
+- [missing_earlier_prs](../tools/check_pr_order.py#missing_earlier_prs)`(root, open_prs, number) -> list[dict]`: 열린 PR 중 번호가 `number`보다 작고, 그 PR의 마지막 커밋(`headRefOid`)이 `HEAD`의 조상이 아닌 PR들을 돌려준다. 조상 여부는 `git merge-base --is-ancestor`로 판정하며, 커밋이 저장소에 없어도 포함하지 않은 것으로 본다.
+- [main](../tools/check_pr_order.py#main): 빠진 PR마다 `PR #<번호> (<브랜치>)를 포함하지 않음` 문제를 [1. 실행 방법](#1-실행-방법)의 형식으로 출력한다. 위치는 `PR #<검사하는 번호>:1`이다.
+- 테스트: [tests/test_check_pr_order.py](../tests/test_check_pr_order.py)가 임시 git 저장소로 쌓인 브랜치(포함)와 `main`에서 따로 만든 브랜치(빠짐), 번호가 뒤인 PR은 무시함, 저장소에 없는 커밋을 확인한다.
 
