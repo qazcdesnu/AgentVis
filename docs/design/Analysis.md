@@ -24,7 +24,7 @@
 | `last_activity` | 세션들의 마지막 이벤트 시각 중 가장 늦은 것 |
 | `exists` | 그 폴더가 지금 있는지 |
 
-`list_projects(store) -> list[ProjectView]`가 마지막 활동이 늦은 것부터 돌려준다.
+[list_projects](../../src/agentvis/analysis/catalog.py#list_projects)`(store) -> list[ProjectView]`가 [list_sessions](../../src/agentvis/analysis/catalog.py#list_sessions)의 세션들을 프로젝트 경로로 묶어 마지막 활동이 늦은 것부터 돌려준다. 프로젝트 경로가 없는 세션(원시 이벤트에 `cwd`가 하나도 없음)은 목록에서 뺀다. 프로젝트는 [ProjectView](../../src/agentvis/analysis/catalog.py#ProjectView)로 나타내며, `exists`는 목록을 만들 때 폴더가 있는지 확인한 값이다.
 
 ## 3. 턴
 
@@ -129,7 +129,7 @@
 
 | 경로 | 응답 | 태스크 |
 | --- | --- | --- |
-| `GET /api/projects` | 프로젝트 목록(2절 필드) | M3-T5 |
+| `GET /api/projects` | `{"projects": [...]}`. 프로젝트 목록(2절 필드) | M3-T5 |
 | `GET /api/sessions?project=<프로젝트 경로>` | `{"sessions": [...]}`. 세션 목록(7절 필드, `turns`·`preamble` 제외). 마지막 활동이 늦은 것부터. `project`를 생략하면 모든 세션 | M3-T4 |
 | `GET /api/sessions/{session_id}` | 세션 상세(7절 필드와 `turns`, `preamble`) | M3-T4 |
 
@@ -144,7 +144,7 @@
 
 ## 9. 테스트
 
-[tests/test_analysis.py](../../tests/test_analysis.py)에서 실측 형태의 원시 이벤트 목록으로 확인한다. 원시 이벤트는 실제 변환 경로(`record_to_raw`, `hook_event_to_raw`)로 만든다. 조회 API 항목 중 프로젝트 목록은 M3-T5에서 추가한다. 조회 API는 [tests/test_api.py](../../tests/test_api.py)에서 `TestClient`로 확인한다.
+[tests/test_analysis.py](../../tests/test_analysis.py)에서 실측 형태의 원시 이벤트 목록으로 확인한다. 원시 이벤트는 실제 변환 경로(`record_to_raw`, `hook_event_to_raw`)로 만든다. 조회 API는 [tests/test_api.py](../../tests/test_api.py)에서 `TestClient`로 확인한다.
 
 - 사람 입력만 턴을 시작하고, 하위 에이전트 보고·작업 알림·메타 기록은 턴을 만들지 않는다.
 - `promptId`가 없는 기록이 `parentUuid`를 따라 올바른 턴에 들어간다.
@@ -152,4 +152,5 @@
 - 작업 중 사람 메시지·작업 알림·hook 전달 실패가 각 단계 종류로 나온다.
 - 서브에이전트 단계가 띄운 도구 호출 아래에 들어간다.
 - 프로젝트 경로는 세션 기록의 첫 `cwd`이며, 하위 폴더 `cwd`를 가진 hook 이벤트에 끌려가지 않는다.
+- 프로젝트 목록이 세션을 프로젝트 경로로 묶어 세션 수·마지막 활동·이름·상위 경로(`~`)·폴더 존재 여부를 내고 마지막 활동 순으로 정렬되며, 프로젝트 경로가 없는 세션은 빠진다.
 - 세션 목록이 프로젝트 조건과 마지막 활동 순서를 지키고 `turns`·`preamble`을 빼며, 세션 상세가 턴과 단계를 담고, 없는 세션은 `404`다.
