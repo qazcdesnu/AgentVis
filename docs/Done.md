@@ -32,7 +32,7 @@
 
 ### 검증
 - `uv run python -m tools.check_docs`, `check_pointers`, `check_tasks`, `check_commits`: 통과
-- `uv run python -m unittest discover -s tests -t .`: 86개 통과, 다섯 번 반복 모두 통과
+- `uv run python -m unittest discover -s tests -t .`: 84개 통과, 다섯 번 반복 모두 통과
 - 실제 서버 실측: 위 진행 기록 참고
 
 ## M2-T2 세션 기록 이어 읽기와 원시 이벤트 저장 구현
