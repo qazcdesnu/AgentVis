@@ -86,3 +86,40 @@ CREATE INDEX raw_events_cwd ON raw_events (cwd);
 - 여러 스레드가 동시에 저장해도 오류 없이 모두 저장되고 `id`가 겹치지 않는다.
 - 스키마 버전이 더 높은 데이터베이스를 열면 `SchemaVersionError`가 나고, 같은 파일을 다시 열어도 기존 스키마가 유지된다.
 - `AGENTVIS_HOME`을 설정하면 `data_dir()`이 그 경로를 돌려준다.
+
+## 6. M2 변경
+
+M2-T2에서 만든다. [기록 리더](Transcript.md)가 쓰는 읽기 커서와 묶음 저장을 더하고, I11(동시 최초 열기 충돌, 잠금 대기 시간)을 함께 고친다. 구현할 심볼은 인라인 코드로 적었고, M2-T2를 시작할 때 코드 포인터로 바꾼다.
+
+**스키마 2판**
+
+```sql
+CREATE TABLE transcript_cursors (
+    path        TEXT PRIMARY KEY,   -- 세션 기록 파일의 실제 경로
+    offset      INTEGER NOT NULL,   -- 다음에 읽을 바이트 위치
+    device      INTEGER NOT NULL,   -- 파일 식별자 (st_dev)
+    inode       INTEGER NOT NULL,   -- 파일 식별자 (st_ino)
+    updated_at  TEXT NOT NULL       -- ISO 8601, UTC
+);
+```
+
+- `SCHEMA_VERSION`은 2가 된다. 버전 0이면 1판과 2판을, 버전 1이면 2판만 차례로 적용한다. 이미 쌓인 원시 이벤트는 그대로 둔다.
+- 스키마 준비는 `BEGIN IMMEDIATE` 트랜잭션 안에서 버전을 다시 읽은 뒤 진행한다. 두 연결이 동시에 처음 열어도 한쪽만 스키마를 만들고 다른 쪽은 기다렸다가 만들어진 버전을 본다(I11). 더 높은 버전을 거부하는 규칙은 그대로다.
+- 연결마다 `PRAGMA busy_timeout = 1000`(밀리초)을 설정한다. 다른 연결이 쓰기 잠금을 잡고 있을 때 오래 기다리지 않게 해, hook timeout(2초) 안에 응답하기 위해서다(I11).
+
+**API**
+
+| 심볼 | 동작 |
+| --- | --- |
+| `TranscriptCursor` | 읽기 커서 하나. `path`, `offset`, `device`, `inode`를 가진 불변 dataclass |
+| `EventStore.cursor(path: str) -> TranscriptCursor \| None` | 저장된 커서. 없으면 `None` |
+| `EventStore.append_batch(events: list[RawEvent], cursor: TranscriptCursor \| None = None) -> int` | 이벤트들을 저장하고 커서를 갱신하는 일을 한 트랜잭션으로 한다. 중복 제거 키가 이미 있는 이벤트는 건너뛰며, 실제로 저장한 수를 돌려준다. `append`와 같은 검증을 하고, 하나라도 실패하면 아무것도 저장하지 않는다. |
+| `EventStore.first_received_at() -> datetime \| None` | 가장 먼저 저장된 이벤트의 `received_at`(수집 시작 시각). 비어 있으면 `None` |
+
+**테스트** (`tests/test_store.py`에 추가)
+
+- 버전 1 데이터베이스를 열면 2판으로 올라가고 기존 이벤트가 남는다.
+- 빈 경로를 여러 스레드가 동시에 처음 열어도 모두 성공한다.
+- `append_batch`가 이벤트와 커서를 함께 저장하고, 중복은 세지 않으며, 검증에 실패하면 이벤트도 커서도 저장하지 않는다.
+- `first_received_at`이 첫 이벤트의 수신 시각을 돌려준다.
+
