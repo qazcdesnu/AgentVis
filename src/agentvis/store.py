@@ -2,6 +2,7 @@
 
 @doc: docs/design/Store.md
 @doc: docs/design/Store.md#6-m2-변경
+@doc: docs/design/Store.md#7-m3-변경
 """
 
 import os
@@ -14,7 +15,7 @@ from pathlib import Path
 from types import TracebackType
 
 # @doc: docs/design/Store.md#2-스키마
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 _SOURCES = ("hook", "transcript")
 _BUSY_TIMEOUT_MS = 1000
@@ -57,6 +58,8 @@ _MIGRATIONS = (
             updated_at  TEXT NOT NULL
         )""",
     ),
+    # The transcript reader stores more record types now; forget read positions to re-read old records.
+    ("DELETE FROM transcript_cursors",),
 )
 
 

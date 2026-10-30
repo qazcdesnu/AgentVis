@@ -2,13 +2,13 @@
 
 이 문서는 원시 이벤트로 프로젝트·세션·턴·단계·도구 호출을 구성하는 분석기(`src/agentvis/analysis/`)와, 그 결과를 내보내는 조회 API를 설계한다. 파생 모델의 개요는 [시스템 구조](../Architecture.md#42-파생-모델)에, 원천 데이터의 구조는 [데이터 소스](../DataSource.md)에, 무엇을 보여 줘야 하는지는 [제품 비전](../ProductVision.md#2-핵심-분석-질문)에 있다. 관련 태스크는 [로드맵](../Roadmap.md#m3-분석기와-확정-신호)의 M3-T2, M3-T4, M3-T5다. 신호 판정(M3-T3, M5)은 이 문서의 모델 위에 따로 설계한다. 전체 문서 목록은 [문서 인덱스](../index.md)에서 확인한다.
 
-구현할 심볼은 인라인 코드로 적었다. 태스크를 시작할 때 [작업 관리 규칙](../TaskRule.md#41-시작)에 따라 코드 포인터 링크로 바꾼다.
+구현할 심볼은 인라인 코드로 적었다. 태스크를 시작할 때 [작업 관리 규칙](../TaskRule.md#41-시작)에 따라 코드 포인터 링크로 바꾼다. 1절과 3~7절은 M3-T2에서 바꿨다([session 모듈](../../src/agentvis/analysis/session.py)).
 
 ## 1. 계산 방식
 
 - 파생 모델은 저장하지 않고 **요청할 때마다 원시 이벤트로 계산한다.** 원시 이벤트는 변경하지 않고 파생 모델은 언제든 다시 계산할 수 있어야 한다는 [설계 원칙](../Architecture.md#2-설계-원칙)을 가장 단순하게 지키는 방법이다. 규칙을 바꾸면 다음 요청부터 바로 반영되고, 스키마 이동도 필요 없다.
 - 세션 하나의 원시 이벤트는 수천 개 수준이다(2026-10-31 이 세션: 약 1,500개). 한 세션의 계산은 메모리에서 충분히 빠르다. 느려지면 그때 세션 단위 캐시를 설계한다.
-- 계산은 순수 함수로 만든다. `build_session(events: list[RawEvent]) -> SessionView`처럼 원시 이벤트 목록을 받아 결과를 돌려주며, 이벤트 저장소에 접근하지 않는다. 테스트는 원시 이벤트 목록만으로 한다.
+- 계산은 순수 함수로 만든다. [build_session](../../src/agentvis/analysis/session.py#build_session)`(events: list[RawEvent]) -> SessionView`처럼 원시 이벤트 목록을 받아 결과를 돌려주며, 이벤트 저장소에 접근하지 않는다. 테스트는 원시 이벤트 목록만으로 한다.
 
 ## 2. 프로젝트
 
@@ -37,9 +37,10 @@
 | 기록 | 귀속 방법 |
 | --- | --- |
 | `promptId`가 있는 기록(사람 입력, 도구 결과) | 그 `promptId`의 턴. 실측: 도구 결과 325개 모두 그 턴 시작 기록과 같은 `promptId`였다. |
-| `promptId`가 없는 기록(`assistant`, `system`, `attachment`) | `parentUuid`를 따라 올라가 처음 만나는 턴 귀속 기록의 턴 |
+| `promptId`가 없는 기록(`assistant`, `system`, `attachment`) | `parentUuid`를 따라 올라가 처음 만나는 턴 귀속 기록의 턴. 부모로 턴을 찾지 못하면(문맥 압축 뒤 새로 시작된 기록 사슬 등) 그 시각 직전에 시작된 턴 |
 | hook 이벤트 | `prompt_id`의 턴. 없으면(`SessionEnd` 등) 시각상 직전 턴 |
-| 하위 에이전트 보고·백그라운드 작업 알림(`origin.kind`가 `peer`, `isMeta`) | 새 턴을 만들지 않고 귀속 방법대로 기존 턴에 단계로 넣는다 |
+| 하위 에이전트 보고·백그라운드 작업 알림(`origin.kind`가 `peer`인 `isMeta` 기록) | 새 턴을 만들지 않고 귀속 방법대로 기존 턴에 단계로 넣는다 |
+| 출처(`origin`)가 없는 `isMeta` 기록 | 시스템이 끼워 넣은 안내(`<system-reminder>` 등)라 단계로 만들지 않는다. 2026-10-31 실측: 서브에이전트 기록 3개 모두 둘째 `user` 기록이 이런 안내였다. |
 
 턴 시작 전에 있는 기록은 세션 머리 단계로 따로 모은다.
 
@@ -50,6 +51,8 @@
 | `started_at`, `ended_at` | 시작 기록 시각, `Stop` hook 시각(없으면 마지막 단계 시각) |
 | `state` | `running`(`Stop`이 아직 없고 세션이 끝나지 않음), `ended`, `failed`(`StopFailure`) |
 | `steps` | 단계 목록(4절), 시각 순 |
+
+턴은 [Turn](../../src/agentvis/analysis/session.py#Turn)으로 나타낸다. 세션 기록에 아직 사람 입력 기록이 없는 턴은 hook의 `UserPromptSubmit`(`prompt`)으로 만든다.
 | `tool_call_count`, `failure_count` | 도구 호출 수, 상태가 `error`·`interrupted`인 도구 호출 수 |
 
 ## 4. 단계
@@ -62,27 +65,31 @@
 | `text` | `assistant`의 `text` 블록 | `text` |
 | `tool_call` | `assistant`의 `tool_use` 블록, 같은 `tool_use_id`의 도구 결과·hook 이벤트 | 5절 |
 | `user_message` | 작업 도중 사람이 보낸 메시지가 모델에게 전달된 기록(`attachment.type` = `queued_command`, `origin.kind` = `human`) | `text` |
-| `notification` | 하위 에이전트 보고, 백그라운드 작업 알림(`queued_command`의 다른 출처, `peer` 기록) | `text`, `source` |
+| `notification` | 하위 에이전트 보고, 백그라운드 작업 알림(`queued_command`의 다른 출처, `peer` 기록), 사용자가 `!`로 직접 실행한 셸 명령과 출력(`<bash-input>`, `<bash-stdout>`, `<bash-stderr>`로 시작하는 `user` 기록, `source` = `user_shell`) | `text`, `source` |
 | `compact` | `system`의 `compact_boundary`, `PreCompact`·`PostCompact` hook | `trigger` |
 | `hook_failure` | hook 전달 실패(`attachment.type` = `hook_non_blocking_error`). 수집이 빠진 구간을 보여 준다. | `hook_event`, `message` |
+| `subagent` | 띄운 도구 호출과 연결되지 않은 서브에이전트(6절) | `agent_id`, `substeps` |
 
-- 모든 단계는 `id`(원시 이벤트 `id`), `at`(발생 시각), `source`(`transcript`/`hook`)를 가진다.
+- 단계는 [Step](../../src/agentvis/analysis/session.py#Step)으로 나타내며, 모든 단계는 `id`(원시 이벤트 `id`), `at`(발생 시각), `source`(`transcript`/`hook`)를 가진다. 종류별 필드는 `text`, `tool_call`, `detail`(사전), `substeps`(`subagent` 단계의 하위 단계)에 담는다.
+- 세션 기록의 `queue-operation`은 단계로 만들지 않는다. 메시지가 모델에게 실제로 전달된 시점은 `queued_command` 첨부 기록이 나타낸다.
 - `user_message`, `notification`, `hook_failure`는 첨부 기록이 저장되어야 나온다(I18, M3-T2에서 저장 대상 확장).
 - `turn_duration` 같은 나머지 `system` 기록은 단계로 만들지 않고 턴 정보에만 쓴다.
 
 ## 5. 도구 호출
 
-같은 `tool_use_id`를 가진 원시 이벤트를 하나로 합친다. 내용은 세션 기록을 우선하고, hook에만 있는 필드를 보탠다([병합 규칙](../Architecture.md#42-파생-모델)).
+같은 `tool_use_id`를 가진 원시 이벤트를 [ToolCall](../../src/agentvis/analysis/session.py#ToolCall) 하나로 합친다. 내용은 세션 기록을 우선하고, hook에만 있는 필드를 보탠다([병합 규칙](../Architecture.md#42-파생-모델)).
 
 | 필드 | 값 |
 | --- | --- |
 | `tool_use_id`, `tool_name`, `input` | `tool_use` 블록(없으면 `PreToolUse`) |
 | `status` | 아래 표 |
-| `result` | 도구 결과 내용(앞부분만, 길이 제한은 M3-T2에서 정함) |
+| `result` | 도구 결과 내용. 앞 [RESULT_PREVIEW_CHARS](../../src/agentvis/analysis/session.py#RESULT_PREVIEW_CHARS)(2,000)자만 담는다. |
 | `error` | 실패 메시지(도구 결과 또는 `PostToolUseFailure.error`) |
 | `duration_ms` | `PostToolUse`·`PostToolUseFailure`의 `duration_ms` |
 | `permission_requested` | 같은 턴에서 직전 `PermissionRequest`(같은 `tool_name`, `tool_input`)가 있었는지 |
 | `subagent` | 이 호출이 서브에이전트를 띄웠으면 그 서브에이전트의 단계 목록(6절) |
+| `agent_id` | 이 호출이 띄운 서브에이전트 ID(`toolUseResult.agentId`) |
+| `is_error`, `interrupted` | 상태 판정에 쓴 사실(오류 표시, 중단 표시). 결과가 아직 없으면 `is_error`는 비어 있다. |
 
 **상태**는 확인된 사실만으로 정한다. 의미 해석이 필요한 판정(권한 거부 확정, 반복 실패, fallback)은 신호 설계(M3-T3, M5, I16)에서 한다.
 
@@ -99,19 +106,24 @@
 ## 6. 서브에이전트
 
 - 서브에이전트 기록(`isSidechain`이 참, `agentId`)은 같은 턴 구성 규칙으로 단계를 만들되, 부모 세션의 턴에 직접 넣지 않고 그 서브에이전트를 띄운 도구 호출의 `subagent`에 넣는다.
-- 연결은 서브에이전트 메타(`subagent-meta`)의 `toolUseId`로 한다. 메타가 없으면 hook의 `SubagentStart`와 같은 턴의 `Agent` 도구 호출을 시각 순서로 짝짓고, 그래도 연결되지 않은 서브에이전트는 턴 끝에 따로 둔다.
+- 연결은 서브에이전트를 띄운 도구 호출의 결과 기록(`toolUseResult.agentId`)으로 한다. 2026-10-31 실측: `Agent` 도구의 결과 기록 3건 모두 `agentId`가 서브에이전트 기록의 `agentId`와 같았다. 서브에이전트 메타 이벤트에는 서브에이전트 ID가 남지 않아 연결에 쓰지 않는다.
+- 서브에이전트 기록의 첫 `user` 기록은 부모가 맡긴 지시로, 띄운 도구 호출의 입력(`input.prompt`)과 같으므로 단계로 만들지 않는다. 2026-10-31 실측: 서브에이전트 기록 3개 모두 첫 기록이 이 지시였다.
+- 연결되지 않은 서브에이전트(띄운 도구의 결과가 아직 없음 등)는 그 첫 기록의 `promptId` 턴에 `subagent` 단계로 둔다.
 - 문맥 압축의 요약 서브에이전트(`agent_type`이 빈 `SubagentStop`)는 `compact` 단계에 붙이고 사용자 작업으로 세지 않는다.
 
 ## 7. 세션
 
 | 필드 | 값 |
 | --- | --- |
-| `session_id`, `project` | 세션 ID, 프로젝트 경로(2절) |
+| `session_id`, `project`, `project_from_hook` | 세션 ID, 프로젝트 경로(2절), 경로를 hook에서 추정했는지 |
 | `title` | 첫 턴의 지시 첫 줄(최대 80자) |
 | `started_at`, `last_activity` | 첫·마지막 이벤트 시각 |
 | `ended` | `SessionEnd` hook을 받았는지 |
 | `turn_count`, `tool_call_count`, `failure_count` | 턴들의 합 |
 | `turns` | 턴 목록(상세 조회에서만) |
+| `preamble` | 첫 턴보다 앞선 단계 |
+
+세션은 [SessionView](../../src/agentvis/analysis/session.py#SessionView)로 나타낸다.
 
 ## 8. 조회 API
 
@@ -127,7 +139,7 @@
 
 ## 9. 테스트
 
-`tests/test_analysis.py`에서 실측 형태의 원시 이벤트 목록으로 확인한다.
+[tests/test_analysis.py](../../tests/test_analysis.py)에서 실측 형태의 원시 이벤트 목록으로 확인한다. 원시 이벤트는 실제 변환 경로(`record_to_raw`, `hook_event_to_raw`)로 만든다. 조회 API 항목은 M3-T4, M3-T5에서 추가한다.
 
 - 사람 입력만 턴을 시작하고, 하위 에이전트 보고·작업 알림·메타 기록은 턴을 만들지 않는다.
 - `promptId`가 없는 기록이 `parentUuid`를 따라 올바른 턴에 들어간다.

@@ -16,7 +16,9 @@ from pathlib import Path
 from agentvis.store import EventStore, RawEvent, TranscriptCursor
 
 # @doc: docs/design/Transcript.md#3-기록-변환
-INGESTED_TYPES = ("user", "assistant", "system", "queue-operation")
+INGESTED_TYPES = ("user", "assistant", "system", "queue-operation", "attachment")
+# @doc: docs/design/Transcript.md#3-기록-변환
+INGESTED_ATTACHMENTS = ("queued_command", "hook_non_blocking_error")
 # @doc: docs/design/Transcript.md#2-이어-읽기
 BATCH_LINES = 500
 
@@ -66,6 +68,10 @@ def _block(record: dict) -> dict:
 
 
 def _tool_use_id(record: dict) -> str | None:
+    attachment = record.get("attachment")
+    if isinstance(attachment, dict):
+        value = attachment.get("toolUseID")
+        return value if isinstance(value, str) and value.startswith("toolu_") else None
     block = _block(record)
     value = block.get("id") if block.get("type") == "tool_use" else block.get("tool_use_id")
     return value if block.get("type") in ("tool_use", "tool_result") and isinstance(value, str) else None
@@ -89,6 +95,10 @@ def record_to_raw(line: bytes) -> RawEvent | None:
         return None
     if not isinstance(record, dict) or record.get("type") not in INGESTED_TYPES:
         return None
+    if record["type"] == "attachment":
+        attachment = record.get("attachment")
+        if not isinstance(attachment, dict) or attachment.get("type") not in INGESTED_ATTACHMENTS:
+            return None
     session_id = _text(record, "sessionId")
     if session_id is None or occurred_at.utcoffset() is None:
         return None

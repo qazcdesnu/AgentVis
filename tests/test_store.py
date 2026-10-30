@@ -134,6 +134,18 @@ class StoreM2Test(RepoTestCase):
         self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], SCHEMA_VERSION)
         connection.close()
 
+    def test_version_2_database_is_migrated_and_cursors_are_reset(self) -> None:
+        path = self.root / "v2.db"
+        with EventStore(path) as store:
+            store.append_batch([replace(_EVENT, source="transcript", dedup_key="uuid:1")], TranscriptCursor("/p/s.jsonl", 9, 1, 2))
+        connection = sqlite3.connect(path)
+        connection.execute("PRAGMA user_version = 2")
+        connection.commit()
+        connection.close()
+        with EventStore(path) as store:
+            self.assertIsNone(store.cursor("/p/s.jsonl"))
+            self.assertEqual(len(store.events()), 1)
+
     def test_concurrent_first_open_succeeds(self) -> None:
         for attempt in range(10):
             path = self.root / f"race{attempt}.db"

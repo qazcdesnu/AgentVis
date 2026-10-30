@@ -46,7 +46,21 @@ _QUEUED = json.dumps(
     {"type": "queue-operation", "operation": "enqueue", "content": "uv로 해", "sessionId": "s1", "timestamp": "2026-10-31T01:00:05.000Z"},
     ensure_ascii=False,
 ).encode() + b"\n"
-_IGNORED = [_line(type="api-request-blob", hash="h"), b"not json\n", json.dumps({"type": "user", "sessionId": "s1"}).encode() + b"\n"]
+_QUEUED_COMMAND = _line(
+    type="attachment", uuid="t1", parentUuid="a2",
+    attachment={"type": "queued_command", "prompt": "uv로 해", "commandMode": "prompt", "origin": {"kind": "human"}},
+)
+_HOOK_ERROR = _line(
+    type="attachment", uuid="t2", parentUuid="a2",
+    attachment={"type": "hook_non_blocking_error", "hookEvent": "PreToolUse", "toolUseID": "toolu_1", "stderr": "connect ECONNREFUSED 127.0.0.1:8765"},
+)
+_IGNORED = [
+    _line(type="api-request-blob", hash="h"),
+    b"not json\n",
+    json.dumps({"type": "user", "sessionId": "s1"}).encode() + b"\n",
+    _line(type="attachment", uuid="t3", attachment={"type": "deferred_tools_record"}),
+    _line(type="attachment", uuid="t4", attachment="not an object"),
+]
 
 
 class RecordToRawTest(RepoTestCase):
@@ -64,6 +78,11 @@ class RecordToRawTest(RepoTestCase):
         queued = record_to_raw(_QUEUED.strip())
         self.assertEqual((queued.kind, queued.cwd), ("queue-operation", None))
         self.assertTrue(queued.dedup_key.startswith("sha256:"))
+
+    def test_maps_selected_attachments(self) -> None:
+        queued = record_to_raw(_QUEUED_COMMAND.strip())
+        self.assertEqual((queued.kind, queued.dedup_key, queued.tool_use_id), ("attachment", "uuid:t1", None))
+        self.assertEqual(record_to_raw(_HOOK_ERROR.strip()).tool_use_id, "toolu_1")
 
     def test_skips_other_types_and_unreadable_lines(self) -> None:
         for line in _IGNORED + [b"\xff\xfe", _line(type="user", uuid="u9", timestamp="2026-10-31T01:00:00")]:
@@ -92,7 +111,7 @@ class ReadNewRecordsTest(RepoTestCase):
     def test_reads_only_new_complete_lines(self) -> None:
         self.append(_PROMPT, _THINKING, *_IGNORED)
         first = self.read()
-        self.assertEqual((first.stored, first.skipped), (2, 3))
+        self.assertEqual((first.stored, first.skipped), (2, 5))
         self.append(_TOOL_USE, _TOOL_RESULT[:-20])
         self.assertEqual(self.read().stored, 1)
         self.append(_TOOL_RESULT[-20:], _SYSTEM, _QUEUED)
