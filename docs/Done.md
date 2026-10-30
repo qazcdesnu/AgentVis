@@ -2,6 +2,38 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## M1-T3 수집기 구현
+
+- 시작일: 2026-10-31
+- 완료일: 2026-10-31
+- 근거 문서: [수집기 설계](design/Collector.md), [데이터 소스](DataSource.md#2-hook-이벤트)
+
+### 계획
+- [수집기 설계](design/Collector.md)의 빈틈을 메우고 구현 심볼을 코드 포인터 링크로 바꾼다.
+- `src/agentvis/collector.py`(이벤트 변환)와 `src/agentvis/server.py`(`create_app`, `POST /hooks`, `GET /health`)를 구현한다.
+- `tests/test_collector.py`로 설계 문서의 테스트 항목을 확인한다.
+
+### 진행 기록
+- 2026-10-31: 로드맵을 `[~]`로 바꾸고 시작했다.
+- 2026-10-31: 설계의 모순을 발견했다. `payload`에 본문 원문 바이트를 남기라면서 경로 처리 함수를 동기 함수로 쓰라고 했는데, FastAPI 동기 함수에서는 원문 바이트를 직접 읽을 수 없다. 문서를 먼저 고쳐 `async def`로 원문을 읽고 SQLite 저장만 스레드 풀로 넘기게 했다. 함께 예외 메시지, 400 응답 내용, 테스트 항목(문자열이 아닌 선택 필드, 모르는 이벤트, 쿼리 문자열)을 보강하고 코드 포인터를 걸었다. 포인터 검사기가 미구현 6건을 보고하는 것을 확인했다.
+- 2026-10-31: `collector.py`, `server.py`, `tests/test_collector.py`를 작성했다. 테스트 본문은 실측한 `PostToolUseFailure`의 필드 구성을 따랐다.
+- 2026-10-31: 테스트 실행 중 Starlette 1.10의 `StarletteDeprecationWarning`("`httpx` 대신 `httpx2`를 설치하라")을 발견했다. [CLI 설계](design/Cli.md#1-패키지-골격)를 먼저 고친 뒤 `uv remove --dev httpx`, `uv add --dev httpx2`로 바꾸고 경고가 사라진 것을 확인했다.
+
+### 결정 사항
+- 수집기의 `InvalidHookEvent`는 `ValueError`를 상속한다. 변환 실패는 잘못된 입력 값이기 때문이다.
+- 성공 응답은 빈 JSON 객체 `{}` 하나로 고정했다. 테스트에서 응답 바이트가 정확히 `{}`인지 확인한다.
+
+### 변경 파일
+- 신규: `src/agentvis/collector.py`, `src/agentvis/server.py`, `tests/test_collector.py`
+- 수정: `docs/design/Collector.md`, `docs/design/Cli.md`, `pyproject.toml`, `uv.lock`, `docs/Roadmap.md`, `docs/Ongoing.md`, `docs/Done.md`
+
+### 결과
+- `create_app(store)`로 만든 앱이 `POST /hooks`로 hook 이벤트를 받아 이벤트 저장소에 원문 그대로 저장하고, `GET /health`로 동작을 확인할 수 있다. M1-T4의 `agentvis serve`가 이 앱을 실행하면 된다.
+
+### 검증
+- `uv run python -m tools.check_docs`, `check_pointers`, `check_tasks`, `check_commits`: 통과
+- `uv run python -m unittest discover -s tests -t .`: 50개 통과, 경고 없음
+
 ## M1-T2 이벤트 저장소 구현
 
 - 시작일: 2026-10-31

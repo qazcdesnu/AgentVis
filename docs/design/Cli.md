@@ -9,7 +9,7 @@
 M1-T1에서 만든다.
 
 - 패키지는 `src/agentvis/`에 두며 `pyproject.toml`에 빌드 백엔드(`uv_build`)를 설정한다.
-- 런타임 의존성 `fastapi`, `uvicorn`과 테스트용 개발 의존성 `httpx`(FastAPI `TestClient`가 사용)를 [코드 작업 규칙](../CodeRule.md#3-언어와-스타일)에 따라 `uv add`로 추가한다.
+- 런타임 의존성 `fastapi`, `uvicorn`과 테스트용 개발 의존성 `httpx2`(FastAPI `TestClient`가 사용)를 [코드 작업 규칙](../CodeRule.md#3-언어와-스타일)에 따라 `uv add`로 추가한다. 처음에는 `httpx`를 썼으나 Starlette 1.10이 `TestClient`의 `httpx` 사용을 폐기 예정으로 표시해 M1-T3에서 `httpx2`로 바꿨다.
 - `[project.scripts]`에 `agentvis = "agentvis.cli:main"`을 등록해 `uv run agentvis <하위 명령>`으로 실행한다.
 - [agentvis 패키지](../../src/agentvis/__init__.py)는 [`__version__`](../../src/agentvis/__init__.py#__version__)으로 설치된 패키지의 버전(`pyproject.toml`의 `version`)을 제공한다. 버전은 `importlib.metadata`로 읽어, 버전 정보가 한 곳에만 있게 한다.
 - [cli 모듈](../../src/agentvis/cli.py)의 [main](../../src/agentvis/cli.py#main)은 [2. 명령](#2-명령)의 진입점이다. M1-T1에서는 `--version` 옵션(`agentvis <버전>` 출력)만 있으며, 하위 명령 없이 실행하면 도움말을 출력하고 종료 코드 0을 돌려준다. 하위 명령은 M1-T4, M1-T5에서 추가한다.
