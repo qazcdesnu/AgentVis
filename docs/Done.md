@@ -2,6 +2,45 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## M3-T2 세션·턴·단계·도구 호출 구성
+
+- 시작일: 2026-10-31
+- 완료일: 2026-10-31
+- 근거 문서: [분석기 설계](design/Analysis.md)
+- 관련 이슈: I18
+
+### 계획
+- 서브에이전트 연결 근거를 실측하고 [분석기 설계](design/Analysis.md)의 빈틈을 메운 뒤 코드 포인터를 건다.
+- I18: 첨부 기록 중 `queued_command`, `hook_non_blocking_error`를 저장 대상에 넣고, 이벤트 저장소 스키마 3판에서 읽기 커서를 비워 지난 기록을 다시 읽게 한다.
+- `src/agentvis/analysis/`에 `build_session`과 모델을 구현하고, 실제 이벤트 저장소의 이 세션으로 결과를 확인한다.
+- PR #3(`i22-auto-delete-branches`) 위에 쌓은 브랜치 `m3-t2-analysis-model`에서 진행한다.
+
+### 진행 기록
+- 2026-10-31: 로드맵과 연결된 I18을 `[~]`로 바꾸고 시작했다.
+- 2026-10-31: 서브에이전트를 띄운 `Agent` 도구의 결과 기록(`toolUseResult`)에 `agentId`가 있고, 서브에이전트 기록의 `agentId`와 같음을 확인했다(이 세션 3건). 메타 파일 이벤트에는 서브에이전트 ID가 남지 않으므로, 연결은 도구 결과의 `agentId`로 한다.
+- 2026-10-31: [분석기 설계](design/Analysis.md), [기록 리더 설계](design/Transcript.md#3-기록-변환), [이벤트 저장소 설계](design/Store.md#7-m3-변경)를 먼저 고치고 코드 포인터를 걸었다. 포인터 검사기가 미구현 9건을 보고하는 것을 확인했다.
+- 2026-10-31: I18을 구현했다. `attachment` 중 `queued_command`, `hook_non_blocking_error`만 저장하고, 스키마 3판 이동에서 읽기 커서를 비워 지난 기록을 다시 읽게 했다. `attachment` 값이 객체가 아닌 줄에서 오류가 나는 빈틈을 테스트 전에 발견해 고쳤다.
+- 2026-10-31: `src/agentvis/analysis/session.py`에 `build_session`과 `SessionView`·`Turn`·`Step`·`ToolCall`을 구현했다. 문맥 압축 뒤 새로 시작된 기록 사슬이 턴을 잃는 경우를 테스트 전에 발견해, 부모로 턴을 찾지 못하면 그 시각 직전의 턴에 넣도록 설계와 코드를 고쳤다.
+- 2026-10-31: 실제 이벤트 저장소의 사본(실제 저장소는 스키마를 바꾸지 않기 위해 건드리지 않음)으로 이 세션을 분석했다. 이벤트 1,750개가 21ms에 턴 50개, 도구 호출 401개(실패 14개)로 구성되었다. 작업 중 사람 메시지 5개가 각자 해당 턴에 `user_message`로 들어갔다(예: 2번째 턴의 "파이썬은 무조건 uv 환경에서 써라."). 서브에이전트 기록을 읽자 서브에이전트 3개가 띄운 `Agent` 도구 호출 아래에 연결되었다.
+- 2026-10-31: 실제 데이터에서 테스트가 가정하지 못한 기록 두 가지를 찾아 설계부터 고쳤다. 서브에이전트 기록의 첫 지시(부모가 맡긴 지시, 단계로 만들지 않음)와 출처 없는 `isMeta` 안내(`<system-reminder>`, 단계로 만들지 않음)다. 사용자가 `!`로 실행한 셸 명령·출력(`<bash-input>`, `<bash-stdout>`)은 출처 `user_shell` 알림으로 구분했다.
+
+### 결정 사항
+- 서브에이전트 연결은 메타 파일이 아니라 띄운 도구 호출의 결과 기록(`toolUseResult.agentId`)으로 한다. 메타 이벤트에는 서브에이전트 ID가 남지 않기 때문이다.
+- 실행 중인 실제 서버는 아직 이전 코드다. 이 PR이 병합된 뒤 서버를 다시 띄우면 실제 이벤트 저장소가 3판으로 이동하고 커서가 비어, 다음 hook 이벤트부터 첨부 기록이 채워진다.
+- 지난 세션의 서브에이전트 기록은 hook으로 요청되지 않으므로 M2-T4(서버 시작 시 찾기)나 M2-T5(가져오기)에서 채워진다.
+
+### 변경 파일
+- 신규: `src/agentvis/analysis/__init__.py`, `src/agentvis/analysis/session.py`, `tests/test_analysis.py`
+- 수정: `src/agentvis/transcript.py`, `src/agentvis/store.py`, `tests/test_transcript.py`, `tests/test_store.py`, `docs/design/Analysis.md`, `docs/design/Transcript.md`, `docs/design/Store.md`, `docs/index.md`, `docs/Roadmap.md`, `docs/Issue.md`, `docs/Ongoing.md`, `docs/Done.md`
+
+### 결과
+- 한 세션의 원시 이벤트로 턴별 지시 → 사고 과정 → 도구 호출(상태·오류·실행 시간·서브에이전트) → 작업 중 사람 메시지·알림·hook 전달 실패를 구성할 수 있다. M3-T4·M3-T5의 조회 API가 이 결과를 내보낸다.
+
+### 검증
+- `uv run python -m tools.check_docs`, `check_pointers`, `check_tasks`, `check_commits`: 통과
+- `uv run python -m unittest discover -s tests -t .`: 98개 통과
+- 실제 이벤트 저장소 사본 분석: 위 진행 기록 참고
+
 ## I22 병합된 PR 브랜치 자동 삭제 설정과 PR 규칙 반영
 
 - 시작일: 2026-10-31

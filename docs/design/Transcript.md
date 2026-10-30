@@ -34,7 +34,7 @@
 
 [record_to_raw](../../src/agentvis/transcript.py#record_to_raw)`(line: bytes) -> RawEvent | None`는 세션 기록 한 줄을 원시 이벤트로 바꾸고, 저장 대상이 아니면 `None`을 돌려준다.
 
-**저장 대상 유형** [INGESTED_TYPES](../../src/agentvis/transcript.py#INGESTED_TYPES): `user`, `assistant`, `system`, `queue-operation`. 그 밖의 유형(`api-request`, `api-request-blob`, `attachment`, `file-history-*`, `mode`, `ai-title` 등)은 분석 질문(Q1~Q6)과 관계없는 요청 사본·화면 상태·파일 이력이라 건너뛴다. `attachment`는 M3 설계에서 필요해지면 다시 검토한다.
+**저장 대상 유형** [INGESTED_TYPES](../../src/agentvis/transcript.py#INGESTED_TYPES): `user`, `assistant`, `system`, `queue-operation`, `attachment`. `attachment`는 [INGESTED_ATTACHMENTS](../../src/agentvis/transcript.py#INGESTED_ATTACHMENTS)의 `attachment.type`만 저장한다: 작업 중 메시지·작업 알림이 모델에게 전달된 기록 `queued_command`, hook 전달 실패 `hook_non_blocking_error`(I18). 그 밖의 유형(`api-request`, `api-request-blob`, `file-history-*`, `mode`, `ai-title` 등)과 나머지 첨부(도구 목록, 편집 파일 내용 등)는 분석 질문(Q1~Q6)과 관계없는 요청 사본·화면 상태·파일 이력이라 건너뛴다.
 
 | 원시 이벤트 필드 | 값 |
 | --- | --- |
@@ -42,7 +42,7 @@
 | `kind` | 기록의 `type` |
 | `session_id` | `sessionId` |
 | `prompt_id` | `promptId` (`user` 기록에만 있다. 다른 기록은 `None`이며, 턴 귀속은 M3에서 `parentUuid`를 따라 한다) |
-| `tool_use_id` | `assistant`의 `tool_use` 블록 `id`, `user`의 `tool_result` 블록 `tool_use_id`. 그 밖에는 `None` |
+| `tool_use_id` | `assistant`의 `tool_use` 블록 `id`, `user`의 `tool_result` 블록 `tool_use_id`, `hook_non_blocking_error` 첨부의 `toolUseID`(`toolu_`로 시작할 때). 그 밖에는 `None` |
 | `cwd` | `cwd` (없으면 `None`) |
 | `occurred_at` | `timestamp`(ISO 8601, `Z`는 UTC). 없거나 해석할 수 없으면 그 줄을 건너뛴다. |
 | `payload` | 줄 원문을 UTF-8로 디코딩한 문자열 |
