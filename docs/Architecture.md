@@ -127,7 +127,7 @@ CLI의 hook 설치 명령이 Claude Code 사용자 설정(`~/.claude/settings.js
 | 웹 서버 | FastAPI + uvicorn | 비동기 처리와 SSE 응답이 간단하고 널리 쓰인다. |
 | 이벤트 저장소 | SQLite (표준 라이브러리 `sqlite3`) | 설치가 필요 없고 로컬 단일 사용자에 충분하다. |
 | 실시간 전송 | SSE (Server-Sent Events) | 서버 → 브라우저 단방향이면 충분하고 WebSocket보다 단순하다. |
-| 웹 UI | 빌드 단계 없는 정적 HTML·JS | 초기 단계에서 도구 체인을 늘리지 않는다. 시각화 라이브러리는 UI 설계 문서에서 정한다. |
+| 웹 UI | 빌드 단계 없는 정적 HTML·JS | 초기 단계에서 도구 체인을 늘리지 않는다. 첫 화면은 시각화 라이브러리 없이 만든다([웹 UI 설계](design/WebUI.md#1-기술과-라이브러리)). |
 
 데이터 디렉터리는 `~/.agentvis/`이며 SQLite 파일(`agentvis.db`)과 hook 설정 백업을 둔다.
 
@@ -144,7 +144,7 @@ CLI의 hook 설치 명령이 Claude Code 사용자 설정(`~/.claude/settings.js
 | `agentvis/transcript.py` | 기록 리더 | [기록 리더 설계](design/Transcript.md) |
 | `agentvis/store.py` | 이벤트 저장소 | [이벤트 저장소 설계](design/Store.md) |
 | `agentvis/analysis/` | 분석기 (모델 구성, 신호 규칙) | [분석기 설계](design/Analysis.md) |
-| `agentvis/web/` | 웹 UI 정적 파일 | M4-T1에서 작성 |
+| `agentvis/web/` | 웹 UI 정적 파일 | [웹 UI 설계](design/WebUI.md) |
 
 각 구성 요소는 구현에 들어가기 전에 상세 설계 문서를 먼저 작성하고, 그 문서에서 [포인터 규약](Traceability.md)에 따라 구현할 심볼을 가리킨다. 이 문서는 구조만 정하므로 코드 포인터를 두지 않는다.
 
