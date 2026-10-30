@@ -15,6 +15,7 @@
 | `session_id` | 본문의 `session_id` |
 | `prompt_id` | 본문의 `prompt_id` (없으면 `None`) |
 | `tool_use_id` | 본문의 `tool_use_id` (없으면 `None`) |
+| `cwd` | 본문의 `cwd` (없으면 `None`) |
 | `occurred_at` | `received_at`. hook 본문에는 발생 시각이 없으므로 받은 시각을 쓴다. |
 | `payload` | 본문 원문을 UTF-8로 디코딩한 문자열 |
 | `dedup_key` | `None` |
@@ -24,7 +25,7 @@
 - 본문이 UTF-8 JSON 객체가 아니다.
 - `hook_event_name` 또는 `session_id`가 없거나 문자열이 아니다.
 
-`prompt_id`, `tool_use_id`가 문자열이 아닌 값이면 `None`으로 둔다. 모르는 이벤트 이름도 그대로 저장한다. 형식이 바뀌어도 데이터를 버리지 않기 위해서다([데이터 소스 주의 사항](../DataSource.md#32-주의-사항)).
+`prompt_id`, `tool_use_id`, `cwd`가 문자열이 아닌 값이면 `None`으로 둔다. 모르는 이벤트 이름도 그대로 저장한다. 형식이 바뀌어도 데이터를 버리지 않기 위해서다([데이터 소스 주의 사항](../DataSource.md#32-주의-사항)).
 
 ## 2. HTTP 엔드포인트
 
@@ -43,7 +44,7 @@
 
 `tests/test_collector.py`에서 확인한다. 앱 테스트는 FastAPI의 `TestClient`와 임시 디렉터리의 이벤트 저장소를 쓴다.
 
-- 실측한 `PostToolUseFailure` 본문이 올바른 원시 이벤트로 바뀐다(`kind`, 결합 키, `payload` 원문).
+- 실측한 `PostToolUseFailure` 본문이 올바른 원시 이벤트로 바뀐다(`kind`, 결합 키, `cwd`, `payload` 원문).
 - `prompt_id`가 없는 `SessionStart` 본문도 저장된다.
 - JSON이 아니거나 `hook_event_name`이 없는 본문은 `400`을 받고 저장되지 않는다.
 - `POST /hooks`의 성공 응답 본문은 정확히 `{}`다.

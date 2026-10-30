@@ -36,3 +36,6 @@
   - 원인 조사: 속성을 풀어도 uv를 실행하지 않은 상태에서 5초 안에 다시 붙었다. `~/Desktop`이 iCloud Drive의 "데스크탑 및 문서" 동기화 대상이고(`.venv`에 `com.apple.file-provider-domain-id` 속성, `bird`·`fileproviderd` 실행 중), iCloud 쪽 프로세스가 붙이는 것으로 추정한다.
   - 임시 조치: 테스트 직전에 `chflags nohidden .venv/lib/python3.12/site-packages/agentvis.pth`를 실행한다. 몇 초 안에 다시 숨겨지므로 근본 해결이 아니다.
   - 해결 후보(사용자 결정 필요): ① `.venv`를 `.venv.nosync`로 바꾸고 `.venv` 심볼릭 링크를 둔다(iCloud는 `.nosync`로 끝나는 항목을 동기화하지 않는다). ② 프로젝트를 iCloud 동기화 밖 위치로 옮긴다. ③ `UV_PROJECT_ENVIRONMENT`로 가상 환경을 동기화 밖에 둔다.
+- [x] I9 프로젝트 폴더를 선택해 그 프로젝트를 시각화하는 방식 반영 (사용자 지시)
+  - 등록일: 2026-10-31
+  - 내용: AgentVis 웹은 사용자가 Claude Code 프로젝트 폴더를 선택하면 그 프로젝트를 시각화한다. hook은 전역으로 설치해 모든 세션을 모으고, 프로젝트 목록은 세션 기록의 실제 작업 경로(`cwd`)로 만들며, 이벤트 저장소에 `cwd`를 저장한다.

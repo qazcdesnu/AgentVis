@@ -70,6 +70,7 @@ Claude Code는 작업 중 정해진 시점에 hook을 실행하고, 이벤트 �
 
 - Claude Code는 세션 하나를 JSONL 파일 하나로 저장한다: `~/.claude/projects/<프로젝트 경로>/<세션 ID>.jsonl`. hook 이벤트의 `transcript_path`가 이 파일을 가리킨다.
 - `<프로젝트 경로>`는 작업 디렉터리의 절대 경로에서 영문자·숫자가 아닌 문자를 `-`로 바꾼 문자열이다. 예: `/Users/me/app` → `-Users-me-app`
+- 이 변환은 정보를 잃는다. 한글 같은 문자는 사라지고(`…/course/AI윤리` → `…-course-AI--`), 원래 경로의 `-`와 경로 구분자 `/`가 구분되지 않는다(`2026-2/course` → `2026-2-course`). 따라서 디렉터리 이름으로 원래 경로를 되돌리지 않는다. 원래 경로는 기록의 `cwd` 필드에서 읽는다. 2026-10-31에 실제 디렉터리 다섯 개에서 `cwd`가 원래 경로와 정확히 일치함을 확인했다.
 - 파일의 한 줄이 기록(record) 하나이며, 각 기록은 `type` 필드를 가진 JSON 객체다. 파일은 세션이 진행되는 동안 뒤에 계속 덧붙는다.
 
 ### 3.2 주의 사항
@@ -104,4 +105,4 @@ Claude Code는 작업 중 정해진 시점에 hook을 실행하고, 이벤트 �
 | `tool_result.is_error` | 내용 블록 | 도구 실패 여부 |
 | `toolUseResult` | `user` | 도구 실행 결과의 구조화된 상세 |
 | `permissionDecision` | `user` | 도구 실행에 대한 권한 판정 |
-| `cwd`, `gitBranch`, `version` | 대부분의 기록 | 작업 디렉터리, 브랜치, Claude Code 버전 |
+| `cwd`, `gitBranch`, `version` | 대부분의 기록 | 작업 디렉터리(절대 경로), 브랜치, Claude Code 버전. 세션의 첫 `cwd`가 그 세션의 프로젝트 경로다. |

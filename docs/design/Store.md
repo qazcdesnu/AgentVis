@@ -27,6 +27,7 @@ CREATE TABLE raw_events (
     session_id   TEXT,
     prompt_id    TEXT,
     tool_use_id  TEXT,
+    cwd          TEXT,            -- 이벤트에 적힌 작업 디렉터리 그대로
     occurred_at  TEXT NOT NULL,   -- ISO 8601, UTC
     received_at  TEXT NOT NULL,   -- ISO 8601, UTC. 이벤트 저장소에 들어온 시각
     dedup_key    TEXT UNIQUE,     -- NULL 허용. NULL끼리는 충돌하지 않는다.
@@ -35,6 +36,7 @@ CREATE TABLE raw_events (
 CREATE INDEX raw_events_session ON raw_events (session_id, id);
 CREATE INDEX raw_events_prompt ON raw_events (prompt_id);
 CREATE INDEX raw_events_tool_use ON raw_events (tool_use_id);
+CREATE INDEX raw_events_cwd ON raw_events (cwd);
 ```
 
 - 스키마 버전은 `PRAGMA user_version`으로 관리하며 현재 버전은 1이다. 이벤트 저장소를 열 때 버전이 0이면 위 스키마를 만들고 1로 설정한다. 알 수 없는 더 높은 버전이면 오류를 낸다.
@@ -52,6 +54,7 @@ CREATE INDEX raw_events_tool_use ON raw_events (tool_use_id);
 | `session_id` | `str \| None` | |
 | `prompt_id` | `str \| None` | |
 | `tool_use_id` | `str \| None` | |
+| `cwd` | `str \| None` | 프로젝트 판정은 M3 분석기가 세션의 첫 `cwd`로 한다. |
 | `occurred_at` | `datetime` | 시간대 정보 필수 |
 | `payload` | `str` | JSON 원문 |
 | `dedup_key` | `str \| None` | 기본값 `None` |
