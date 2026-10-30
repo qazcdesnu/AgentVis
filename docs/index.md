@@ -35,7 +35,7 @@ AgentVis가 무엇을 만드는지 이해할 때 읽는다. 제품 기능에 관
 
 | 문서 | 설명 | 관련 태스크 |
 | --- | --- | --- |
-| [저장소 설계](design/Store.md) | SQLite 스키마, 원시 이벤트 자료형, 저장소 API | M1-T1, M1-T2 |
+| [저장소 설계](design/Store.md) | SQLite 스키마, 원시 이벤트 자료형, 저장소 API | M1-T2 |
 | [수집기 설계](design/Collector.md) | hook 이벤트 변환, `POST /hooks`, `GET /health` | M1-T3 |
 | [CLI 설계](design/Cli.md) | 패키지 골격, `serve`, `hooks install/uninstall`, 설정 편집 | M1-T1, M1-T4, M1-T5 |
 

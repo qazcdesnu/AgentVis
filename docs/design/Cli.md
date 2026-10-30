@@ -6,9 +6,13 @@
 
 ## 1. 패키지 골격
 
+M1-T1에서 만든다.
+
 - 패키지는 `src/agentvis/`에 두며 `pyproject.toml`에 빌드 백엔드(`uv_build`)를 설정한다.
 - 런타임 의존성 `fastapi`, `uvicorn`과 테스트용 개발 의존성 `httpx`(FastAPI `TestClient`가 사용)를 [코드 작업 규칙](../CodeRule.md#3-언어와-스타일)에 따라 `uv add`로 추가한다.
 - `[project.scripts]`에 `agentvis = "agentvis.cli:main"`을 등록해 `uv run agentvis <하위 명령>`으로 실행한다.
+- [agentvis 패키지](../../src/agentvis/__init__.py)는 [`__version__`](../../src/agentvis/__init__.py#__version__)으로 설치된 패키지의 버전(`pyproject.toml`의 `version`)을 제공한다. 버전은 `importlib.metadata`로 읽어, 버전 정보가 한 곳에만 있게 한다.
+- [cli 모듈](../../src/agentvis/cli.py)의 [main](../../src/agentvis/cli.py#main)은 [2. 명령](#2-명령)의 진입점이다. M1-T1에서는 `--version` 옵션(`agentvis <버전>` 출력)만 있으며, 하위 명령 없이 실행하면 도움말을 출력하고 종료 코드 0을 돌려준다. 하위 명령은 M1-T4, M1-T5에서 추가한다.
 
 ## 2. 명령
 
@@ -62,12 +66,15 @@ AgentVis hook은 URL의 쿼리 `client=agentvis`로 식별한다. Claude Code �
 
 ## 4. 테스트
 
-- `tests/test_hook_settings.py`
+- [tests/test_cli.py](../../tests/test_cli.py) (M1-T1)
+  - `main(["--version"])`이 `agentvis <버전>`을 출력하고, 그 버전이 `__version__`과 같다.
+  - 인자 없이 실행하면 도움말을 출력하고 0을 돌려준다.
+- `tests/test_hook_settings.py` (M1-T5)
   - 빈 설정에 설치하면 `HOOK_EVENTS`의 모든 이벤트에 AgentVis hook이 하나씩 생긴다.
   - 두 번 설치해도 hook이 중복되지 않고, 다른 포트로 설치하면 URL이 바뀐다.
   - 사용자가 만든 hook과 다른 설정 키는 설치·제거 후에도 그대로다.
   - 제거 후 비게 된 그룹·목록·`hooks` 객체가 사라진다.
   - JSON 객체가 아닌 설정 파일은 `SettingsError`를 내고 파일이 바뀌지 않는다.
   - 저장한 파일을 다시 읽으면 같은 설정이고, 백업 파일이 원본과 같다.
-- `tests/test_cli.py`
+- `tests/test_cli.py` (M1-T5 추가분)
   - 임시 설정 파일 경로로 `hooks install` → `hooks uninstall`을 실행하면 원래 설정으로 돌아온다.

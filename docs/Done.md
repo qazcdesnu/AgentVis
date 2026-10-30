@@ -2,6 +2,42 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## M1-T1 uv 패키지 골격 구성
+
+- 시작일: 2026-10-31
+- 완료일: 2026-10-31
+- 근거 문서: [CLI 설계](design/Cli.md#1-패키지-골격), [시스템 구조](Architecture.md#7-코드-구성)
+
+### 계획
+- [CLI 설계](design/Cli.md)에 M1-T1 범위(패키지, 의존성, 실행 명령, `--version`)를 명확히 하고 구현할 심볼을 코드 포인터로 바꾼다.
+- `pyproject.toml`에 `uv_build` 빌드 백엔드와 `[project.scripts]`를 설정하고, `uv add`로 `fastapi`, `uvicorn`, 개발 의존성 `httpx`를 추가한다.
+- `src/agentvis/__init__.py`, `src/agentvis/cli.py`(`main`, `--version`)와 테스트를 작성한다.
+
+### 진행 기록
+- 2026-10-31: 로드맵을 `[~]`로 바꾸고 시작했다.
+- 2026-10-31: [CLI 설계](design/Cli.md#1-패키지-골격)에 M1-T1 범위(`__version__`, `main`, `--version`, 테스트)를 적고 코드 포인터로 걸었다. 포인터 검사기가 미구현 5건을 보고하는 것을 확인한 뒤 구현했다.
+- 2026-10-31: 문서를 고치다가 [저장소 설계](design/Store.md)와 인덱스가 저장소를 M1-T1 관련으로 잘못 적고 있는 것을 발견해 M1-T2로 바로잡았다. 패키지 골격은 CLI 설계의 범위다.
+- 2026-10-31: 패키지 파일이 없는 상태에서 `uv add`가 프로젝트 빌드에 실패해(`Expected a Python module at: src/agentvis/__init__.py`), 모듈을 먼저 만든 뒤 의존성을 추가했다.
+- 2026-10-31: 버전을 `"0.1.0"` 문자열과 비교하던 테스트를 `pyproject.toml`의 값과 비교하도록 고쳤다. 버전을 올릴 때 테스트가 깨지지 않게 하고, 버전 정보가 한 곳에만 있다는 설계를 직접 검증하기 위해서다.
+
+### 결정 사항
+- `__version__`은 `importlib.metadata`로 설치된 패키지 메타데이터에서 읽는다. 버전은 `pyproject.toml`에만 적는다.
+- M1-T1의 `main`은 `--version`과 도움말만 제공하고, 하위 명령은 M1-T4, M1-T5에서 추가한다.
+- 의존성 하한은 `uv add`가 정한 값(`fastapi>=0.162.0`, `uvicorn>=0.54.0`, 개발용 `httpx>=0.28.1`)을 그대로 쓴다. 정확한 버전은 `uv.lock`이 고정한다.
+
+### 변경 파일
+- 신규: `src/agentvis/__init__.py`, `src/agentvis/cli.py`, `tests/test_cli.py`
+- 수정: `pyproject.toml`, `uv.lock`, `docs/design/Cli.md`, `docs/design/Store.md`, `docs/index.md`, `docs/Roadmap.md`, `docs/Ongoing.md`, `docs/Done.md`
+
+### 결과
+- `uv run agentvis --version`이 `agentvis 0.1.0`을 출력하고, 이후 태스크가 `agentvis` 패키지에 모듈과 하위 명령을 더할 수 있다.
+- FastAPI, uvicorn, httpx가 uv 환경에 설치되어 M1-T2 이후 작업에 쓸 수 있다.
+
+### 검증
+- `uv run python -m tools.check_docs`, `check_pointers`, `check_tasks`, `check_commits`: 통과
+- `uv run python -m unittest discover -s tests -t .`: 36개 통과
+- `uv run agentvis --version`: `agentvis 0.1.0`
+
 ## I7 작업 ID 기준 커밋 컨벤션과 커밋 메시지 검사기
 
 - 시작일: 2026-10-31
