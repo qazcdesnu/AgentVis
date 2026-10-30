@@ -89,7 +89,7 @@ CREATE INDEX raw_events_cwd ON raw_events (cwd);
 
 ## 6. M2 변경
 
-M2-T2에서 만든다. [기록 리더](Transcript.md)가 쓰는 읽기 커서와 묶음 저장을 더하고, I11(동시 최초 열기 충돌, 잠금 대기 시간)을 함께 고친다. 구현할 심볼은 인라인 코드로 적었고, M2-T2를 시작할 때 코드 포인터로 바꾼다.
+M2-T2에서 만든다. [기록 리더](Transcript.md)가 쓰는 읽기 커서와 묶음 저장을 더하고, I11(동시 최초 열기 충돌, 잠금 대기 시간)을 함께 고친다. 구현 심볼은 M2-T2를 시작하면서 코드 포인터로 바꿨다.
 
 **스키마 2판**
 
@@ -105,16 +105,17 @@ CREATE TABLE transcript_cursors (
 
 - `SCHEMA_VERSION`은 2가 된다. 버전 0이면 1판과 2판을, 버전 1이면 2판만 차례로 적용한다. 이미 쌓인 원시 이벤트는 그대로 둔다.
 - 스키마 준비는 `BEGIN IMMEDIATE` 트랜잭션 안에서 버전을 다시 읽은 뒤 진행한다. 두 연결이 동시에 처음 열어도 한쪽만 스키마를 만들고 다른 쪽은 기다렸다가 만들어진 버전을 본다(I11). 더 높은 버전을 거부하는 규칙은 그대로다.
+- WAL 전환(`PRAGMA journal_mode = WAL`)은 데이터베이스 전체의 배타 잠금이 필요해, 다른 연결과 겹치면 SQLite가 잠금 대기 없이 바로 `database is locked`를 낸다(M2-T2 실측: 동시 최초 열기 200번 중 10번). 이 오류는 잠금 대기 시간 안에서 10밀리초 간격으로 다시 시도한다. WAL 모드는 파일에 남으므로 다른 연결이 먼저 바꿨으면 다시 시도할 때 바로 끝난다.
 - 연결마다 `PRAGMA busy_timeout = 1000`(밀리초)을 설정한다. 다른 연결이 쓰기 잠금을 잡고 있을 때 오래 기다리지 않게 해, hook timeout(2초) 안에 응답하기 위해서다(I11).
 
 **API**
 
 | 심볼 | 동작 |
 | --- | --- |
-| `TranscriptCursor` | 읽기 커서 하나. `path`, `offset`, `device`, `inode`를 가진 불변 dataclass |
-| `EventStore.cursor(path: str) -> TranscriptCursor \| None` | 저장된 커서. 없으면 `None` |
-| `EventStore.append_batch(events: list[RawEvent], cursor: TranscriptCursor \| None = None) -> int` | 이벤트들을 저장하고 커서를 갱신하는 일을 한 트랜잭션으로 한다. 중복 제거 키가 이미 있는 이벤트는 건너뛰며, 실제로 저장한 수를 돌려준다. `append`와 같은 검증을 하고, 하나라도 실패하면 아무것도 저장하지 않는다. |
-| `EventStore.first_received_at() -> datetime \| None` | 가장 먼저 저장된 이벤트의 `received_at`(수집 시작 시각). 비어 있으면 `None` |
+| [TranscriptCursor](../../src/agentvis/store.py#TranscriptCursor) | 읽기 커서 하나. `path`, `offset`, `device`, `inode`를 가진 불변 dataclass |
+| [EventStore.cursor](../../src/agentvis/store.py#EventStore.cursor) `(path: str) -> TranscriptCursor \| None` | 저장된 커서. 없으면 `None` |
+| [EventStore.append_batch](../../src/agentvis/store.py#EventStore.append_batch) `(events: list[RawEvent], cursor: TranscriptCursor \| None = None) -> int` | 이벤트들을 저장하고 커서를 갱신하는 일을 한 트랜잭션으로 한다. 중복 제거 키가 이미 있는 이벤트는 건너뛰며, 실제로 저장한 수를 돌려준다. `append`와 같은 검증을 하고, 하나라도 실패하면 아무것도 저장하지 않는다. |
+| [EventStore.first_received_at](../../src/agentvis/store.py#EventStore.first_received_at) `() -> datetime \| None` | 가장 먼저 저장된 이벤트의 `received_at`(수집 시작 시각). 비어 있으면 `None` |
 
 **테스트** (`tests/test_store.py`에 추가)
 

@@ -1,8 +1,8 @@
 # 기록 리더 설계
 
-이 문서는 Claude Code 세션 기록(JSONL)을 이어 읽어 이벤트 저장소에 넣는 기록 리더(`src/agentvis/transcript.py`)를 설계한다. 세션 기록의 구조와 두 데이터 소스의 역할은 [데이터 소스](../DataSource.md#1-개요)에, 전체 구조에서의 위치는 [시스템 구조](../Architecture.md#31-기록-리더가-실행되는-시점)에, 저장 방식은 [이벤트 저장소 설계](Store.md)에 있다. 관련 태스크는 [로드맵](../Roadmap.md#m2-세션-기록-읽기)의 M2-T2~M2-T5다. 전체 문서 목록은 [문서 인덱스](../index.md)에서 확인한다.
+이 문서는 Claude Code 세션 기록(JSONL)을 이어 읽어 이벤트 저장소에 넣는 기록 리더([transcript 모듈](../../src/agentvis/transcript.py))를 설계한다. 세션 기록의 구조와 두 데이터 소스의 역할은 [데이터 소스](../DataSource.md#1-개요)에, 전체 구조에서의 위치는 [시스템 구조](../Architecture.md#31-기록-리더가-실행되는-시점)에, 저장 방식은 [이벤트 저장소 설계](Store.md)에 있다. 관련 태스크는 [로드맵](../Roadmap.md#m2-세션-기록-읽기)의 M2-T2~M2-T5다. 전체 문서 목록은 [문서 인덱스](../index.md)에서 확인한다.
 
-구현할 심볼은 인라인 코드로 적었다. 태스크를 시작할 때 [작업 관리 규칙](../TaskRule.md#41-시작)에 따라 코드 포인터 링크로 바꾼다.
+구현할 심볼은 인라인 코드로 적었다. 태스크를 시작할 때 [작업 관리 규칙](../TaskRule.md#41-시작)에 따라 코드 포인터 링크로 바꾼다. 1~3절과 5절은 M2-T2에서 바꿨다.
 
 ## 1. 읽는 파일
 
@@ -12,9 +12,9 @@
 | 서브에이전트 기록 | `<기록 루트>/<프로젝트 경로>/<세션 ID>/subagents/agent-<agent_id>.jsonl` |
 | 서브에이전트 메타 | 같은 위치의 `agent-<agent_id>.meta.json` |
 
-- 기록 루트는 `default_projects_dir()`(`~/.claude/projects`)다. 테스트와 가져오기 명령은 다른 경로를 넘길 수 있다.
-- 기록 리더는 기록 루트 안의 파일만 읽는다. hook 이벤트의 `transcript_path`처럼 밖에서 받은 경로는 실제 경로로 바꾼 뒤 기록 루트 안인지 확인하고, 밖이면 읽지 않는다. 받은 경로로 임의의 파일을 읽게 하지 않기 위해서다.
-- `subagent_transcript_path(transcript_path, agent_id)`는 세션 기록 경로와 `agent_id`로 서브에이전트 기록 경로를 만든다(`.jsonl`을 뗀 경로 + `/subagents/agent-<agent_id>.jsonl`). 2026-10-31 M1-T6 실측 구조를 따른다.
+- 기록 루트는 [default_projects_dir](../../src/agentvis/transcript.py#default_projects_dir)`()`(`~/.claude/projects`)다. 테스트와 가져오기 명령은 다른 경로를 넘길 수 있다.
+- 기록 리더는 기록 루트 안의 파일만 읽는다. hook 이벤트의 `transcript_path`처럼 밖에서 받은 경로는 실제 경로로 바꾼 뒤 기록 루트 안인지 확인하고, 밖이면 읽지 않고 `ValueError`를 낸다. 받은 경로로 임의의 파일을 읽게 하지 않기 위해서다.
+- [subagent_transcript_path](../../src/agentvis/transcript.py#subagent_transcript_path)`(transcript_path, agent_id)`는 세션 기록 경로와 `agent_id`로 서브에이전트 기록 경로를 만든다(`.jsonl`을 뗀 경로 + `/subagents/agent-<agent_id>.jsonl`). 2026-10-31 M1-T6 실측 구조를 따른다.
 
 ## 2. 이어 읽기
 
@@ -23,17 +23,18 @@
 1. 커서 위치부터 파일 끝까지 읽는다.
 2. 마지막 줄바꿈까지만 처리한다. 줄바꿈으로 끝나지 않는 마지막 줄은 아직 쓰는 중일 수 있으므로 다음에 읽는다.
 3. 줄마다 [3. 기록 변환](#3-기록-변환)을 거쳐 원시 이벤트로 바꾼다.
-4. 바꾼 원시 이벤트들과 새 커서 위치를 **한 트랜잭션으로** 저장한다. 둘 중 하나만 저장되면 기록을 잃거나 다시 읽게 되기 때문이다. 다시 읽더라도 중복 제거 키 때문에 중복 저장되지는 않는다.
+4. 바꾼 원시 이벤트들과 새 커서 위치를 **한 트랜잭션으로** 저장한다. 한 트랜잭션에는 최대 [BATCH_LINES](../../src/agentvis/transcript.py#BATCH_LINES)(500)줄을 담아 쓰기 잠금을 짧게 잡는다. 둘 중 하나만 저장되면 기록을 잃거나 다시 읽게 되기 때문이다. 다시 읽더라도 중복 제거 키 때문에 중복 저장되지는 않는다.
 
 - 파일 식별자(장치·inode)가 커서에 저장된 것과 다르거나 파일 크기가 커서 위치보다 작으면, 파일이 바뀐 것으로 보고 처음부터 다시 읽는다.
-- 서브에이전트 메타 파일은 JSONL이 아니므로 커서 없이 통째로 읽는다.
-- `read_new_records(store, path, projects_dir) -> ReadResult`가 한 파일을 이어 읽는다. `ReadResult`는 저장한 수, 건너뛴 줄 수(해석 실패, 대상이 아닌 유형, 시각 없음), 새 커서 위치를 가진다.
+- 서브에이전트 메타 파일은 JSONL이 아니므로 커서 없이 통째로 읽는다([read_subagent_meta](../../src/agentvis/transcript.py#read_subagent_meta)`(store, path, projects_dir) -> bool`, 새로 저장했으면 `True`).
+- 아직 없는 파일은 읽을 것이 없는 것으로 보고, 아무것도 저장하지 않은 결과를 돌려준다. hook 이벤트가 세션 기록 파일보다 먼저 올 수 있기 때문이다.
+- [read_new_records](../../src/agentvis/transcript.py#read_new_records)`(store, path, projects_dir) -> ReadResult`가 한 파일을 이어 읽는다. [ReadResult](../../src/agentvis/transcript.py#ReadResult)는 저장한 수, 건너뛴 줄 수(해석 실패, 대상이 아닌 유형, 시각 없음), 새 커서 위치를 가진다.
 
 ## 3. 기록 변환
 
-`record_to_raw(line: bytes) -> RawEvent | None`는 세션 기록 한 줄을 원시 이벤트로 바꾸고, 저장 대상이 아니면 `None`을 돌려준다.
+[record_to_raw](../../src/agentvis/transcript.py#record_to_raw)`(line: bytes) -> RawEvent | None`는 세션 기록 한 줄을 원시 이벤트로 바꾸고, 저장 대상이 아니면 `None`을 돌려준다.
 
-**저장 대상 유형** `INGESTED_TYPES`: `user`, `assistant`, `system`, `queue-operation`. 그 밖의 유형(`api-request`, `api-request-blob`, `attachment`, `file-history-*`, `mode`, `ai-title` 등)은 분석 질문(Q1~Q6)과 관계없는 요청 사본·화면 상태·파일 이력이라 건너뛴다. `attachment`는 M3 설계에서 필요해지면 다시 검토한다.
+**저장 대상 유형** [INGESTED_TYPES](../../src/agentvis/transcript.py#INGESTED_TYPES): `user`, `assistant`, `system`, `queue-operation`. 그 밖의 유형(`api-request`, `api-request-blob`, `attachment`, `file-history-*`, `mode`, `ai-title` 등)은 분석 질문(Q1~Q6)과 관계없는 요청 사본·화면 상태·파일 이력이라 건너뛴다. `attachment`는 M3 설계에서 필요해지면 다시 검토한다.
 
 | 원시 이벤트 필드 | 값 |
 | --- | --- |
@@ -84,7 +85,7 @@
 
 ## 6. 테스트
 
-`tests/test_transcript.py`에서 임시 기록 루트와 임시 이벤트 저장소로 확인한다.
+[tests/test_transcript.py](../../tests/test_transcript.py)에서 임시 기록 루트와 임시 이벤트 저장소로 확인한다. 아래 항목 중 서버 시작 시 찾기(M2-T4), `TranscriptReader`·수집기 연동(M2-T3)은 해당 태스크에서 추가한다.
 
 - 실측 형태의 `user`(사용자 지시, 도구 결과), `assistant`(thinking, text, tool_use), `system`, `queue-operation` 줄이 표대로 바뀐다. 대상이 아닌 유형·해석할 수 없는 줄·시각 없는 줄은 건너뛰고 수가 세어진다.
 - 이어 읽기: 두 번째 읽기는 새로 덧붙인 줄만 저장하고, 줄바꿈 없는 마지막 줄은 다음 읽기로 넘어가며, 같은 파일을 처음부터 다시 읽어도 중복 저장되지 않는다.

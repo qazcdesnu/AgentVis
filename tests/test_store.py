@@ -16,6 +16,7 @@ from agentvis.store import (
     EventStore,
     RawEvent,
     SchemaVersionError,
+    TranscriptCursor,
     data_dir,
     default_db_path,
 )
@@ -103,6 +104,72 @@ class EventStoreTest(RepoTestCase):
         self.store.close()
         with EventStore(self.path) as reopened:
             self.assertEqual(len(reopened.events()), 1)
+
+
+_SCHEMA_V1 = """
+CREATE TABLE raw_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source TEXT NOT NULL CHECK (source IN ('hook', 'transcript')),
+    kind TEXT NOT NULL, session_id TEXT, prompt_id TEXT, tool_use_id TEXT, cwd TEXT,
+    occurred_at TEXT NOT NULL, received_at TEXT NOT NULL, dedup_key TEXT UNIQUE, payload TEXT NOT NULL
+);
+INSERT INTO raw_events (source, kind, session_id, occurred_at, received_at, payload)
+VALUES ('hook', 'Stop', 's-old', '2026-10-31T00:00:00+00:00', '2026-10-31T00:00:01+00:00', '{}');
+PRAGMA user_version = 1;
+"""
+
+
+class StoreM2Test(RepoTestCase):
+    """@doc: docs/design/Store.md#6-m2-변경"""
+
+    def test_version_1_database_is_migrated_and_keeps_events(self) -> None:
+        path = self.root / "v1.db"
+        connection = sqlite3.connect(path)
+        connection.executescript(_SCHEMA_V1)
+        connection.close()
+        with EventStore(path) as store:
+            self.assertEqual([event.session_id for event in store.events()], ["s-old"])
+            self.assertIsNone(store.cursor("/x"))
+        connection = sqlite3.connect(path)
+        self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], SCHEMA_VERSION)
+        connection.close()
+
+    def test_concurrent_first_open_succeeds(self) -> None:
+        for attempt in range(10):
+            path = self.root / f"race{attempt}.db"
+            errors: list[BaseException] = []
+
+            def open_and_close() -> None:
+                try:
+                    EventStore(path).close()
+                except BaseException as error:  # noqa: BLE001 - collected for the assertion below
+                    errors.append(error)
+
+            with ThreadPoolExecutor(max_workers=3) as pool:
+                for _ in range(3):
+                    pool.submit(open_and_close)
+            self.assertEqual(errors, [], f"attempt {attempt}")
+
+    def test_append_batch_stores_events_and_cursor_together(self) -> None:
+        with EventStore(self.root / "a.db") as store:
+            self.assertIsNone(store.first_received_at())
+            cursor = TranscriptCursor("/p/s.jsonl", 120, 1, 2)
+            keyed = [replace(_EVENT, source="transcript", dedup_key=f"uuid:{n}") for n in range(3)]
+            self.assertEqual(store.append_batch(keyed, cursor), 3)
+            self.assertEqual(store.cursor("/p/s.jsonl"), cursor)
+            moved = TranscriptCursor("/p/s.jsonl", 300, 1, 2)
+            self.assertEqual(store.append_batch(keyed[1:] + [replace(keyed[0], dedup_key="uuid:9")], moved), 1)
+            self.assertEqual(store.cursor("/p/s.jsonl"), moved)
+            first = store.first_received_at()
+            self.assertEqual(first, store.events()[0].received_at)
+
+    def test_append_batch_is_all_or_nothing(self) -> None:
+        with EventStore(self.root / "a.db") as store:
+            bad = [replace(_EVENT, dedup_key="uuid:1"), replace(_EVENT, source="other", dedup_key="uuid:2")]
+            with self.assertRaises(ValueError):
+                store.append_batch(bad, TranscriptCursor("/p/s.jsonl", 10, 1, 2))
+            self.assertEqual(store.events(), [])
+            self.assertIsNone(store.cursor("/p/s.jsonl"))
 
 
 class DataDirTest(RepoTestCase):

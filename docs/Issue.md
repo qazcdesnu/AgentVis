@@ -45,7 +45,7 @@
 - [x] H2 수집기가 요청 출처를 검증하지 않아 브라우저의 웹페이지가 가짜 이벤트를 넣을 수 있음
   - 등록일: 2026-10-31
   - 내용: I10 코드 리뷰. `POST /hooks`가 `Host`·`Origin`·`Content-Type`을 검사하지 않는다. `Content-Type: text/plain`, `Origin: https://evil.example`, `Host: attacker.example:8765`인 요청이 200을 받고 저장됨을 재현했다. `text/plain` POST는 브라우저가 사전 확인 없이 보내는 요청이고, `Host` 검사가 없으면 DNS 리바인딩도 막지 못한다. 저장된 내용은 이후 화면에 표시되므로 위험이 커진다.
-- [ ] I11 새 이벤트 저장소를 두 연결이 동시에 열면 스키마 생성이 충돌함
+- [x] I11 새 이벤트 저장소를 두 연결이 동시에 열면 스키마 생성이 충돌함
   - 등록일: 2026-10-31
   - 내용: I10 코드 리뷰. 버전 확인이 트랜잭션 밖에 있어, 빈 경로를 두 스레드가 동시에 열면 10번 중 8번 한쪽이 `table raw_events already exists` 또는 `database is locked`로 실패함을 재현했다. 또 SQLite 기본 잠금 대기(5초)가 hook timeout(2초)보다 길어, 다른 프로세스가 쓰기 잠금을 오래 잡으면 hook이 시간 초과될 수 있다.
   - 연결 작업: M2-T2
