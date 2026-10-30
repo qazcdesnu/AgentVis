@@ -45,7 +45,7 @@
 [tests/test_collector.py](../../tests/test_collector.py)에서 확인한다. 앱 테스트는 FastAPI의 `TestClient`와 임시 디렉터리의 이벤트 저장소를 쓴다.
 
 - 실측한 `PostToolUseFailure` 본문이 올바른 원시 이벤트로 바뀐다(`kind`, 결합 키, `cwd`, `payload` 원문).
-- `prompt_id`가 없는 `SessionStart` 본문도 저장된다.
+- `prompt_id`가 없는 `SessionEnd` 본문도 저장된다.
 - JSON이 아니거나, JSON 객체가 아니거나, `hook_event_name`이 없는 본문은 `400`을 받고 저장되지 않는다.
 - 문자열이 아닌 `prompt_id`·`tool_use_id`·`cwd`는 `None`이 되고, 모르는 이벤트 이름도 저장된다.
 - 쿼리 문자열(`?client=agentvis`)이 붙은 요청도 같게 처리된다.

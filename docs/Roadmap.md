@@ -18,7 +18,7 @@
 - [x] M1-T3 수집기 구현 (`POST /hooks`, `GET /health`)
 - [x] M1-T4 `agentvis serve` 명령 구현
 - [x] M1-T5 `agentvis hooks install` / `uninstall` 명령 구현
-- [ ] M1-T6 "문서" 표기 hook 이벤트를 실측해 데이터 소스 문서 갱신
+- [x] M1-T6 "문서" 표기 hook 이벤트를 실측해 데이터 소스 문서 갱신
 - [ ] M1-T7 실제 Claude Code 세션으로 M1 완료 기준 확인
 
 ## M2 세션 기록 보완

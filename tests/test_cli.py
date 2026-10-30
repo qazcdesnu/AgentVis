@@ -117,11 +117,11 @@ class HooksCommandTest(RepoTestCase):
     def test_install_then_uninstall_restores_settings(self) -> None:
         code, output, _ = self.run_main("hooks", "install", "--settings", str(self.settings))
         self.assertEqual(code, 0)
-        self.assertIn("추가한 hook: 15개 (http://127.0.0.1:8765/hooks?client=agentvis)", output)
+        self.assertIn("추가한 hook: 14개 (http://127.0.0.1:8765/hooks?client=agentvis)", output)
         self.assertEqual(len(list(self.backups.iterdir())), 1)
         code, output, _ = self.run_main("hooks", "uninstall", "--settings", str(self.settings))
         self.assertEqual(code, 0)
-        self.assertIn("제거한 hook: 15개", output)
+        self.assertIn("제거한 hook: 14개", output)
         self.assertEqual(json.loads(self.settings.read_text(encoding="utf-8")), json.loads(self.original))
         self.assertEqual(len(list(self.backups.iterdir())), 2)
 

@@ -2,6 +2,41 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## M1-T6 "문서" 표기 hook 이벤트를 실측해 데이터 소스 문서 갱신
+
+- 시작일: 2026-10-31
+- 완료일: 2026-10-31
+- 근거 문서: [데이터 소스](DataSource.md#23-사용하는-이벤트)
+
+### 계획
+- 임시 데이터 디렉터리로 `agentvis serve`를 띄우고, 임시 설정 파일에 `agentvis hooks install --settings`로 hook을 설치한 뒤, 그 설정으로 `claude -p`를 실행해 이벤트를 수집한다. 실제 `~/.claude/settings.json`은 건드리지 않는다.
+- 대상: `PermissionRequest`, `PermissionDenied`, `Notification`, `SubagentStart`, `SubagentStop`, `StopFailure`, `PreCompact`, `PostCompact`.
+- 수집한 이벤트로 [데이터 소스](DataSource.md#23-사용하는-이벤트) 표의 "확인" 열과 필드를 고친다. 비대화 모드에서 일으킬 수 없는 이벤트는 사유와 함께 "미확인"으로 적는다.
+- 실측으로 생긴 임시 세션 기록은 끝나고 지운다.
+
+### 진행 기록
+- 2026-10-31: 로드맵을 `[~]`로 바꾸고 시작했다.
+- 2026-10-31: 임시 `AGENTVIS_HOME`으로 `agentvis serve --port 8797`을 띄우고, 임시 설정 파일에 `agentvis hooks install --settings`로 hook을 설치한 뒤 `claude -p`(Claude Code 2.1.314)를 세 번 실행했다. 서브에이전트 실행과 허용하지 않은 Write 시도, 같은 세션의 `/compact`, 존재하지 않는 모델 지정이었다. 수집기·이벤트 저장소·설치 명령을 실제 Claude Code와 함께 처음 시험한 것이기도 하다. 이벤트 18개가 저장되었다.
+- 2026-10-31: `PermissionRequest`, `SubagentStart`/`SubagentStop`, `StopFailure`, `PreCompact`/`PostCompact`를 실측으로 확인했다. `PermissionDenied`는 위험한 명령을 일부러 시켜야 해서, `Notification`은 비대화 모드에서 일으킬 수 없어서 "미확인"으로 남겼다.
+- 2026-10-31: `SessionStart`가 `http` hook으로 한 번도 오지 않았다. 공식 hooks 문서에서 `SessionStart`는 `command`, `mcp_tool` hook만 지원한다는 문장을 확인했다. M1-T5의 `HOOK_EVENTS`가 지원하지 않는 이벤트를 등록하고 있었으므로, 문서를 먼저 고친 뒤 `HOOK_EVENTS`에서 빼고 테스트를 맞췄다(15개 → 14개).
+- 2026-10-31: 분석에 영향을 주는 동작을 [실측으로 확인한 동작](DataSource.md#25-실측으로-확인한-동작)에 정리했다. 권한이 없어 막힌 도구는 완료 이벤트가 없다는 점, 서브에이전트 이벤트의 `agent_id`, `/compact` 요약 서브에이전트의 `SubagentStop`이 대상이다. 서브에이전트 기록 파일의 위치와 메타 파일 구조도 [세션 기록 위치](DataSource.md#31-위치)에 적었다.
+- 2026-10-31: 실측 세션 기록(`~/.claude/projects/…-scratchpad-m1t6-proj/`, 세션 2개와 서브에이전트 기록)과 임시 작업 공간을 지웠다. 지우기 전에 작업 경로가 모두 실측용 임시 폴더임을 확인했다. 실제 `~/.claude/settings.json`은 바뀌지 않았다.
+
+### 결정 사항
+- `SessionStart`는 수집하지 않는다. 세션 시작 시각은 첫 이벤트로, 시작 종류는 세션 기록으로 판정한다. 이벤트 하나 때문에 `http`와 다른 hook 방식(`command`)을 섞지 않기 위해서다.
+- 수집기 테스트의 "`prompt_id` 없는 본문" 예시를 실제로 오지 않는 `SessionStart` 대신 실측한 `SessionEnd`로 바꿨다.
+
+### 변경 파일
+- 수정: `docs/DataSource.md`, `docs/Architecture.md`, `docs/design/Cli.md`, `docs/design/Collector.md`, `src/agentvis/hook_settings.py`, `tests/test_hook_settings.py`, `tests/test_cli.py`, `tests/test_collector.py`, `docs/Roadmap.md`, `docs/Ongoing.md`, `docs/Done.md`
+- 삭제(저장소 밖): 실측 세션 기록 디렉터리
+
+### 결과
+- 사용하는 hook 이벤트 14개 중 12개가 실측으로 확인되었고, 실제 Claude Code의 `http` hook → 수집기 → 이벤트 저장소 흐름이 동작함을 확인했다.
+
+### 검증
+- `uv run python -m tools.check_docs`, `check_pointers`, `check_tasks`, `check_commits`: 통과
+- `uv run python -m unittest discover -s tests -t .`: 68개 통과
+
 ## M1-T5 `agentvis hooks install` / `uninstall` 명령 구현
 
 - 시작일: 2026-10-31

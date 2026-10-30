@@ -32,7 +32,7 @@ _FAILURE = json.dumps(
     },
     ensure_ascii=False,
 )
-_SESSION_START = '{"session_id": "s1", "hook_event_name": "SessionStart", "source": "startup", "cwd": "/w"}'
+_SESSION_END = '{"session_id": "s1", "hook_event_name": "SessionEnd", "reason": "other", "cwd": "/w"}'
 _NOW = datetime(2026, 10, 31, 1, 0, tzinfo=UTC)
 
 
@@ -76,10 +76,10 @@ class CollectorAppTest(RepoTestCase):
         response = self.client.post("/hooks?client=agentvis", content=_FAILURE.encode())
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content, b"{}")
-        response = self.client.post("/hooks", content=_SESSION_START.encode())
+        response = self.client.post("/hooks", content=_SESSION_END.encode())
         self.assertEqual(response.status_code, 200)
         stored = self.store.events()
-        self.assertEqual([event.kind for event in stored], ["PostToolUseFailure", "SessionStart"])
+        self.assertEqual([event.kind for event in stored], ["PostToolUseFailure", "SessionEnd"])
         self.assertEqual(stored[0].payload, _FAILURE)
         self.assertIsNone(stored[1].prompt_id)
 

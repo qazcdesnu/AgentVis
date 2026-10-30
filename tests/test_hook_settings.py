@@ -45,6 +45,8 @@ class InstallUninstallTest(unittest.TestCase):
     """@doc: docs/design/Cli.md#4-테스트"""
 
     def test_install_on_empty_settings_adds_one_hook_per_event(self) -> None:
+        self.assertEqual(len(HOOK_EVENTS), 14)
+        self.assertNotIn("SessionStart", HOOK_EVENTS)
         installed, count = install_hooks({}, 8765)
         self.assertEqual(count, len(HOOK_EVENTS))
         self.assertEqual(list(installed["hooks"]), list(HOOK_EVENTS))

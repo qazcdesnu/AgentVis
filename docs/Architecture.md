@@ -97,7 +97,7 @@ CLI의 hook 설치 명령이 Claude Code 사용자 설정(`~/.claude/settings.js
 }
 ```
 
-등록하는 이벤트는 [사용하는 이벤트](DataSource.md#23-사용하는-이벤트) 표의 전부다. 포트는 설정으로 바꿀 수 있다.
+등록하는 이벤트는 [사용하는 이벤트](DataSource.md#23-사용하는-이벤트) 표의 전부다(`http` hook을 지원하지 않는 `SessionStart` 제외). 포트는 설정으로 바꿀 수 있다.
 
 ### 5.2 HTTP API
 

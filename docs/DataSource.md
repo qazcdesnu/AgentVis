@@ -36,33 +36,42 @@ Claude Code는 작업 중 정해진 시점에 hook을 실행하고, 이벤트 �
 
 | 이벤트 | 시점 | 주요 필드 | 확인 |
 | --- | --- | --- | --- |
-| `SessionStart` | 세션 시작·재개 | `source` (`startup`, `resume`, `clear`, `compact`, `fork`) | 실측 |
 | `UserPromptSubmit` | 사용자 지시 제출 | `prompt`, `prompt_id` | 실측 |
 | `PreToolUse` | 도구 실행 직전 | `tool_name`, `tool_input`, `tool_use_id` | 실측 |
 | `PostToolUse` | 도구 성공 | `tool_response`, `tool_use_id`, `duration_ms` | 실측 |
 | `PostToolUseFailure` | 도구 실패 (Bash의 0이 아닌 종료 코드 포함) | `error`(표시용 문자열), `is_interrupt`, `tool_use_id`, `duration_ms` | 실측 |
-| `PermissionRequest` | 권한 확인 대화상자 표시 | `tool_name`, `tool_input` (`tool_use_id` 없음) | 문서 |
-| `PermissionDenied` | auto 모드에서 권한 거부 | `tool_name`, `tool_use_id`, `reason` | 문서 |
-| `Notification` | 알림 | `message`, `notification_type` | 문서 |
-| `SubagentStart` / `SubagentStop` | 서브에이전트 시작·종료 | `agent_id`, `agent_type`, `agent_transcript_path`(종료 시) | 문서 |
+| `PermissionRequest` | 권한 확인이 필요한 도구 호출. 비대화 모드(`-p`)에서도 발생한다. | `tool_name`, `tool_input`, `permission_suggestions` (`tool_use_id` 없음) | 실측 |
+| `PermissionDenied` | auto 모드에서 권한 거부 | `tool_name`, `tool_use_id`, `reason` | 미확인 |
+| `Notification` | 알림 | `message`, `notification_type` | 미확인 |
+| `SubagentStart` / `SubagentStop` | 서브에이전트 시작·종료 | `agent_id`, `agent_type`, `agent_transcript_path`·`last_assistant_message`(종료 시) | 실측 |
 | `Stop` | 턴 종료 | `last_assistant_message` | 실측 |
-| `StopFailure` | API 오류로 턴 실패 | `error`, `error_details` | 문서 |
-| `PreCompact` / `PostCompact` | 문맥 압축 | `trigger` (`manual`, `auto`) | 문서 |
-| `SessionEnd` | 세션 종료 | `reason` | 실측 |
+| `StopFailure` | API 오류로 턴 실패 | `error`(예: `model_not_found`), `last_assistant_message`, `error_details`(있을 때만) | 실측 |
+| `PreCompact` / `PostCompact` | 문맥 압축 | `trigger` (`manual`, `auto`), `custom_instructions`(시작 시), `compact_summary`(종료 시) | 실측 |
+| `SessionEnd` | 세션 종료 | `reason` (비대화 모드에서는 `other`) | 실측 |
 
-"실측"은 직접 받아 확인한 것이고, "문서"는 공식 문서에만 근거한 것이다. "문서" 항목은 처음 구현할 때 실측으로 확인하고 이 표를 고친다.
-
-`PostToolBatch`(위 도구 이벤트와 중복)와 `MessageDisplay`(화면 표시용 스트리밍 조각)는 사용하지 않는다.
+- "실측"은 직접 받아 확인한 것이다. M0-T4(command hook, 2026-10-31)와 M1-T6(AgentVis 수집기와 `http` hook, 2026-10-31, Claude Code 2.1.314)에서 확인했다.
+- "미확인"은 공식 문서에만 근거한 것이다. `PermissionDenied`는 auto 모드가 위험하다고 판정한 명령에서만 생기므로 일부러 일으키지 않았다. `Notification`은 대화형 화면의 알림이라 비대화 모드에서 일으킬 수 없었다. 실제 세션에서 수집되면 이 표를 고친다.
+- `SessionStart`는 `http` hook을 지원하지 않으므로(공식 문서: "Only `type: "command"` and `type: "mcp_tool"` hooks are supported") 사용하지 않는다. M1-T6에서 `http` hook으로 세 세션을 실행해 한 번도 오지 않음을 확인했다. M0-T4에서는 command hook으로 받았다(`source`: `startup`, `resume`, `clear`, `compact`, `fork`).
+- `PostToolBatch`(위 도구 이벤트와 중복)와 `MessageDisplay`(화면 표시용 스트리밍 조각)는 사용하지 않는다.
 
 ### 2.4 hook으로 얻을 수 없는 정보
 
 | 정보 | 상태 | 보완 방법 |
 | --- | --- | --- |
+| 세션 시작과 시작 종류(`SessionStart`) | `http` hook 미지원 | 시작 시각은 세션의 첫 이벤트로, 시작 종류(재개, 압축 후 등)는 세션 기록으로 판정 |
 | 모델의 사고 과정(thinking)과 중간 응답 텍스트 | 이벤트 없음 | 세션 기록의 `assistant` 기록 |
 | 작업 도중 들어온 사용자 메시지 | 이벤트로 문서화되어 있지 않음 | 세션 기록의 `queue-operation` |
-| auto 모드가 아닐 때 사용자의 권한 거부 | 이벤트 없음 | 세션 기록의 `permissionDecision`, 도구 결과 |
+| auto 모드가 아닐 때 사용자의 권한 거부 | 거부 이벤트 없음 | 아래 [실측으로 확인한 동작](#25-실측으로-확인한-동작)의 "완료 이벤트 없는 `PreToolUse`", 세션 기록의 `permissionDecision`과 도구 결과 |
 | 텍스트 생성 중 사용자 중단(Esc) | 이벤트 없음 (도구 실행 중 중단만 `is_interrupt`로 옴) | 세션 기록 |
 | AgentVis 서버가 꺼져 있던 동안의 이벤트 | 유실 | 세션 기록 |
+
+### 2.5 실측으로 확인한 동작
+
+M1-T6에서 확인한, 분석에 영향을 주는 동작이다.
+
+- **권한이 없어 막힌 도구 호출**: `PreToolUse` → `PermissionRequest` 다음에 `PostToolUse`도 `PostToolUseFailure`도 오지 않는다. 따라서 완료 이벤트가 없는 `PreToolUse`는 권한 거부나 중단의 후보다. `PermissionRequest`에는 `tool_use_id`가 없으므로 같은 턴의 직전 `PreToolUse`(같은 `tool_name`, `tool_input`)와 짝짓는다.
+- **서브에이전트 안의 이벤트**: 서브에이전트가 실행한 도구 이벤트에도 `agent_id`, `agent_type`이 붙는다. 서브에이전트를 띄운 도구(`Agent`) 호출은 `agent_id` 없이 `PreToolUse`·`PostToolUse`로 오고, 그 사이에 `SubagentStart`·서브에이전트의 이벤트·`SubagentStop`이 온다.
+- **문맥 압축의 요약 서브에이전트**: `/compact`는 요약을 서브에이전트로 실행하며, `SubagentStart` 없이 `agent_type`이 빈 문자열인 `SubagentStop`만 `PreCompact`와 `PostCompact` 사이에 온다. 사용자 작업의 서브에이전트와 구분해야 한다.
 
 ## 3. 세션 기록 (JSONL)
 
@@ -72,6 +81,7 @@ Claude Code는 작업 중 정해진 시점에 hook을 실행하고, 이벤트 �
 - `<프로젝트 경로>`는 작업 디렉터리의 절대 경로에서 영문자·숫자가 아닌 문자를 `-`로 바꾼 문자열이다. 예: `/Users/me/app` → `-Users-me-app`
 - 이 변환은 정보를 잃는다. 한글 같은 문자는 사라지고(`…/course/AI윤리` → `…-course-AI--`), 원래 경로의 `-`와 경로 구분자 `/`가 구분되지 않는다(`2026-2/course` → `2026-2-course`). 따라서 디렉터리 이름으로 원래 경로를 되돌리지 않는다. 원래 경로는 기록의 `cwd` 필드에서 읽는다. 2026-10-31에 실제 디렉터리 다섯 개에서 `cwd`가 원래 경로와 정확히 일치함을 확인했다.
 - 파일의 한 줄이 기록(record) 하나이며, 각 기록은 `type` 필드를 가진 JSON 객체다. 파일은 세션이 진행되는 동안 뒤에 계속 덧붙는다.
+- 서브에이전트의 기록은 부모 세션 파일과 따로 `<세션 ID>/subagents/agent-<agent_id>.jsonl`에 저장된다. `<agent_id>`는 hook 이벤트의 `agent_id`와 같다. 각 기록에는 `isSidechain: true`, `agentId`, 부모의 `sessionId`·`promptId`가 있다. 옆의 `agent-<agent_id>.meta.json`에는 `agentType`, `description`, 서브에이전트를 띄운 도구 호출 ID(`toolUseId`), 중첩 깊이(`spawnDepth`), `finished`가 있다. 문맥 압축의 요약 서브에이전트는 기록 파일이 생기지 않았다. (M1-T6 실측)
 
 ### 3.2 주의 사항
 

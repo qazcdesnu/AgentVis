@@ -14,7 +14,6 @@ from urllib.parse import parse_qs, urlparse
 
 # @doc: docs/design/Cli.md#31-식별
 HOOK_EVENTS = (
-    "SessionStart",
     "UserPromptSubmit",
     "PreToolUse",
     "PostToolUse",

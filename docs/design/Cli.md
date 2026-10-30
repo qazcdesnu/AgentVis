@@ -46,7 +46,7 @@ AgentVis hook은 URL의 쿼리 `client=agentvis`로 식별한다. Claude Code �
 
 | 심볼 | 역할 |
 | --- | --- |
-| [HOOK_EVENTS](../../src/agentvis/hook_settings.py#HOOK_EVENTS) | 등록할 이벤트 이름 튜플. [사용하는 이벤트](../DataSource.md#23-사용하는-이벤트) 표의 15개와 같다. |
+| [HOOK_EVENTS](../../src/agentvis/hook_settings.py#HOOK_EVENTS) | 등록할 이벤트 이름 튜플. [사용하는 이벤트](../DataSource.md#23-사용하는-이벤트) 표의 14개와 같다. `http` hook을 지원하지 않는 `SessionStart`는 넣지 않는다. |
 | [HOOK_TIMEOUT_SECONDS](../../src/agentvis/hook_settings.py#HOOK_TIMEOUT_SECONDS) | hook의 `timeout`. `2`. 수집기는 즉시 응답하므로 짧게 둔다([전달 방식](../DataSource.md#21-전달-방식)). |
 | [hook_url](../../src/agentvis/hook_settings.py#hook_url) `(port: int) -> str` | `http://127.0.0.1:<port>/hooks?client=agentvis` |
 | [is_agentvis_hook](../../src/agentvis/hook_settings.py#is_agentvis_hook) `(handler: object) -> bool` | 객체이고, `type`이 `http`이며, URL 쿼리의 `client` 값에 `agentvis`가 있는지 |
@@ -93,7 +93,7 @@ AgentVis hook은 URL의 쿼리 `client=agentvis`로 식별한다. Claude Code �
   - 범위를 벗어난 `--port`는 종료 코드 2로 거부된다.
   - `uvicorn.run`이 시작 실패(`SystemExit(3)`)로 끝나도 이벤트 저장소가 닫힌다.
 - [tests/test_hook_settings.py](../../tests/test_hook_settings.py) (M1-T5)
-  - 빈 설정에 설치하면 `HOOK_EVENTS`의 모든 이벤트에 AgentVis hook이 하나씩 생긴다.
+  - 빈 설정에 설치하면 `HOOK_EVENTS`의 모든 이벤트에 AgentVis hook이 하나씩 생긴다. `HOOK_EVENTS`는 사용하는 이벤트 14개이며 `SessionStart`를 포함하지 않는다.
   - 두 번 설치해도 hook이 중복되지 않고, 다른 포트로 설치하면 URL이 바뀐다.
   - 사용자가 만든 hook과 다른 설정 키는 설치·제거 후에도 순서까지 그대로다. 같은 그룹에 섞인 사용자 hook도 남는다.
   - 제거 후 비게 된 그룹·목록·`hooks` 객체가 사라지고, 입력 객체는 바뀌지 않는다.
