@@ -1,6 +1,6 @@
 # CLI 설계
 
-이 문서는 `agentvis` 명령(`src/agentvis/cli.py`)의 M1 범위와, Claude Code 설정에 hook을 넣고 빼는 로직(`src/agentvis/hook_settings.py`), 패키지 골격을 설계한다. 서버 앱은 [수집기 설계](Collector.md)에, 저장소는 [저장소 설계](Store.md)에 있다. 관련 태스크는 [로드맵](../Roadmap.md#m1-수집-기반)의 M1-T1, M1-T4, M1-T5다. 전체 문서 목록은 [문서 인덱스](../index.md)에서 확인한다.
+이 문서는 `agentvis` 명령(`src/agentvis/cli.py`)의 M1 범위와, Claude Code 설정에 hook을 넣고 빼는 로직(`src/agentvis/hook_settings.py`), 패키지 골격을 설계한다. 서버 앱은 [수집기 설계](Collector.md)에, 이벤트 저장소는 [이벤트 저장소 설계](Store.md)에 있다. 관련 태스크는 [로드맵](../Roadmap.md#m1-수집-기반)의 M1-T1, M1-T4, M1-T5다. 전체 문서 목록은 [문서 인덱스](../index.md)에서 확인한다.
 
 구현할 심볼은 인라인 코드로 적었다. 태스크를 시작할 때 [작업 관리 규칙](../TaskRule.md#41-시작)에 따라 코드 포인터 링크로 바꾼다.
 
@@ -18,7 +18,7 @@ M1-T1에서 만든다.
 
 | 명령 | 동작 |
 | --- | --- |
-| `agentvis serve [--port N]` | 기본 경로의 저장소로 서버 앱을 만들어 `127.0.0.1:N`에서 실행한다. 기본 포트는 `8765`. |
+| `agentvis serve [--port N]` | 기본 경로의 이벤트 저장소로 서버 앱을 만들어 `127.0.0.1:N`에서 실행한다. 기본 포트는 `8765`. |
 | `agentvis hooks install [--port N] [--settings PATH]` | Claude Code 설정 파일에 AgentVis hook을 추가한다. 기본 설정 파일은 `~/.claude/settings.json`. |
 | `agentvis hooks uninstall [--settings PATH]` | 설정 파일에서 AgentVis hook만 제거한다. |
 

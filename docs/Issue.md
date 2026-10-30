@@ -27,3 +27,12 @@
 - [x] I7 작업 ID 기준 커밋 컨벤션과 커밋 메시지 검사기 (사용자 지시)
   - 등록일: 2026-10-31
   - 내용: 모든 커밋을 작업 ID(`M<n>-T<m>`, `I<n>`, `H<n>`) 기준으로 작성하는 컨벤션을 정하고, 이를 검사하는 검사기와 커밋 시점 강제 장치를 만든다.
+- [x] I8 데이터 저장 구성 요소의 이름을 "저장소"에서 "이벤트 저장소"로 변경 (사용자 지시)
+  - 등록일: 2026-10-31
+  - 내용: git 저장소와 헷갈리지 않도록, 원시 이벤트를 쌓는 구성 요소(`EventStore`)를 문서에서 "이벤트 저장소"로 부른다.
+- [ ] H1 `.venv`의 파일에 macOS 숨김 속성이 붙어 `agentvis` 패키지를 불러오지 못함
+  - 등록일: 2026-10-31
+  - 내용: I8 검증 중 `tests.test_cli`가 `ModuleNotFoundError: No module named 'agentvis'`로 실패했다. `.venv` 안 모든 파일에 `hidden` 속성이 붙어 있었고, Python 3.12.15는 숨김 속성이 있는 `.pth` 파일(`agentvis.pth`)을 읽지 않아 `src/` 경로가 잡히지 않았다. M1-T1 완료 시점에는 통과했으므로 그 뒤에 속성이 붙었다. `uv run`, `uv sync`는 속성을 다시 붙이지 않았고 원인은 아직 모른다. ProjInit의 `.venv`에도 같은 속성이 있다.
+  - 원인 조사: 속성을 풀어도 uv를 실행하지 않은 상태에서 5초 안에 다시 붙었다. `~/Desktop`이 iCloud Drive의 "데스크탑 및 문서" 동기화 대상이고(`.venv`에 `com.apple.file-provider-domain-id` 속성, `bird`·`fileproviderd` 실행 중), iCloud 쪽 프로세스가 붙이는 것으로 추정한다.
+  - 임시 조치: 테스트 직전에 `chflags nohidden .venv/lib/python3.12/site-packages/agentvis.pth`를 실행한다. 몇 초 안에 다시 숨겨지므로 근본 해결이 아니다.
+  - 해결 후보(사용자 결정 필요): ① `.venv`를 `.venv.nosync`로 바꾸고 `.venv` 심볼릭 링크를 둔다(iCloud는 `.nosync`로 끝나는 항목을 동기화하지 않는다). ② 프로젝트를 iCloud 동기화 밖 위치로 옮긴다. ③ `UV_PROJECT_ENVIRONMENT`로 가상 환경을 동기화 밖에 둔다.

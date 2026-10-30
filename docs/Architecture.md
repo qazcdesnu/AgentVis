@@ -9,7 +9,7 @@ Claude Code 세션
   ├─ http hook (POST JSON) ──────────▶ [수집기] ─────┐
   └─ 세션 기록 파일 (JSONL) ──(읽기)──▶ [기록 보완기] ─┤
                                                      ▼
-                                          [원시 이벤트 저장소]
+                                          [이벤트 저장소 (원시 이벤트)]
                                                      ▼
                                     [분석기] ──▶ [파생 모델: 세션·턴·도구 호출·신호]
                                                      ▼
@@ -21,8 +21,8 @@ Claude Code 세션
 수집기부터 API까지는 하나의 로컬 서버 프로세스(AgentVis 서버) 안에서 동작한다.
 
 1. Claude Code는 [hook 이벤트](DataSource.md#2-hook-이벤트)를 AgentVis 서버로 POST한다.
-2. **수집기**는 이벤트를 원시 그대로 저장소에 넣고 즉시 응답한다.
-3. **기록 보완기**는 [세션 기록](DataSource.md#3-세션-기록-jsonl)을 읽어, hook이 주지 않는 정보와 놓친 이벤트를 같은 저장소에 넣는다.
+2. **수집기**는 이벤트를 원시 그대로 이벤트 저장소에 넣고 즉시 응답한다.
+3. **기록 보완기**는 [세션 기록](DataSource.md#3-세션-기록-jsonl)을 읽어, hook이 주지 않는 정보와 놓친 이벤트를 같은 이벤트 저장소에 넣는다.
 4. **분석기**는 원시 이벤트로 세션·턴·도구 호출과 [진단 신호](ProductVision.md#3-진단-신호)를 계산한다.
 5. **API**는 파생 모델을 웹 UI에 제공하고, 바뀐 내용을 실시간으로 밀어 준다.
 
@@ -40,7 +40,7 @@ Claude Code 세션
 | --- | --- | --- |
 | 수집기 | hook 이벤트 수신, 최소 검증, 원시 저장 | HTTP POST → 원시 이벤트 |
 | 기록 보완기 | 세션 기록 파일을 이어 읽기(마지막으로 읽은 위치부터), 지난 세션 일괄 가져오기 | JSONL 파일 → 원시 이벤트 |
-| 저장소 | 원시 이벤트와 파생 모델 저장, 중복 제거 | — |
+| 이벤트 저장소 | 원시 이벤트와 파생 모델 저장, 중복 제거 | — |
 | 분석기 | 세션·턴·도구 호출 구성, 규칙 기반 신호 판정 | 원시 이벤트 → 파생 모델 |
 | API·실시간 전송 | 조회 API, 변경 알림 스트림 | 파생 모델 → JSON, SSE |
 | 웹 UI | 시각화와 탐색 | API → 화면 |
@@ -50,7 +50,7 @@ Claude Code 세션
 ### 3.1 기록 보완기가 실행되는 시점
 
 - `Stop`, `SessionEnd`, `PostCompact` 이벤트를 받으면 그 이벤트의 `transcript_path`를 이어 읽는다.
-- 서버가 시작될 때, 저장소에 있는 모든 진행 중 세션의 기록 파일을 이어 읽는다(꺼져 있던 동안의 유실 보완).
+- 서버가 시작될 때, 이벤트 저장소에 있는 모든 진행 중 세션의 기록 파일을 이어 읽는다(꺼져 있던 동안의 유실 보완).
 - 사용자가 CLI로 지난 세션 가져오기를 실행할 때.
 
 ## 4. 데이터 모델
@@ -59,7 +59,7 @@ Claude Code 세션
 
 | 필드 | 의미 |
 | --- | --- |
-| `id` | 저장소 내부 일련번호 |
+| `id` | 이벤트 저장소 내부 일련번호 |
 | `source` | `hook` 또는 `transcript` |
 | `kind` | hook 이벤트 이름 또는 세션 기록의 `type` |
 | `session_id`, `prompt_id`, `tool_use_id` | [결합 키](DataSource.md#1-개요). 없으면 비워 둔다. |
@@ -114,7 +114,7 @@ CLI의 hook 설치 명령이 Claude Code 사용자 설정(`~/.claude/settings.js
 | --- | --- | --- |
 | 언어·환경 | Python 3.12, uv | [코드 작업 규칙](CodeRule.md#3-언어와-스타일) |
 | 웹 서버 | FastAPI + uvicorn | 비동기 처리와 SSE 응답이 간단하고 널리 쓰인다. |
-| 저장소 | SQLite (표준 라이브러리 `sqlite3`) | 설치가 필요 없고 로컬 단일 사용자에 충분하다. |
+| 이벤트 저장소 | SQLite (표준 라이브러리 `sqlite3`) | 설치가 필요 없고 로컬 단일 사용자에 충분하다. |
 | 실시간 전송 | SSE (Server-Sent Events) | 서버 → 브라우저 단방향이면 충분하고 WebSocket보다 단순하다. |
 | 웹 UI | 빌드 단계 없는 정적 HTML·JS | 초기 단계에서 도구 체인을 늘리지 않는다. 시각화 라이브러리는 UI 설계 문서에서 정한다. |
 
@@ -131,7 +131,7 @@ CLI의 hook 설치 명령이 Claude Code 사용자 설정(`~/.claude/settings.js
 | `agentvis/server.py` | FastAPI 앱, HTTP API, SSE | [수집기 설계](design/Collector.md#2-http-엔드포인트) (M1 범위) |
 | `agentvis/collector.py` | 수집기 | [수집기 설계](design/Collector.md) |
 | `agentvis/transcript.py` | 기록 보완기 | M2-T1에서 작성 |
-| `agentvis/store.py` | 저장소 | [저장소 설계](design/Store.md) |
+| `agentvis/store.py` | 이벤트 저장소 | [이벤트 저장소 설계](design/Store.md) |
 | `agentvis/analysis/` | 분석기 (모델 구성, 신호 규칙) | M3-T1에서 작성 |
 | `agentvis/web/` | 웹 UI 정적 파일 | M4-T1에서 작성 |
 
@@ -141,7 +141,7 @@ CLI의 hook 설치 명령이 Claude Code 사용자 설정(`~/.claude/settings.js
 
 | 단계 | 내용 | 완료 기준 |
 | --- | --- | --- |
-| M1 | 저장소, 수집기, CLI(`serve`, `hooks install/uninstall`) | 실제 Claude Code 세션의 hook 이벤트가 저장소에 쌓인다. |
+| M1 | 이벤트 저장소, 수집기, CLI(`serve`, `hooks install/uninstall`) | 실제 Claude Code 세션의 hook 이벤트가 이벤트 저장소에 쌓인다. |
 | M2 | 기록 보완기, 지난 세션 가져오기 | 서버를 끈 채 진행한 세션도 서버 시작 후 채워진다. |
 | M3 | 분석기: 세션·턴·도구 호출 구성, 확정 신호 | API로 턴별 과정과 실패 지점이 조회된다. (Q1~Q3) |
 | M4 | 웹 UI 실시간 보기 | 진행 중인 세션의 과정과 실패가 화면에 실시간으로 나타난다. |

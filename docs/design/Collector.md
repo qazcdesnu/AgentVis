@@ -1,6 +1,6 @@
 # 수집기 설계
 
-이 문서는 Claude Code의 hook 이벤트를 받아 저장소에 넣는 수집기(`src/agentvis/collector.py`)와 이를 노출하는 웹 서버 앱(`src/agentvis/server.py`)의 M1 범위를 설계한다. 받는 이벤트의 형식은 [hook 이벤트](../DataSource.md#2-hook-이벤트)에, 저장 방식은 [저장소 설계](Store.md)에 있다. 관련 태스크는 [로드맵](../Roadmap.md#m1-수집-기반)의 M1-T3이다. 전체 문서 목록은 [문서 인덱스](../index.md)에서 확인한다.
+이 문서는 Claude Code의 hook 이벤트를 받아 이벤트 저장소에 넣는 수집기(`src/agentvis/collector.py`)와 이를 노출하는 웹 서버 앱(`src/agentvis/server.py`)의 M1 범위를 설계한다. 받는 이벤트의 형식은 [hook 이벤트](../DataSource.md#2-hook-이벤트)에, 저장 방식은 [이벤트 저장소 설계](Store.md)에 있다. 관련 태스크는 [로드맵](../Roadmap.md#m1-수집-기반)의 M1-T3이다. 전체 문서 목록은 [문서 인덱스](../index.md)에서 확인한다.
 
 구현할 심볼은 인라인 코드로 적었다. 태스크를 시작할 때 [작업 관리 규칙](../TaskRule.md#41-시작)에 따라 코드 포인터 링크로 바꾼다.
 
@@ -41,7 +41,7 @@
 
 ## 3. 테스트
 
-`tests/test_collector.py`에서 확인한다. 앱 테스트는 FastAPI의 `TestClient`와 임시 디렉터리의 저장소를 쓴다.
+`tests/test_collector.py`에서 확인한다. 앱 테스트는 FastAPI의 `TestClient`와 임시 디렉터리의 이벤트 저장소를 쓴다.
 
 - 실측한 `PostToolUseFailure` 본문이 올바른 원시 이벤트로 바뀐다(`kind`, 결합 키, `payload` 원문).
 - `prompt_id`가 없는 `SessionStart` 본문도 저장된다.

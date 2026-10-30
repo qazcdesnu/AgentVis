@@ -35,7 +35,7 @@
 - Python은 **반드시 uv 환경에서** 사용한다.
   - Python 버전은 uv가 관리하며 `.python-version`(현재 `3.12`)과 `pyproject.toml`의 `requires-python`으로 고정한다.
   - 모든 Python 실행은 `uv run`을 거친다. 시스템 Python(`python3`)이나 직접 만든 가상 환경을 쓰지 않는다.
-  - 의존성은 `uv add`(개발용은 `uv add --dev`)로만 추가·제거한다. `pip`를 직접 쓰지 않는다. `uv.lock`은 저장소에 포함한다.
+  - 의존성은 `uv add`(개발용은 `uv add --dev`)로만 추가·제거한다. `pip`를 직접 쓰지 않는다. `uv.lock`은 git 저장소에 포함한다.
 - `tools/`의 코드는 표준 라이브러리만 사용한다.
 - 스타일은 PEP 8을 따른다.
   - 모듈·함수·변수 이름은 `snake_case`, 클래스는 `PascalCase`, 상수는 `UPPER_SNAKE_CASE`.

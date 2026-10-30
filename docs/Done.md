@@ -2,6 +2,36 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## I8 데이터 저장 구성 요소의 이름을 "저장소"에서 "이벤트 저장소"로 변경
+
+- 시작일: 2026-10-31
+- 완료일: 2026-10-31
+- 근거 문서: 사용자 지시
+
+### 계획
+- 데이터 저장 구성 요소를 가리키는 "저장소"를 "이벤트 저장소"로 바꾼다.
+- git 저장소를 뜻하는 곳 중 헷갈릴 만한 곳은 "git 저장소"로 분명히 적는다.
+
+### 진행 기록
+- 2026-10-31: I8을 등록하고 시작했다.
+- 2026-10-31: 데이터 저장 구성 요소를 뜻하는 "저장소"를 [시스템 구조](Architecture.md), [로드맵](Roadmap.md), [문서 인덱스](index.md), [이벤트 저장소 설계](design/Store.md), [수집기 설계](design/Collector.md), [CLI 설계](design/Cli.md), [작업 관리 규칙](TaskRule.md)과 [커밋 규칙](CommitRule.md)의 예시에서 "이벤트 저장소"로 바꿨다.
+- 2026-10-31: git 저장소를 뜻하는 곳 중 [커밋 규칙](CommitRule.md)의 hook 설명과 [코드 작업 규칙](CodeRule.md)의 `uv.lock` 설명을 "git 저장소"로 분명히 적었다.
+- 2026-10-31: 검증 중 `tests.test_cli`가 `agentvis`를 불러오지 못하는 문제를 발견했다. 문서 변경과 무관한 실행 환경 문제(`.venv`의 macOS 숨김 속성)라 H1로 등록하고, 임시 조치 직후 테스트를 실행해 통과를 확인했다.
+
+### 결정 사항
+- 완료 기록은 당시 상태를 남긴 기록이므로 과거 기록의 "저장소" 표현은 고치지 않는다.
+- 검사기 테스트에서 임시 git 저장소를 만드는 등 git 저장소를 뜻하는 나머지 표현은 문맥상 분명해 그대로 둔다.
+
+### 변경 파일
+- 수정: `docs/Architecture.md`, `docs/Roadmap.md`, `docs/index.md`, `docs/design/Store.md`, `docs/design/Collector.md`, `docs/design/Cli.md`, `docs/TaskRule.md`, `docs/CommitRule.md`, `docs/CodeRule.md`, `docs/Issue.md`, `docs/Ongoing.md`, `docs/Done.md`
+
+### 결과
+- 문서에서 "저장소"는 git 저장소, "이벤트 저장소"는 원시 이벤트를 쌓는 구성 요소(`EventStore`)로 구분된다.
+
+### 검증
+- `uv run python -m tools.check_docs`, `check_pointers`, `check_tasks`, `check_commits`: 통과
+- `uv run python -m unittest discover -s tests -t .`: 36개 통과(H1 임시 조치 직후 실행)
+
 ## M1-T1 uv 패키지 골격 구성
 
 - 시작일: 2026-10-31

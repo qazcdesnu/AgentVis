@@ -1,6 +1,6 @@
-# 저장소 설계
+# 이벤트 저장소 설계
 
-이 문서는 원시 이벤트를 저장하고 조회하는 저장소(`src/agentvis/store.py`)를 설계한다. 구성 요소 전체에서의 위치는 [시스템 구조](../Architecture.md#3-구성-요소)에, 원시 이벤트의 정의는 [데이터 모델](../Architecture.md#41-원시-이벤트)에 있다. 관련 태스크는 [로드맵](../Roadmap.md#m1-수집-기반)의 M1-T2다. 전체 문서 목록은 [문서 인덱스](../index.md)에서 확인한다.
+이 문서는 원시 이벤트를 저장하고 조회하는 이벤트 저장소(`src/agentvis/store.py`)를 설계한다. 구성 요소 전체에서의 위치는 [시스템 구조](../Architecture.md#3-구성-요소)에, 원시 이벤트의 정의는 [데이터 모델](../Architecture.md#41-원시-이벤트)에 있다. 관련 태스크는 [로드맵](../Roadmap.md#m1-수집-기반)의 M1-T2다. 전체 문서 목록은 [문서 인덱스](../index.md)에서 확인한다.
 
 구현할 심볼은 인라인 코드로 적었다. 태스크를 시작할 때 [작업 관리 규칙](../TaskRule.md#41-시작)에 따라 코드 포인터 링크로 바꾼다.
 
@@ -8,7 +8,7 @@
 
 - 기본 경로는 `~/.agentvis/`이다. 환경 변수 `AGENTVIS_HOME`이 있으면 그 경로를 쓴다.
 - 데이터베이스 파일은 데이터 디렉터리 아래 `agentvis.db`다.
-- 디렉터리가 없으면 저장소를 열 때 만든다.
+- 디렉터리가 없으면 이벤트 저장소를 열 때 만든다.
 
 | 심볼 | 역할 |
 | --- | --- |
@@ -28,7 +28,7 @@ CREATE TABLE raw_events (
     prompt_id    TEXT,
     tool_use_id  TEXT,
     occurred_at  TEXT NOT NULL,   -- ISO 8601, UTC
-    received_at  TEXT NOT NULL,   -- ISO 8601, UTC. 저장소에 들어온 시각
+    received_at  TEXT NOT NULL,   -- ISO 8601, UTC. 이벤트 저장소에 들어온 시각
     dedup_key    TEXT UNIQUE,     -- NULL 허용. NULL끼리는 충돌하지 않는다.
     payload      TEXT NOT NULL    -- 받은 JSON 원문
 );
@@ -37,7 +37,7 @@ CREATE INDEX raw_events_prompt ON raw_events (prompt_id);
 CREATE INDEX raw_events_tool_use ON raw_events (tool_use_id);
 ```
 
-- 스키마 버전은 `PRAGMA user_version`으로 관리하며 현재 버전은 1이다. 저장소를 열 때 버전이 0이면 위 스키마를 만들고 1로 설정한다. 알 수 없는 더 높은 버전이면 오류를 낸다.
+- 스키마 버전은 `PRAGMA user_version`으로 관리하며 현재 버전은 1이다. 이벤트 저장소를 열 때 버전이 0이면 위 스키마를 만들고 1로 설정한다. 알 수 없는 더 높은 버전이면 오류를 낸다.
 - `PRAGMA journal_mode = WAL`을 설정한다. 서버가 쓰는 동안 다른 프로세스(CLI 등)가 읽을 수 있게 하기 위해서다.
 - `payload`는 받은 JSON을 다시 직렬화하지 않고 원문 문자열 그대로 저장한다. 원시 이벤트는 변경하지 않는다는 [설계 원칙](../Architecture.md#2-설계-원칙)을 따른다.
 
@@ -58,7 +58,7 @@ CREATE INDEX raw_events_tool_use ON raw_events (tool_use_id);
 | `id` | `int \| None` | 저장 전 `None`, 조회 결과에는 값이 있다. |
 | `received_at` | `datetime \| None` | 저장 전 `None`, 조회 결과에는 값이 있다. |
 
-## 4. 저장소 API
+## 4. 이벤트 저장소 API
 
 `EventStore` 클래스가 데이터베이스 연결 하나를 감싼다.
 

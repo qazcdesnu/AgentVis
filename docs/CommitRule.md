@@ -44,7 +44,7 @@
 예:
 
 ```text
-M1-T2: 저장소의 원시 이벤트 저장·조회 구현
+M1-T2: 이벤트 저장소의 원시 이벤트 저장·조회 구현
 
 SQLite 스키마 1판과 EventStore를 추가했다. 중복 제거 키가 같은
 세션 기록은 두 번째부터 저장하지 않는다.
@@ -59,8 +59,8 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 
 ## 5. 강제
 
-- 저장소의 `.githooks/commit-msg` hook이 커밋할 때마다 [커밋 검사기](VerificationTools.md#7-커밋-검사기)로 메시지를 검사하고, 규칙에 맞지 않으면 커밋을 막는다.
-- 저장소를 새로 받으면 아래 명령으로 hook 경로를 설정한다. 이 설정은 저장소 로컬 설정이다.
+- git 저장소의 `.githooks/commit-msg` hook이 커밋할 때마다 [커밋 검사기](VerificationTools.md#7-커밋-검사기)로 메시지를 검사하고, 규칙에 맞지 않으면 커밋을 막는다.
+- git 저장소를 새로 받으면 아래 명령으로 hook 경로를 설정한다. 이 설정은 git 저장소의 로컬 설정이다.
 
 ```sh
 git config core.hooksPath .githooks
