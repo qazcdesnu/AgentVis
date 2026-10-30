@@ -87,6 +87,11 @@ class EventStoreTest(RepoTestCase):
         self.assertEqual(len(set(ids)), 200)
         self.assertEqual(len(self.store.events()), 200)
 
+    def test_session_ids_in_first_appearance_order(self) -> None:
+        for session_id in ("s2", "s1", "s2", None):
+            self.store.append(replace(_EVENT, session_id=session_id))
+        self.assertEqual(self.store.session_ids(), ["s2", "s1"])
+
     def test_newer_schema_version_is_refused_and_left_untouched(self) -> None:
         self.store.close()
         connection = sqlite3.connect(self.path)

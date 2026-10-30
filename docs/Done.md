@@ -2,6 +2,38 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## M3-T4 조회 API (`/api/sessions`, `/api/sessions/{id}`)
+
+- 시작일: 2026-10-31
+- 완료일: 2026-10-31
+- 근거 문서: [분석기 설계의 조회 API](design/Analysis.md#8-조회-api)
+
+### 계획
+- [분석기 설계](design/Analysis.md#8-조회-api)에 응답 형태, 세션 목록 계산 방법, 필요한 이벤트 저장소 조회를 정하고 코드 포인터를 건다.
+- 세션 목록·상세 조회 함수와 두 경로를 구현하고 테스트한다.
+- PR #4(`m3-t2-analysis-model`) 위에 쌓은 브랜치 `m3-t4-session-api`에서 진행한다.
+
+### 진행 기록
+- 2026-10-31: 로드맵을 `[~]`로 바꾸고 시작했다.
+- 2026-10-31: [분석기 설계의 조회 API](design/Analysis.md#8-조회-api)에 응답 형태(`{"sessions": [...]}`, `project` 생략 시 전체), 세션 목록 계산(세션마다 `build_session`), 조회 함수(`catalog` 모듈)를 정하고, [이벤트 저장소 설계](design/Store.md#8-조회-보조)에 `session_ids`를 더했다.
+- 2026-10-31: 포인터 검사기가 역방향 포인터 누락 2건을 잡았다. 분석기 설계가 이벤트 저장소 코드를 직접 가리킨 것은 이벤트 저장소 설계를 가리키도록, 서버 코드가 분석기 설계를 근거로 삼는데 분석기 설계가 서버를 가리키지 않은 것은 서버 앱을 링크하도록 고쳤다.
+- 2026-10-31: API 테스트 2건이 실패했는데, 세 세션의 테스트 기록에 같은 `uuid`를 써서 중복 제거로 뒤 세션 기록이 저장되지 않은 테스트 자료 문제였다. 세션마다 다른 `uuid`를 쓰게 고쳤다.
+
+### 결정 사항
+- 세션 목록은 세션마다 분석기를 계산해 요약만 내보낸다. 지금 규모(세션 수 개, 이벤트 수천 개)에서는 충분하고, 느려지면 세션 단위 캐시를 설계한다.
+- FastAPI의 자동 API 문서 화면(`/docs`)을 그대로 둬, 화면(M4)이 생기기 전에도 브라우저에서 조회 API를 시험할 수 있게 한다.
+
+### 변경 파일
+- 신규: `src/agentvis/analysis/catalog.py`, `tests/test_api.py`
+- 수정: `src/agentvis/server.py`, `src/agentvis/store.py`, `tests/test_store.py`, `docs/design/Analysis.md`, `docs/design/Store.md`, `docs/Roadmap.md`, `docs/Ongoing.md`, `docs/Done.md`
+
+### 결과
+- `GET /api/sessions[?project=…]`와 `GET /api/sessions/{id}`로 세션 목록과 턴·단계·도구 호출 상세를 JSON으로 볼 수 있다.
+
+### 검증
+- `uv run python -m tools.check_docs`, `check_pointers`, `check_tasks`, `check_commits`: 통과
+- `uv run python -m unittest discover -s tests -t .`: 101개 통과
+
 ## M3-T2 세션·턴·단계·도구 호출 구성
 
 - 시작일: 2026-10-31
