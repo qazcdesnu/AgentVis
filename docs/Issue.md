@@ -30,7 +30,7 @@
 - [x] I8 데이터 저장 구성 요소의 이름을 "저장소"에서 "이벤트 저장소"로 변경 (사용자 지시)
   - 등록일: 2026-10-31
   - 내용: git 저장소와 헷갈리지 않도록, 원시 이벤트를 쌓는 구성 요소(`EventStore`)를 문서에서 "이벤트 저장소"로 부른다.
-- [ ] H1 `.venv`의 파일에 macOS 숨김 속성이 붙어 `agentvis` 패키지를 불러오지 못함
+- [x] H1 `.venv`의 파일에 macOS 숨김 속성이 붙어 `agentvis` 패키지를 불러오지 못함
   - 등록일: 2026-10-31
   - 내용: I8 검증 중 `tests.test_cli`가 `ModuleNotFoundError: No module named 'agentvis'`로 실패했다. `.venv` 안 모든 파일에 `hidden` 속성이 붙어 있었고, Python 3.12.15는 숨김 속성이 있는 `.pth` 파일(`agentvis.pth`)을 읽지 않아 `src/` 경로가 잡히지 않았다. M1-T1 완료 시점에는 통과했으므로 그 뒤에 속성이 붙었다. `uv run`, `uv sync`는 속성을 다시 붙이지 않았고 원인은 아직 모른다. ProjInit의 `.venv`에도 같은 속성이 있다.
   - 원인 조사: 속성을 풀어도 uv를 실행하지 않은 상태에서 5초 안에 다시 붙었다. `~/Desktop`이 iCloud Drive의 "데스크탑 및 문서" 동기화 대상이고(`.venv`에 `com.apple.file-provider-domain-id` 속성, `bird`·`fileproviderd` 실행 중), iCloud 쪽 프로세스가 붙이는 것으로 추정한다.
