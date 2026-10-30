@@ -70,7 +70,9 @@ class CollectorAppTest(RepoTestCase):
         super().setUp()
         self.store = EventStore(self.root / "agentvis.db")
         self.addCleanup(self.store.close)
-        self.client = TestClient(create_app(self.store))
+        # The same Host and Content-Type that Claude Code's http hook sends.
+        self.client = TestClient(create_app(self.store), base_url="http://127.0.0.1:8765")
+        self.client.headers["Content-Type"] = "application/json"
 
     def test_stores_hook_events_and_returns_empty_object(self) -> None:
         response = self.client.post("/hooks?client=agentvis", content=_FAILURE.encode())
@@ -90,6 +92,30 @@ class CollectorAppTest(RepoTestCase):
                 self.assertEqual(response.status_code, 400)
                 self.assertIn("error", response.json())
         self.assertEqual(self.store.events(), [])
+
+    def test_rejects_requests_that_are_not_from_a_hook(self) -> None:
+        cases = [
+            ({"Host": "attacker.example:8765"}, 400),
+            ({"Origin": "https://evil.example"}, 403),
+            ({"Origin": "http://127.0.0.1:8765"}, 403),
+            ({"Content-Type": "text/plain"}, 415),
+        ]
+        for headers, status in cases:
+            with self.subTest(headers=headers):
+                response = self.client.post("/hooks", content=_SESSION_END.encode(), headers=headers)
+                self.assertEqual(response.status_code, status)
+        bare = TestClient(create_app(self.store), base_url="http://127.0.0.1:8765")
+        self.assertEqual(bare.post("/hooks", content=_SESSION_END.encode()).status_code, 415)
+        self.assertEqual(self.store.events(), [])
+
+    def test_accepts_localhost_and_json_with_charset(self) -> None:
+        response = self.client.post(
+            "/hooks",
+            content=_SESSION_END.encode(),
+            headers={"Host": "localhost:8765", "Content-Type": "application/json; charset=utf-8"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(self.store.events()), 1)
 
     def test_health(self) -> None:
         response = self.client.get("/health")

@@ -1,6 +1,7 @@
 """The local AgentVis web server application.
 
 @doc: docs/design/Collector.md#2-http-엔드포인트
+@doc: docs/design/Collector.md#21-요청-검증
 """
 
 from datetime import UTC, datetime
@@ -8,9 +9,23 @@ from datetime import UTC, datetime
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from agentvis.collector import InvalidHookEvent, hook_event_to_raw
 from agentvis.store import EventStore
+
+# @doc: docs/design/Collector.md#21-요청-검증
+ALLOWED_HOSTS = ("127.0.0.1", "localhost")
+
+
+def _rejection(request: Request) -> JSONResponse | None:
+    # Browsers attach Origin to cross-origin POSTs; Claude Code's hook client does not.
+    if "origin" in request.headers:
+        return JSONResponse({"error": "브라우저에서 온 요청(Origin 헤더)은 받지 않음"}, status_code=403)
+    media_type = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+    if media_type != "application/json":
+        return JSONResponse({"error": "Content-Type이 application/json이 아님"}, status_code=415)
+    return None
 
 
 def create_app(store: EventStore) -> FastAPI:
@@ -19,9 +34,14 @@ def create_app(store: EventStore) -> FastAPI:
     @doc: docs/design/Collector.md#2-http-엔드포인트
     """
     app = FastAPI(title="AgentVis")
+    # Rejects DNS-rebinding requests, whose Host is the attacker's domain.
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=list(ALLOWED_HOSTS))
 
     @app.post("/hooks")
     async def receive_hook(request: Request) -> JSONResponse:
+        rejection = _rejection(request)
+        if rejection is not None:
+            return rejection
         body = await request.body()
         try:
             event = hook_event_to_raw(body, datetime.now(UTC))

@@ -2,6 +2,39 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## H2 수집기가 요청 출처를 검증하지 않아 브라우저의 웹페이지가 가짜 이벤트를 넣을 수 있음
+
+- 시작일: 2026-10-31
+- 완료일: 2026-10-31
+- 근거 문서: [수집기 설계](design/Collector.md), [시스템 구조의 설계 원칙](Architecture.md#2-설계-원칙)
+
+### 계획
+- Claude Code의 실제 hook 요청 헤더(`Host`, `Origin`, `Content-Type`)를 임시 설정으로 실측한다.
+- [수집기 설계](design/Collector.md)에 요청 검증 규칙을 먼저 정한다.
+- 서버 앱에 검증을 구현하고, 거부 사례와 정상 사례를 테스트한다.
+
+### 진행 기록
+- 2026-10-31: H2를 `[~]`로 바꾸고 시작했다.
+- 2026-10-31: 임시 설정과 헤더 기록용 서버로 Claude Code의 실제 hook 요청을 받아 보았다. `Host: 127.0.0.1:<포트>`, `Content-Type: application/json`, `Origin` 없음(클라이언트 `axios/1.15.2`)이어서, 세 가지 검증이 정상 hook을 막지 않음을 확인했다. 실측으로 생긴 임시 세션 기록과 작업 공간은 지웠다.
+- 2026-10-31: [수집기 설계](design/Collector.md#21-요청-검증)에 요청 검증 규칙(허용 호스트 이름, `Origin` 거부, `application/json`만 허용)과 실패 응답, 테스트 항목을 먼저 적었다. [데이터 소스](DataSource.md#21-전달-방식)에 요청 헤더 실측을, [시스템 구조](Architecture.md#2-설계-원칙)의 설계 원칙에 브라우저 요청 차단을 반영했다.
+- 2026-10-31: `server.py`에 Starlette `TrustedHostMiddleware`와 `Origin`·`Content-Type` 검사를 넣었다. 기존 앱 테스트는 테스트 클라이언트의 기본 `Host: testserver`와 빈 `Content-Type` 때문에 실패했고, 설계대로 실제 hook과 같은 `Host`·`Content-Type`을 쓰게 고쳤다.
+- 2026-10-31: 실행 중이던 실제 서버를 정상 종료하고 새 코드로 다시 띄웠다. 실제 서버에서 `Origin` 요청 403, `text/plain` 요청 415, 다른 `Host` 요청 400을 받고 하나도 저장되지 않았으며, 이 세션의 실제 hook 이벤트는 계속 저장됨을 확인했다. 다시 시작하는 몇 초 동안의 이벤트는 받지 못했으며, 이는 M2의 기록 보완이 메울 범위다.
+
+### 결정 사항
+- `Host` 검사는 모든 경로에 적용한다. 이후 M3의 조회 API가 DNS 리바인딩으로 읽히는 것도 같은 방식으로 막기 위해서다.
+- `Origin`은 값과 관계없이 거부한다. 지금 `/hooks`를 부르는 브라우저 화면이 없기 때문이다. M4에서 웹 UI가 POST를 보내게 되면 그때 자기 출처만 허용하도록 설계를 고친다.
+
+### 변경 파일
+- 수정: `src/agentvis/server.py`, `tests/test_collector.py`, `docs/design/Collector.md`, `docs/DataSource.md`, `docs/Architecture.md`, `docs/Issue.md`, `docs/Ongoing.md`, `docs/Done.md`
+
+### 결과
+- 같은 컴퓨터의 브라우저 웹페이지나 DNS 리바인딩으로 가짜 이벤트를 넣을 수 없다. 실제 Claude Code hook은 그대로 수집된다.
+
+### 검증
+- `uv run python -m tools.check_docs`, `check_pointers`, `check_tasks`, `check_commits`: 통과
+- `uv run python -m unittest discover -s tests -t .`: 통과(수집기 테스트 8개 포함)
+- 실제 서버 실측: 위 진행 기록 참고
+
 ## I10 지금까지의 작업 전체 리뷰와 문제 점검
 
 - 시작일: 2026-10-31

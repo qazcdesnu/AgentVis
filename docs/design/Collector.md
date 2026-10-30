@@ -36,9 +36,22 @@
 | `POST /hooks` | 본문을 `hook_event_to_raw`로 바꿔 저장한다. 쿼리 문자열(`client=agentvis`)은 무시한다. | 성공: `200`, 본문 `{}`. 변환 실패: `400`, 본문 `{"error": "<InvalidHookEvent 메시지>"}`. |
 | `GET /health` | 서버 동작 확인 | `200`, 본문 `{"status": "ok"}` |
 
+- 요청은 [2.1 요청 검증](#21-요청-검증)을 통과해야 처리한다.
 - 응답 본문 `{}`에는 어떤 필드도 넣지 않는다. Claude Code는 hook 응답 JSON의 필드(`decision`, `continue` 등)로 에이전트 동작을 바꾸므로, 수집기가 에이전트 동작에 영향을 주지 않도록 하기 위해서다.
 - 저장 이외의 처리(분석, 알림)는 M1에서 하지 않는다. M3 이후에도 응답을 보낸 뒤에 처리한다([설계 원칙](../Architecture.md#2-설계-원칙)).
 - `POST /hooks` 처리 함수는 비동기 함수(`async def`)로 작성하고 `await request.body()`로 본문 원문 바이트를 읽는다. `payload`에 원문을 그대로 남기려면 FastAPI가 본문을 해석하기 전의 바이트가 필요하기 때문이다. SQLite 저장은 `starlette.concurrency.run_in_threadpool`로 스레드 풀에서 실행해 이벤트 루프를 막지 않는다.
+
+### 2.1 요청 검증
+
+서버는 `127.0.0.1`에만 바인딩하지만, 그것만으로는 같은 컴퓨터의 브라우저에서 열린 웹페이지가 보내는 요청을 막지 못한다. `Content-Type: text/plain`인 POST는 브라우저가 사전 확인 없이 다른 출처로 보낼 수 있고, DNS 리바인딩을 쓰면 공격자 도메인이 `127.0.0.1`로 풀린다. 그래서 아래 순서로 요청을 검증하고, 하나라도 통과하지 못하면 저장하지 않는다.
+
+| 순서 | 대상 | 조건 | 실패 응답 |
+| --- | --- | --- | --- |
+| 1 | 모든 경로 | `Host` 헤더의 호스트 이름이 [ALLOWED_HOSTS](../../src/agentvis/server.py#ALLOWED_HOSTS)(`127.0.0.1`, `localhost`) 중 하나다. DNS 리바인딩 요청은 `Host`가 공격자 도메인이다. | `400` (Starlette `TrustedHostMiddleware`) |
+| 2 | `POST /hooks` | `Origin` 헤더가 없다. 브라우저는 다른 출처로 POST할 때 `Origin`을 붙이고, Claude Code는 붙이지 않는다. | `403`, `{"error": "<사유>"}` |
+| 3 | `POST /hooks` | `Content-Type`의 미디어 타입이 `application/json`이다(`charset` 같은 매개변수는 허용). | `415`, `{"error": "<사유>"}` |
+
+실측(H2, Claude Code 2.1.314): Claude Code의 `http` hook 요청은 `Host: 127.0.0.1:<포트>`, `Content-Type: application/json`이고 `Origin`이 없다(클라이언트 `axios`). 따라서 이 검증은 정상 hook을 막지 않는다.
 
 ## 3. 테스트
 
@@ -51,3 +64,4 @@
 - 쿼리 문자열(`?client=agentvis`)이 붙은 요청도 같게 처리된다.
 - `POST /hooks`의 성공 응답 본문은 정확히 `{}`다.
 - `GET /health`가 `{"status": "ok"}`를 돌려준다.
+- 요청 검증: `Host`가 허용 목록 밖이면 `400`, `Origin`이 있으면 `403`, `Content-Type`이 `text/plain`이거나 없으면 `415`를 받고, 어느 경우도 저장되지 않는다. `Host: localhost:<포트>`와 `Content-Type: application/json; charset=utf-8`은 통과한다. 앱 테스트의 `TestClient`는 `base_url="http://127.0.0.1:8765"`로 실제 hook과 같은 `Host`를 쓴다.

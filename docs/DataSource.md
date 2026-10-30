@@ -26,6 +26,7 @@ Claude Code는 작업 중 정해진 시점에 hook을 실행하고, 이벤트 �
 
 - hook 종류 중 `http`는 이벤트 JSON을 지정한 URL로 POST한다(`Content-Type: application/json`). 본문은 `command` hook이 stdin으로 받는 JSON과 같다. (실측 확인)
 - 받는 쪽 서버가 꺼져 있어도 Claude Code 작업은 계속 진행된다. (실측 확인: 연결이 거부되는 주소로 보낸 `PreToolUse` hook이 도구 실행을 막지 않았다.)
+- 요청 헤더는 `Host: 127.0.0.1:<포트>`, `Content-Type: application/json`이며 `Origin`은 없다(클라이언트 `axios`). (H2 실측)
 - `http` hook은 응답을 기다리는 동안 에이전트를 멈춘다. 따라서 받는 쪽은 즉시 응답해야 하며, hook 설정에 짧은 `timeout`을 둔다.
 
 ### 2.2 공통 필드
