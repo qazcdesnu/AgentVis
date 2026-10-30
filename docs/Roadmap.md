@@ -14,7 +14,7 @@
 ## M1 수집 기반
 
 - [x] M1-T1 uv 패키지 골격 구성 (`src/agentvis`, 의존성, `agentvis` 실행 명령)
-- [ ] M1-T2 이벤트 저장소 구현 (SQLite 스키마, 원시 이벤트 저장·조회)
+- [x] M1-T2 이벤트 저장소 구현 (SQLite 스키마, 원시 이벤트 저장·조회)
 - [ ] M1-T3 수집기 구현 (`POST /hooks`, `GET /health`)
 - [ ] M1-T4 `agentvis serve` 명령 구현
 - [ ] M1-T5 `agentvis hooks install` / `uninstall` 명령 구현
