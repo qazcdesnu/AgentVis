@@ -68,3 +68,10 @@
   - 등록일: 2026-10-31
   - 내용: 내용의 대부분이 세션 기록에 있고 세션 기록도 실시간으로 쓰이므로, hook 이벤트를 받을 때마다 해당 세션 기록을 이어 읽는 구조로 바꾼다. hook은 hook에만 있는 정보와 세션 기록 읽기가 실패할 때의 안전망을 맡는다.
   - 연결 작업: M2-T1
+- [ ] I18 작업 중 사용자 메시지의 전달 시점과 hook 전달 실패가 저장되지 않음
+  - 등록일: 2026-10-31
+  - 내용: M3-T1 조사. 작업 도중 들어온 사용자 메시지는 `queue-operation`으로 큐에 들어간 뒤 `attachment` 기록(`attachment.type` = `queued_command`, `origin.kind` = `human`)으로 모델에게 전달되고, hook 전달 실패는 `attachment.type` = `hook_non_blocking_error`로 남는다. M2에서 `attachment`를 저장 대상에서 뺐기 때문에 둘 다 저장되지 않는다. 저장 대상을 넓히고, 이미 지나간 기록을 다시 읽도록 읽기 커서를 초기화해야 한다.
+  - 연결 작업: M3-T2
+- [x] I19 GitHub 원격 저장소(`qazcdesnu/AgentVis`)에 올리기 (사용자 지시)
+  - 등록일: 2026-10-31
+  - 내용: 사용자가 만든 GitHub 저장소 `git@github-qazcdesnu:qazcdesnu/AgentVis.git`를 원격 `origin`으로 추가하고 지금까지의 커밋을 올린다.

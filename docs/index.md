@@ -38,6 +38,7 @@ AgentVis가 무엇을 만드는지 이해할 때 읽는다. 제품 기능에 관
 | [이벤트 저장소 설계](design/Store.md) | SQLite 스키마, 원시 이벤트 자료형, 이벤트 저장소 API, M2의 읽기 커서 | M1-T2, M2-T2 |
 | [수집기 설계](design/Collector.md) | hook 이벤트 변환, `POST /hooks`, `GET /health` | M1-T3 |
 | [기록 리더 설계](design/Transcript.md) | 세션 기록 이어 읽기, 기록 변환, 실행 시점(hook 수신·서버 시작·가져오기), 오류 처리 | M2-T2~M2-T5 |
+| [분석기 설계](design/Analysis.md) | 프로젝트·세션·턴·단계·도구 호출 구성 규칙, 조회 API | M3-T2, M3-T4, M3-T5 |
 | [CLI 설계](design/Cli.md) | 패키지 골격, `serve`, `hooks install/uninstall`, 설정 편집 | M1-T1, M1-T4, M1-T5 |
 
 ### 문서 작업

@@ -44,8 +44,8 @@ Claude Code 세션
 | --- | --- | --- |
 | 수집기 | hook 이벤트 수신, 요청 검증, 원시 저장, 기록 리더에 읽기 요청 | HTTP POST → 원시 이벤트 |
 | 기록 리더 | 세션 기록 파일(서브에이전트 기록 포함)을 마지막으로 읽은 위치부터 이어 읽기, 놓친 기록 찾기, 지난 세션 일괄 가져오기 | JSONL 파일 → 원시 이벤트 |
-| 이벤트 저장소 | 원시 이벤트와 파생 모델 저장, 중복 제거 | — |
-| 분석기 | 세션·턴·도구 호출 구성, 규칙 기반 신호 판정 | 원시 이벤트 → 파생 모델 |
+| 이벤트 저장소 | 원시 이벤트와 읽기 커서 저장, 중복 제거 | — |
+| 분석기 | 프로젝트·세션·턴·단계·도구 호출 구성([분석기 설계](design/Analysis.md)), 규칙 기반 신호 판정 | 원시 이벤트 → 파생 모델 |
 | API·실시간 전송 | 조회 API, 변경 알림 스트림 | 파생 모델 → JSON, SSE |
 | 웹 UI | 시각화와 탐색 | API → 화면 |
 | CLI | 서버 실행, hook 설치·제거, 지난 세션 가져오기 | 명령 → 동작 |
@@ -75,6 +75,8 @@ Claude Code 세션
 | `payload` | 받은 JSON 원문 |
 
 ### 4.2 파생 모델
+
+파생 모델은 저장하지 않고 요청할 때마다 원시 이벤트로 계산한다. 상세 규칙은 [분석기 설계](design/Analysis.md)에 있다.
 
 | 모델 | 키 | 내용 |
 | --- | --- | --- |
@@ -141,7 +143,7 @@ CLI의 hook 설치 명령이 Claude Code 사용자 설정(`~/.claude/settings.js
 | `agentvis/collector.py` | 수집기 | [수집기 설계](design/Collector.md) |
 | `agentvis/transcript.py` | 기록 리더 | [기록 리더 설계](design/Transcript.md) |
 | `agentvis/store.py` | 이벤트 저장소 | [이벤트 저장소 설계](design/Store.md) |
-| `agentvis/analysis/` | 분석기 (모델 구성, 신호 규칙) | M3-T1에서 작성 |
+| `agentvis/analysis/` | 분석기 (모델 구성, 신호 규칙) | [분석기 설계](design/Analysis.md) |
 | `agentvis/web/` | 웹 UI 정적 파일 | M4-T1에서 작성 |
 
 각 구성 요소는 구현에 들어가기 전에 상세 설계 문서를 먼저 작성하고, 그 문서에서 [포인터 규약](Traceability.md)에 따라 구현할 심볼을 가리킨다. 이 문서는 구조만 정하므로 코드 포인터를 두지 않는다.

@@ -2,6 +2,64 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## M3-T1 분석기 상세 설계 (파생 모델 스키마, 재계산 방식)
+
+- 시작일: 2026-10-31
+- 완료일: 2026-10-31
+- 관련 이슈: I18
+- 근거 문서: [시스템 구조의 데이터 모델](Architecture.md#42-파생-모델), [제품 비전](ProductVision.md), [데이터 소스](DataSource.md)
+
+### 계획
+- 실제 세션 기록과 hook 이벤트로 턴 경계, 단계 구분, 도구 호출 상태, 서브에이전트 연결, 작업 중 메시지의 위치를 확인한다.
+- `docs/design/Analysis.md`에 파생 모델과 계산 규칙, 조회 API 응답 형태를 설계한다.
+- 설계 초안을 사용자에게 보여 확인받은 뒤 완료 처리한다(화면에서 무엇을 보게 될지 정하는 설계이기 때문).
+
+### 진행 기록
+- 2026-10-31: 사용자 결정으로 로드맵에 우선 진행 순서를 적고 시작했다.
+- 2026-10-31: 이 세션의 세션 기록을 조사했다. 사람 입력은 `origin.kind`가 `human`인 `user` 기록(43개, `promptSource`는 `typed`·`suggestion_accepted`)이고, 하위 에이전트 보고는 `peer`·`isMeta`로 구분되었다. 도구 결과 325개가 모두 턴 시작 기록과 같은 `promptId`를 가졌다.
+- 2026-10-31: 작업 도중 들어온 사람 메시지가 `queue-operation`으로 큐에 들어간 뒤 `attachment`(`queued_command`, `origin.kind` = `human`)로 모델에게 전달되며, hook 전달 실패가 `attachment`(`hook_non_blocking_error`)로 남는 것을 발견했다. M2에서 `attachment`를 저장하지 않기로 했으므로 I18로 등록하고 M3-T2에 연결했다.
+- 2026-10-31: [분석기 설계](design/Analysis.md)를 작성하고 [시스템 구조](Architecture.md#42-파생-모델)와 인덱스에 연결했다. 설계 초안을 사용자에게 보였고, 사용자는 "보면서 나중에 추가하고 고치면 된다"며 권장안대로 확정했다.
+
+### 결정 사항
+- 파생 모델은 저장하지 않고 요청할 때마다 원시 이벤트로 계산한다. 이에 따라 [시스템 구조](Architecture.md#3-구성-요소)의 이벤트 저장소 책임에서 파생 모델 저장을 뺐다.
+- 사람이 입력한 지시만 턴을 시작한다. 하위 에이전트 보고·작업 알림은 턴 안의 단계다.
+- 도구 호출 상태는 확인된 사실만으로 정하고(`success`, `error`, `interrupted`, `running`, `unfinished`), 해석이 필요한 판정은 신호 설계로 미룬다.
+
+### 변경 파일
+- 신규: `docs/design/Analysis.md`
+- 수정: `docs/Architecture.md`, `docs/index.md`, `docs/Roadmap.md`, `docs/Issue.md`, `docs/Ongoing.md`, `docs/Done.md`
+
+### 결과
+- M3-T2(구성 구현), M3-T4·M3-T5(조회 API)를 [분석기 설계](design/Analysis.md)에 따라 구현할 수 있다.
+
+### 검증
+- `uv run python -m tools.check_docs`, `check_pointers`, `check_tasks`: 통과
+
+## I19 GitHub 원격 저장소(`qazcdesnu/AgentVis`)에 올리기
+
+- 시작일: 2026-10-31
+- 완료일: 2026-10-31
+- 근거 문서: 사용자 지시
+
+### 계획
+- 원격 `origin`을 추가하고, 원격 저장소가 비어 있는지 확인한 뒤 커밋된 `main`을 올린다.
+
+### 진행 기록
+- 2026-10-31: M3-T1 진행 중 사용자 지시를 받았다. `git remote add origin git@github-qazcdesnu:qazcdesnu/AgentVis.git` 후 `git ls-remote`로 원격이 비어 있음을 확인하고, `git push -u origin main`으로 커밋 18개(`400aabf`까지)를 올렸다. 진행 중이던 M3-T1의 커밋되지 않은 문서는 올리지 않았다.
+
+### 결정 사항
+- 커밋된 이력만 올리고 진행 중인 작업은 완료·커밋한 뒤 올린다.
+
+### 변경 파일
+- 수정: `docs/Issue.md`, `docs/Done.md`
+- git 설정: 원격 `origin`, `main`의 추적 브랜치 `origin/main`
+
+### 결과
+- 원격 `main`이 로컬 `main`(`400aabf`)과 같다.
+
+### 검증
+- `git ls-remote origin`: `refs/heads/main` = `400aabf`
+
 ## M2-T3 hook 이벤트를 받을 때마다 해당 세션 기록 이어 읽기
 
 - 시작일: 2026-10-31
