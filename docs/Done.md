@@ -1,0 +1,254 @@
+# 완료
+
+이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
+
+## I5 공통 규칙 체계를 ProjInit 저장소로 분리하고 두 저장소를 git으로 관리
+
+- 시작일: 2026-10-31
+- 완료일: 2026-10-31
+- 근거 문서: 사용자 지시, [문서 작업 규칙](DocumentationRule.md)
+
+### 계획
+- AgentVis에서 `git init`을 하고 저장소 로컬 사용자 정보(`user.name`, `user.email`)를 설정한다.
+- `/Users/qazcde/Desktop/Playground/ProjInit`에 공통 규칙 문서, 빈 작업 관리 문서, 검사기, 테스트, uv 설정을 복사한다. AgentVis 고유 문서(제품 비전, 데이터 소스, 시스템 구조, 상세 설계)는 복사하지 않는다.
+- 새 세션이 이 대화의 맥락 없이 시작할 수 있도록 ProjInit의 제품 비전과 로드맵을 작성한다.
+- ProjInit에서 검증을 통과시킨 뒤 `git init`과 첫 커밋을 한다.
+- AgentVis를 완료 처리하고 첫 커밋을 한다.
+
+### 진행 기록
+- 2026-10-31: I5, I6을 등록하고 시작했다.
+- 2026-10-31: AgentVis에서 `git init -b main`을 하고 `user.name`, `user.email`을 저장소 로컬 설정으로 넣었다(전역 설정은 바꾸지 않음).
+- 2026-10-31: 사용자가 미리 만들어 둔 빈 `ProjInit` 디렉터리에 공통 규칙 문서 6종, `CLAUDE.md`, `tools/`, `tests/`, uv 설정을 복사했다. 인덱스의 제품·상세 설계 항목, 코드 작업 규칙의 `src/` 설명, 작업 관리 규칙의 기록 예시를 ProjInit에 맞게 고쳤다.
+- 2026-10-31: ProjInit의 제품 비전(목적, 출발점, 핵심 요구사항, 구성 초안, 알려진 약점, 미결정 사항)과 로드맵(M0~M4)을 작성했다. 이 대화의 논의를 문서로 옮겨 ProjInit 세션이 맥락 없이 시작할 수 있게 하기 위해서다.
+- 2026-10-31: ProjInit에서 검증을 모두 통과시키고 같은 로컬 사용자 정보로 첫 커밋(`18e5cf3`)을 했다.
+
+### 결정 사항
+- 작업을 둘로 나눴다. 저장소 분리와 git 초기화는 I5에서 끝내고, AgentVis를 ProjInit 패키지로 전환하는 일은 I6으로 남긴다. 전환은 ProjInit의 검사기 패키지와 `upgrade` 명령이 준비된 뒤에 할 수 있기 때문이다.
+- 그때까지 AgentVis는 지금의 `tools/`와 규칙 문서를 그대로 쓴다. 두 저장소의 규칙이 갈라질 수 있으므로, AgentVis에서 공통 규칙을 바꾸면 ProjInit에도 같은 변경이 필요한지 확인한다.
+
+### 변경 파일
+- AgentVis: `docs/Issue.md`, `docs/Ongoing.md`, `docs/Done.md`, git 저장소 생성
+- ProjInit(`/Users/qazcde/Desktop/Playground/ProjInit`): 저장소 전체 생성
+
+### 결과
+- 초기화 CLI는 별도 저장소 ProjInit에서 같은 규칙 체계로 개발을 시작할 수 있다.
+- AgentVis와 ProjInit 모두 git으로 관리되며, 커밋 작성자는 저장소 로컬 설정의 `qazcdesnu`다.
+
+### 검증
+- AgentVis, ProjInit 각각에서 `check_docs`, `check_pointers`, `check_tasks`, 테스트 27개: 모두 통과
+
+## I4 규칙을 프로젝트 문서로만 관리하고, 검사기 동반 방침을 문서화
+
+- 시작일: 2026-10-31
+- 완료일: 2026-10-31
+- 근거 문서: 사용자 지시, [문서 작업 규칙](DocumentationRule.md#1-문서-우선-원칙)
+
+### 계획
+- [문서 작업 규칙](DocumentationRule.md)에 "규칙은 프로젝트 문서에서만 관리한다"는 원칙과 "규칙을 정하면 검사기를 같은 작업에서 만든다"는 조항을 넣는다.
+- `CLAUDE.md`의 핵심 원칙에 같은 내용을 요약한다.
+- Claude Code 메모리에 만든 파일(`rules-need-checkers.md`, `MEMORY.md`)을 지운다.
+
+### 진행 기록
+- 2026-10-31: 이슈 I4를 등록하고 시작했다.
+- 2026-10-31: M0-T6을 마치면서 검사기 동반 방침을 프로젝트 문서가 아닌 Claude Code 메모리(`~/.claude/projects/<프로젝트>/memory/`)에 저장했던 것을 바로잡았다. 메모리 디렉터리는 Claude Code가 프로젝트마다 두는 공간이고, 두 파일은 그 작업에서 직접 만든 것이었다.
+- 2026-10-31: 문서에 규칙을 반영하고 두 메모리 파일을 지웠다. 메모리 디렉터리는 비어 있다.
+
+### 결정 사항
+- 검사기 동반 조항은 "기계적으로 검사할 수 있는" 규칙에 적용한다. 이번에 추가한 두 원칙은 사람의 판단에 달린 작업 방침이라 검사기를 두지 않는다.
+
+### 변경 파일
+- 수정: `docs/DocumentationRule.md`, `CLAUDE.md`, `docs/Issue.md`, `docs/Ongoing.md`, `docs/Done.md`
+- 삭제(저장소 밖): `~/.claude/projects/-Users-qazcde-Desktop-Playground-AgentVis/memory/rules-need-checkers.md`, `MEMORY.md`
+
+### 결과
+- 프로젝트의 모든 규칙이 `CLAUDE.md`를 루트로 하는 문서 안에만 있다.
+
+### 검증
+- `uv run python -m tools.check_docs`: 통과
+- `uv run python -m tools.check_pointers`: 통과
+- `uv run python -m tools.check_tasks`: 통과
+- `uv run python -m unittest discover -s tests -t .`: 27개 통과
+
+## M0-T6 작업 ID 기준 작업 관리 문서 정합성 검사기 구현
+
+- 시작일: 2026-10-31
+- 완료일: 2026-10-31
+- 근거 문서: [작업 관리 규칙](TaskRule.md#6-문서-형식), [검증 도구](VerificationTools.md#6-작업-관리-검사기)
+- 관련 이슈: I3
+
+### 계획
+- 검사기가 해석할 수 있도록 [작업 관리 규칙](TaskRule.md)에 문서 형식(로드맵 줄, 이슈 줄, 기록 제목, 필드)을 명확히 정한다.
+- 이슈와 태스크의 연결을 `연결 작업` 필드로 정한다.
+- [검증 도구](VerificationTools.md)에 작업 관리 검사기 명세를 쓰고, `tools/check_tasks.py`와 테스트를 구현한다.
+- 검증 명령 목록(`CLAUDE.md`, 코드 작업 규칙, 문서 작업 규칙)에 새 검사기를 추가한다.
+
+### 진행 기록
+- 2026-10-31: 로드맵에 M0-T6, 이슈에 I3을 등록하고 시작했다.
+- 2026-10-31: I1(작업 안에서 처리)과 I3(태스크로 이관)처럼 자체 기록이 없는 이슈가 있어, 이슈의 `연결 작업` 필드를 정했다. 기존 I1, I3의 "처리" 줄을 이 필드로 바꿨다.
+- 2026-10-31: 명세를 먼저 쓰고 포인터 검사기가 미구현 심볼 17건을 보고하는 것을 확인한 뒤 구현했다.
+- 2026-10-31: 실제 문서 사본의 상태를 일부러 틀리게 바꿔 실행해, 상태·기록 불일치, 연결 작업 상태 불일치, 없는 ID 참조가 모두 보고되는 것을 확인했다.
+
+### 결정 사항
+- 연결 작업이 있는 이슈는 자체 기록을 두지 않고 상태를 연결 작업과 같게 맞춘다. 연결은 한 단계만 허용한다([취소와 이관](TaskRule.md#44-취소와-이관)).
+- ID 참조는 앞뒤가 영문자·숫자·`-`가 아닐 때 인식한다. `M0-T6으로`처럼 한글 조사가 붙은 ID도 검사하기 위해서다.
+- 펜스 밖 줄 읽기와 인라인 코드 제거를 새 검사기도 쓰게 되어 `doclib`의 공개 함수 `iter_prose_lines`, `strip_inline_code`로 바꿨다. 문서에 먼저 반영했다.
+- 기존 절 번호의 앵커를 바꾸지 않도록 새 검사기 명세는 [검증 도구](VerificationTools.md)의 6절로 덧붙였다.
+
+### 변경 파일
+- 신규: `tools/check_tasks.py`, `tests/test_check_tasks.py`
+- 수정: `tools/doclib.py`, `docs/TaskRule.md`, `docs/VerificationTools.md`, `docs/Roadmap.md`, `docs/Issue.md`, `docs/Ongoing.md`, `docs/Done.md`, `docs/CodeRule.md`, `docs/DocumentationRule.md`, `CLAUDE.md`
+
+### 결과
+- 로드맵·이슈의 상태, 진행 중·완료 기록, 연결 작업, ID 번호 차례, 본문의 ID 참조가 작업 ID 기준으로 자동 검사된다.
+
+### 검증
+- `uv run python -m tools.check_docs`: 통과
+- `uv run python -m tools.check_pointers`: 통과
+- `uv run python -m tools.check_tasks`: 통과
+- `uv run python -m unittest discover -s tests -t .`: 27개 통과
+
+## M0-T5 작업 관리 문서 체계와 M1 상세 설계 작성
+
+- 시작일: 2026-10-31
+- 완료일: 2026-10-31
+- 근거 문서: [작업 관리 규칙](TaskRule.md), [시스템 구조](Architecture.md)
+
+### 계획
+- 로드맵(M-T), 진행 중, 완료, 이슈(I, H) 문서와 그 운영 규칙을 만든다.
+- 지금까지의 작업을 M0으로 소급 기록한다.
+- M1 구성 요소(저장소, 수집기, CLI)의 상세 설계 문서를 작성한다.
+
+### 결정 사항
+- 운영 규칙은 별도 문서 [작업 관리 규칙](TaskRule.md)에 두고, 네 문서는 기록만 담는다.
+- 상세 설계 문서는 `docs/design/`에 둔다. 구현할 심볼은 처음에는 인라인 코드로 적고, 태스크를 시작할 때 코드 포인터 링크로 바꾼다. 진행 중인 태스크가 없을 때 [포인터 검사기](VerificationTools.md#4-포인터-검사기)가 통과하는 상태를 유지하기 위해서다. 이 절차를 [코드 작업 규칙](CodeRule.md#1-문서-우선-작업-절차)에 반영했다.
+- AgentVis가 설치한 hook은 URL의 `client=agentvis` 쿼리로 식별한다. Claude Code 설정 항목에 임의의 키를 더하지 않기 위해서다.
+- hooks 설정 편집 로직을 위한 `agentvis/hook_settings.py` 모듈을 [시스템 구조](Architecture.md#7-코드-구성)에 추가했다.
+
+### 변경 파일
+- 신규: `docs/TaskRule.md`, `docs/Roadmap.md`, `docs/Ongoing.md`, `docs/Done.md`, `docs/Issue.md`, `docs/design/Store.md`, `docs/design/Collector.md`, `docs/design/Cli.md`
+- 수정: `docs/index.md`, `docs/CodeRule.md`, `docs/Architecture.md`, `CLAUDE.md`
+
+### 결과
+- 모든 작업이 ID로 추적되고, 로드맵·진행 중·완료의 상태가 한 규칙으로 연결된다.
+- M1의 태스크를 상세 설계 문서에 따라 바로 시작할 수 있다.
+
+### 검증
+- `uv run python -m tools.check_docs`: 통과
+- `uv run python -m tools.check_pointers`: 통과
+
+## M0-T4 hooks 실측과 시스템 구조 설계
+
+- 시작일: 2026-10-31
+- 완료일: 2026-10-31
+- 근거 문서: [제품 비전](ProductVision.md#5-결정-사항)
+
+### 계획
+- Claude Code hooks의 이벤트와 필드를 공식 문서와 실측으로 확인한다.
+- 실시간 수집을 기본으로 하는 시스템 구조를 설계한다.
+
+### 진행 기록
+- 2026-10-31: 공식 hooks 참조 문서에서 이벤트 33종과 필드를 조사했다.
+- 2026-10-31: 임시 디렉터리에서 `claude -p`(2.1.314)를 `--settings`로 command hook을 걸어 실행했다. 실패 명령(`ls` 없는 경로)과 성공 명령(`echo`)으로 이벤트를 받았다.
+- 2026-10-31: 같은 방식으로 `http` hook을 확인했다. 연결이 거부되는 주소로 보낸 hook이 있어도 작업이 막히지 않았고, 살아 있는 서버는 같은 JSON을 POST로 받았다.
+
+### 결정 사항
+- Bash의 0이 아닌 종료 코드는 `PostToolUseFailure`로 온다(`error`, `is_interrupt`).
+- hook의 `prompt_id`·`tool_use_id`가 세션 기록의 `promptId`·도구 ID와 같아 두 소스를 결합할 수 있다.
+- thinking, 작업 중 사용자 메시지, auto 모드가 아닐 때의 권한 거부는 hook으로 오지 않으므로 세션 기록으로 보완한다.
+- 수집은 `http` hook, 서버는 FastAPI + uvicorn, 저장소는 SQLite, 실시간 전송은 SSE로 정했다.
+
+### 변경 파일
+- 신규: `docs/Architecture.md`
+- 수정: `docs/DataSource.md`(재작성), `docs/index.md`, `docs/CodeRule.md`
+
+### 결과
+- 데이터 소스별로 얻을 수 있는 정보와 한계가 정리되었고, 구성 요소·데이터 모델·API·구현 순서(M1~M7)가 정해졌다.
+
+### 검증
+- `uv run python -m tools.check_docs`: 통과
+- `uv run python -m tools.check_pointers`: 통과
+
+## M0-T3 제품 비전과 데이터 소스 정리
+
+- 시작일: 2026-10-31
+- 완료일: 2026-10-31
+- 근거 문서: 사용자 지시 (Claude Code 작업 과정 시각화)
+
+### 계획
+- 사용자가 말한 목표를 분석 질문과 진단 신호로 정리한다.
+- 원천 데이터인 Claude Code 세션 기록의 구조를 확인한다.
+
+### 진행 기록
+- 2026-10-31: 로컬 세션 기록(JSONL)의 기록 유형과 필드를 조사했다. 도구 실패(`is_error`), 작업 중 사용자 메시지(`queue-operation`), 권한 판정(`permissionDecision`)을 확인했다.
+- 2026-10-31: 미결정 사항 세 가지를 사용자에게 물어 결정했다.
+
+### 결정 사항
+- 데이터 수집은 실시간 우선, 세션 기록으로 보완한다.
+- 화면은 로컬 웹 앱이다.
+- 추정 신호는 규칙으로 먼저 판정하고, LLM 판정은 나중에 선택 기능으로 더한다.
+
+### 변경 파일
+- 신규: `docs/ProductVision.md`, `docs/DataSource.md`
+- 수정: `docs/index.md`
+
+### 결과
+- 핵심 분석 질문 Q1~Q6, 진단 신호(확정·추정), 범위, 결정 사항이 정해졌다.
+
+### 검증
+- `uv run python -m tools.check_docs`: 통과
+
+## M0-T2 코드 작업 규칙, 포인터 규약, 검증 도구 구현
+
+- 시작일: 2026-10-30
+- 완료일: 2026-10-30
+- 근거 문서: [코드 작업 규칙](CodeRule.md), [포인터 규약](Traceability.md), [검증 도구](VerificationTools.md)
+- 관련 이슈: I1
+
+### 계획
+- 코드 작업 규칙을 문서로 만든다.
+- 문서 ↔ 코드 양방향 포인터 규약을 설계한다.
+- 링크·고아 문서 검사기와 포인터 검사기를 구현한다.
+
+### 진행 기록
+- 2026-10-30: 문서를 먼저 작성하고, 문서가 가리키는 심볼을 구현했다. 테스트 파일이 생기기 전에 포인터 검사기가 문서에만 있는 테스트 3개를 미구현으로 정확히 보고하는 것을 확인했다.
+- 2026-10-30: I1(uv 사용) 지시를 받아 코드 작업 규칙과 실행 명령을 고치고, `uv init`으로 Python 3.12 프로젝트를 구성했다. 3.9 호환 코드를 제거했다.
+- 2026-10-30: 테스트 실패 3건은 모두 테스트 픽스처 오류였고, 검사기는 의도대로 동작했다. 픽스처만 고쳤다.
+
+### 결정 사항
+- 문서 → 코드 포인터는 줄 번호 대신 AST 한정 이름(`파일.py#Class.method`)을 쓴다.
+- 코드 → 문서 포인터는 docstring의 `@doc:` 태그를 기본으로 하고, 상수에는 바로 위 주석을 쓴다.
+- 경로를 표시하는 로직이 두 곳에 생겨 `display_path`로 공통화했고, 테스트 공통 기반 `tests/support.py`를 두었다. 둘 다 문서에 먼저 추가했다.
+
+### 변경 파일
+- 신규: `docs/CodeRule.md`, `docs/Traceability.md`, `docs/VerificationTools.md`, `tools/doclib.py`, `tools/check_docs.py`, `tools/check_pointers.py`, `tests/support.py`, `tests/test_doclib.py`, `tests/test_check_docs.py`, `tests/test_check_pointers.py`, `pyproject.toml`, `.python-version`, `uv.lock`, `.gitignore`
+- 수정: `docs/index.md`, `docs/DocumentationRule.md`, `CLAUDE.md`
+
+### 결과
+- 깨진 링크, 고아 문서, 문서 ↔ 코드 포인터의 불일치를 명령 하나로 찾을 수 있다.
+
+### 검증
+- `uv run python -m tools.check_docs`: 통과
+- `uv run python -m tools.check_pointers`: 통과
+- `uv run python -m unittest discover -s tests -t .`: 18개 통과
+
+## M0-T1 문서 규칙과 문서 인덱스 수립
+
+- 시작일: 2026-10-30
+- 완료일: 2026-10-30
+- 근거 문서: 사용자 지시 (문서 우선 원칙)
+
+### 계획
+- 작업마다 읽을 문서를 안내하는 인덱스와 문서 작업 규칙을 만든다.
+
+### 결정 사항
+- `CLAUDE.md`는 인덱스와 규칙 문서로 안내하는 역할만 한다.
+- 문서 간 링크는 `[문서 이름](상대 경로)`로 걸고, 인덱스에서 도달할 수 없는 고아 문서를 금지한다.
+
+### 변경 파일
+- 신규: `CLAUDE.md`, `docs/index.md`, `docs/DocumentationRule.md`
+
+### 결과
+- 모든 작업이 인덱스에서 시작하고 문서가 코드보다 먼저 작성되는 규칙이 생겼다.
+
+### 검증
+- 수동 확인 (검증 도구는 M0-T2에서 만들었다.)

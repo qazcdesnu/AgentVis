@@ -1,0 +1,107 @@
+# 데이터 소스
+
+이 문서는 AgentVis가 분석하는 원천 데이터인 Claude Code hook 이벤트와 세션 기록의 위치, 구조, 한계를 정리한다. 이 데이터로 무엇을 판정하는지는 [제품 비전](ProductVision.md#3-진단-신호)에, 데이터를 받아 처리하는 구조는 [시스템 구조](Architecture.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
+
+## 1. 개요
+
+| 소스 | 시점 | 역할 |
+| --- | --- | --- |
+| hook 이벤트 | 실시간 | 기본 소스. 작업이 진행되는 동안 이벤트를 받는다. |
+| 세션 기록 (JSONL) | 사후 | 보완 소스. hook이 주지 않는 정보(사고 과정, 작업 중 정정 등)와 놓친 이벤트를 채우고, 지난 세션을 불러온다. |
+
+두 소스는 아래 키로 결합한다. 2026-10-31에 Claude Code 2.1.314에서 실측으로 일치를 확인했다.
+
+| 결합 키 | hook 이벤트 필드 | 세션 기록 필드 |
+| --- | --- | --- |
+| 세션 | `session_id` | `sessionId` |
+| 턴(사용자 지시 하나) | `prompt_id` | `user` 기록의 `promptId` |
+| 도구 호출 | `tool_use_id` | `tool_use.id`, `tool_result.tool_use_id` |
+| 세션 기록 파일 | `transcript_path` | (파일 경로 자체) |
+
+## 2. hook 이벤트
+
+Claude Code는 작업 중 정해진 시점에 hook을 실행하고, 이벤트 내용을 JSON으로 넘긴다. 공식 규격은 Claude Code hooks 참조 문서(https://code.claude.com/docs/en/hooks)에 있다.
+
+### 2.1 전달 방식
+
+- hook 종류 중 `http`는 이벤트 JSON을 지정한 URL로 POST한다(`Content-Type: application/json`). 본문은 `command` hook이 stdin으로 받는 JSON과 같다. (실측 확인)
+- 받는 쪽 서버가 꺼져 있어도 Claude Code 작업은 계속 진행된다. (실측 확인: 연결이 거부되는 주소로 보낸 `PreToolUse` hook이 도구 실행을 막지 않았다.)
+- `http` hook은 응답을 기다리는 동안 에이전트를 멈춘다. 따라서 받는 쪽은 즉시 응답해야 하며, hook 설정에 짧은 `timeout`을 둔다.
+
+### 2.2 공통 필드
+
+`session_id`, `transcript_path`, `cwd`, `hook_event_name`, `permission_mode`, `prompt_id`(턴 안의 이벤트), `effort`. 서브에이전트 안에서 발생한 이벤트에는 `agent_id`, `agent_type`이 붙는다.
+
+### 2.3 사용하는 이벤트
+
+| 이벤트 | 시점 | 주요 필드 | 확인 |
+| --- | --- | --- | --- |
+| `SessionStart` | 세션 시작·재개 | `source` (`startup`, `resume`, `clear`, `compact`, `fork`) | 실측 |
+| `UserPromptSubmit` | 사용자 지시 제출 | `prompt`, `prompt_id` | 실측 |
+| `PreToolUse` | 도구 실행 직전 | `tool_name`, `tool_input`, `tool_use_id` | 실측 |
+| `PostToolUse` | 도구 성공 | `tool_response`, `tool_use_id`, `duration_ms` | 실측 |
+| `PostToolUseFailure` | 도구 실패 (Bash의 0이 아닌 종료 코드 포함) | `error`(표시용 문자열), `is_interrupt`, `tool_use_id`, `duration_ms` | 실측 |
+| `PermissionRequest` | 권한 확인 대화상자 표시 | `tool_name`, `tool_input` (`tool_use_id` 없음) | 문서 |
+| `PermissionDenied` | auto 모드에서 권한 거부 | `tool_name`, `tool_use_id`, `reason` | 문서 |
+| `Notification` | 알림 | `message`, `notification_type` | 문서 |
+| `SubagentStart` / `SubagentStop` | 서브에이전트 시작·종료 | `agent_id`, `agent_type`, `agent_transcript_path`(종료 시) | 문서 |
+| `Stop` | 턴 종료 | `last_assistant_message` | 실측 |
+| `StopFailure` | API 오류로 턴 실패 | `error`, `error_details` | 문서 |
+| `PreCompact` / `PostCompact` | 문맥 압축 | `trigger` (`manual`, `auto`) | 문서 |
+| `SessionEnd` | 세션 종료 | `reason` | 실측 |
+
+"실측"은 직접 받아 확인한 것이고, "문서"는 공식 문서에만 근거한 것이다. "문서" 항목은 처음 구현할 때 실측으로 확인하고 이 표를 고친다.
+
+`PostToolBatch`(위 도구 이벤트와 중복)와 `MessageDisplay`(화면 표시용 스트리밍 조각)는 사용하지 않는다.
+
+### 2.4 hook으로 얻을 수 없는 정보
+
+| 정보 | 상태 | 보완 방법 |
+| --- | --- | --- |
+| 모델의 사고 과정(thinking)과 중간 응답 텍스트 | 이벤트 없음 | 세션 기록의 `assistant` 기록 |
+| 작업 도중 들어온 사용자 메시지 | 이벤트로 문서화되어 있지 않음 | 세션 기록의 `queue-operation` |
+| auto 모드가 아닐 때 사용자의 권한 거부 | 이벤트 없음 | 세션 기록의 `permissionDecision`, 도구 결과 |
+| 텍스트 생성 중 사용자 중단(Esc) | 이벤트 없음 (도구 실행 중 중단만 `is_interrupt`로 옴) | 세션 기록 |
+| AgentVis 서버가 꺼져 있던 동안의 이벤트 | 유실 | 세션 기록 |
+
+## 3. 세션 기록 (JSONL)
+
+### 3.1 위치
+
+- Claude Code는 세션 하나를 JSONL 파일 하나로 저장한다: `~/.claude/projects/<프로젝트 경로>/<세션 ID>.jsonl`. hook 이벤트의 `transcript_path`가 이 파일을 가리킨다.
+- `<프로젝트 경로>`는 작업 디렉터리의 절대 경로에서 영문자·숫자가 아닌 문자를 `-`로 바꾼 문자열이다. 예: `/Users/me/app` → `-Users-me-app`
+- 파일의 한 줄이 기록(record) 하나이며, 각 기록은 `type` 필드를 가진 JSON 객체다. 파일은 세션이 진행되는 동안 뒤에 계속 덧붙는다.
+
+### 3.2 주의 사항
+
+- 이 형식은 Anthropic이 공개 규격으로 문서화한 것이 아니다. 아래 내용은 2026-10-31에 실제 기록 파일을 관찰해 정리한 것이며, Claude Code 버전에 따라 바뀔 수 있다.
+- 따라서 파서는 모르는 `type`이나 필드를 만나도 실패하지 않고 건너뛰어야 한다. 각 기록의 `version` 필드(Claude Code 버전)를 보존해 형식 변화를 추적할 수 있게 한다.
+- 기록에는 사용자의 프롬프트, 파일 내용, 명령 출력이 그대로 들어 있다. 외부로 전송하지 않는다.
+
+### 3.3 관찰된 기록 유형
+
+| `type` | 내용 | 분석에서의 쓰임 |
+| --- | --- | --- |
+| `user` | 사용자 메시지, 또는 도구 실행 결과(`tool_result` 블록) | 지시(턴)의 시작, 도구 결과와 오류 |
+| `assistant` | 모델 응답. `text`, `thinking`, `tool_use` 블록 | 에이전트의 판단과 도구 호출 |
+| `system` | 시스템 이벤트. `subtype`으로 구분 (`turn_duration`, `compact_boundary`, `stop_hook_summary` 등) | 턴 경계, 문맥 압축 시점 |
+| `queue-operation` | 에이전트가 작업하는 도중 들어온 사용자 메시지의 대기열 처리 (`enqueue`, `dequeue`, `remove`) | 작업 중 정정 신호 |
+| `attachment` | 대화에 덧붙은 부가 문맥 | 보조 정보 |
+| `file-history-snapshot`, `file-history-delta` | 파일 변경 추적 | 어떤 파일이 바뀌었는지 |
+| 그 밖의 유형 | `api-request`, `mode`, `permission-mode`, `ai-title`, `last-prompt` 등 | 현재는 사용하지 않음 |
+
+### 3.4 주요 필드
+
+| 필드 | 위치 | 의미 |
+| --- | --- | --- |
+| `uuid`, `parentUuid` | `user`, `assistant`, `system`, `attachment` | 기록 간 부모-자식 관계. 대화 흐름을 트리로 복원한다. |
+| `timestamp` | 대부분의 기록 | 시각 (ISO 8601) |
+| `sessionId` | 모든 기록 | 세션 식별자 |
+| `promptId` | `user` | 턴 식별자. hook의 `prompt_id`와 같다. |
+| `isSidechain` | `user`, `assistant` 등 | 서브에이전트 등 본 흐름 밖의 기록인지 |
+| `message.content[]` | `user`, `assistant` | 내용 블록 목록 (`text`, `thinking`, `tool_use`, `tool_result`) |
+| `tool_use.id`, `tool_result.tool_use_id` | 내용 블록 | 도구 호출과 그 결과를 짝짓는다. hook의 `tool_use_id`와 같다. |
+| `tool_result.is_error` | 내용 블록 | 도구 실패 여부 |
+| `toolUseResult` | `user` | 도구 실행 결과의 구조화된 상세 |
+| `permissionDecision` | `user` | 도구 실행에 대한 권한 판정 |
+| `cwd`, `gitBranch`, `version` | 대부분의 기록 | 작업 디렉터리, 브랜치, Claude Code 버전 |
