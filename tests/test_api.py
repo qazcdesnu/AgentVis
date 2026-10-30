@@ -74,3 +74,19 @@ class SessionApiTest(RepoTestCase):
                          ("/Users/me/app", "/Users/me", False, 2))
         self.assertTrue(projects[1]["last_activity"].endswith("+00:00"))
 
+
+class WebScreenTest(RepoTestCase):
+    """@doc: docs/design/WebUI.md#6-테스트"""
+
+    def test_serves_screen_files_without_hiding_the_api(self) -> None:
+        with EventStore(self.root / "agentvis.db") as store:
+            client = TestClient(create_app(store), base_url="http://127.0.0.1:8765")
+            index = client.get("/")
+            self.assertEqual(index.status_code, 200)
+            self.assertIn('<script type="module" src="app.js">', index.text)
+            self.assertIn("javascript", client.get("/app.js").headers["content-type"])
+            self.assertIn("text/css", client.get("/style.css").headers["content-type"])
+            self.assertEqual(client.get("/api/projects").json(), {"projects": []})
+            self.assertEqual(client.get("/health").json(), {"status": "ok"})
+            self.assertEqual(client.get("/nope.js").status_code, 404)
+

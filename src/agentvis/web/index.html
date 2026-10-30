@@ -1,0 +1,32 @@
+<!doctype html>
+<!-- Layout: docs/design/WebUI.md section 2 -->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AgentVis</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <h1>AgentVis</h1>
+    <span class="subtitle">Claude Code 작업 과정</span>
+    <button id="refresh" type="button">새로고침</button>
+  </header>
+  <main class="panes">
+    <section class="pane" aria-labelledby="projects-title">
+      <h2 id="projects-title">프로젝트</h2>
+      <ul id="projects" class="list"></ul>
+    </section>
+    <section class="pane" aria-labelledby="sessions-title">
+      <h2 id="sessions-title">세션</h2>
+      <ul id="sessions" class="list"></ul>
+    </section>
+    <section class="pane detail" aria-labelledby="detail-title">
+      <h2 id="detail-title">세션 상세</h2>
+      <div id="detail"><p class="empty">세션을 고르세요.</p></div>
+    </section>
+  </main>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
