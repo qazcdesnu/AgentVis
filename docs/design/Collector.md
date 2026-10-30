@@ -29,7 +29,7 @@
 
 ## 2. HTTP 엔드포인트
 
-[create_app](../../src/agentvis/server.py#create_app)`(store: EventStore) -> FastAPI`가 앱을 만든다. M1에서 제공하는 경로는 다음과 같다.
+[create_app](../../src/agentvis/server.py#create_app)`(store: EventStore, reader: TranscriptReader | None = None) -> FastAPI`가 앱을 만든다. `reader`가 있으면 hook 이벤트를 저장한 뒤 [기록 리더 설계 4.1](Transcript.md#41-hook-이벤트를-받을-때-m2-t3)에 따라 읽기를 요청한다(M2-T3). M1에서 제공하는 경로는 다음과 같다.
 
 | 경로 | 동작 | 응답 |
 | --- | --- | --- |

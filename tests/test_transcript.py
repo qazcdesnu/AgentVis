@@ -5,12 +5,19 @@
 
 import json
 import shutil
+import threading
+from pathlib import Path
 from unittest import mock
+
+from fastapi.testclient import TestClient
 
 from agentvis import transcript
 from agentvis.store import EventStore
+from agentvis.server import create_app
 from agentvis.transcript import (
     ReadResult,
+    TranscriptReader,
+    paths_to_read,
     read_new_records,
     read_subagent_meta,
     record_to_raw,
@@ -150,3 +157,69 @@ class SubagentTest(RepoTestCase):
             events = store.events()
             self.assertEqual([(event.kind, event.session_id) for event in events], [("subagent-meta", "s1")] * 2)
             self.assertFalse(read_subagent_meta(store, meta.with_name("absent.meta.json"), projects))
+
+
+class PathsToReadTest(RepoTestCase):
+    """@doc: docs/design/Transcript.md#6-테스트"""
+
+    def test_selects_session_subagent_and_agent_paths(self) -> None:
+        session = "/p/-Users-me-app/s1.jsonl"
+        self.assertEqual(paths_to_read({"transcript_path": session}), [Path(session)])
+        self.assertEqual(
+            paths_to_read({"transcript_path": session, "agent_id": "a1", "agent_transcript_path": "/p/-Users-me-app/s1/subagents/agent-a1.jsonl"}),
+            [Path(session), Path("/p/-Users-me-app/s1/subagents/agent-a1.jsonl"), Path("/p/-Users-me-app/s1/subagents/agent-a1.meta.json")],
+        )
+        self.assertEqual(paths_to_read({"transcript_path": 3, "agent_id": "a1"}), [])
+
+
+class TranscriptReaderTest(RepoTestCase):
+    """@doc: docs/design/Transcript.md#6-테스트"""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.projects = self.root / "projects"
+        self.store = EventStore(self.root / "agentvis.db")
+        self.addCleanup(self.store.close)
+        self.reader = TranscriptReader(self.store, self.projects)
+        self.addCleanup(self.reader.stop)
+
+    def test_coalesces_waiting_requests_and_survives_failures(self) -> None:
+        calls: list[Path] = []
+        release = threading.Event()
+
+        def fake_read(path: Path) -> None:
+            calls.append(path)
+            if path.name == "slow.jsonl":
+                release.wait(5)
+            if path.name == "bad.jsonl":
+                raise ValueError("boom")
+
+        with mock.patch.object(self.reader, "_read", fake_read), self.assertLogs("agentvis.transcript", "ERROR"):
+            for name in ("a.jsonl", "a.jsonl", "bad.jsonl", "b.jsonl"):
+                self.reader.request(Path(name))
+            self.reader.start()
+            self.assertTrue(self.reader.wait_until_idle(5))
+            self.reader.request(Path("slow.jsonl"))
+            while Path("slow.jsonl") not in calls:
+                threading.Event().wait(0.01)
+            self.reader.request(Path("slow.jsonl"))
+            release.set()
+            self.assertTrue(self.reader.wait_until_idle(5))
+        self.assertEqual([path.name for path in calls], ["a.jsonl", "bad.jsonl", "b.jsonl", "slow.jsonl", "slow.jsonl"])
+
+    def test_hook_event_brings_in_transcript_content(self) -> None:
+        session = self.projects / "-Users-me-app" / "s1.jsonl"
+        session.parent.mkdir(parents=True)
+        session.write_bytes(_PROMPT + _THINKING + _QUEUED)
+        self.reader.start()
+        client = TestClient(create_app(self.store, self.reader), base_url="http://127.0.0.1:8765")
+        hook = {"session_id": "s1", "hook_event_name": "Stop", "transcript_path": str(session), "cwd": "/Users/me/app"}
+        response = client.post("/hooks", content=json.dumps(hook).encode(), headers={"Content-Type": "application/json"})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(self.reader.wait_until_idle(5))
+        stored = [(event.source, event.kind) for event in self.store.events()]
+        self.assertEqual(
+            stored,
+            [("hook", "Stop"), ("transcript", "user"), ("transcript", "assistant"), ("transcript", "queue-operation")],
+        )
+

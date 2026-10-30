@@ -4,6 +4,7 @@
 @doc: docs/design/Collector.md#21-요청-검증
 """
 
+import json
 from datetime import UTC, datetime
 
 from fastapi import FastAPI, Request
@@ -13,6 +14,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from agentvis.collector import InvalidHookEvent, hook_event_to_raw
 from agentvis.store import EventStore
+from agentvis.transcript import TranscriptReader, paths_to_read
 
 # @doc: docs/design/Collector.md#21-요청-검증
 ALLOWED_HOSTS = ("127.0.0.1", "localhost")
@@ -28,7 +30,7 @@ def _rejection(request: Request) -> JSONResponse | None:
     return None
 
 
-def create_app(store: EventStore) -> FastAPI:
+def create_app(store: EventStore, reader: TranscriptReader | None = None) -> FastAPI:
     """Build the FastAPI app that stores hook events in the given store.
 
     @doc: docs/design/Collector.md#2-http-엔드포인트
@@ -48,6 +50,9 @@ def create_app(store: EventStore) -> FastAPI:
         except InvalidHookEvent as error:
             return JSONResponse({"error": str(error)}, status_code=400)
         await run_in_threadpool(store.append, event)
+        if reader is not None:
+            for path in paths_to_read(json.loads(event.payload)):
+                reader.request(path)
         # An empty object: any field here could change the agent's behavior.
         return JSONResponse({})
 

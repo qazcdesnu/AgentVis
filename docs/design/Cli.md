@@ -33,7 +33,7 @@ M1-T4에서 만든다.
 - 기본 포트는 [DEFAULT_PORT](../../src/agentvis/cli.py#DEFAULT_PORT)(`8765`)다. `hooks install`의 기본 포트도 같은 상수를 쓴다.
 - `--port`는 1~65535 정수만 받는다. 그 밖의 값은 `argparse` 오류(종료 코드 2)로 끝난다.
 - 이벤트 저장소는 [이벤트 저장소 설계의 기본 경로](Store.md#1-데이터-디렉터리)(`default_db_path()`)로 연다. 시작할 때 `AgentVis 서버: http://127.0.0.1:<포트>` 와 `데이터베이스: <경로>` 두 줄을 출력한다. uvicorn 로그보다 먼저 보이도록 바로 내보낸다(`flush`).
-- 서버는 `uvicorn.run(app, host="127.0.0.1", port=<포트>)`로 실행한다. 서버가 끝나면(Ctrl+C 포함) 이벤트 저장소를 닫고 종료 코드 0을 돌려준다.
+- 서버는 `uvicorn.run(app, host="127.0.0.1", port=<포트>)`로 실행한다. M2-T3부터는 [기록 리더](Transcript.md#41-hook-이벤트를-받을-때-m2-t3)를 함께 시작해 앱에 넘긴다. 서버가 끝나면(Ctrl+C 포함) 기록 리더를 멈추고 이벤트 저장소를 닫은 뒤 종료 코드 0을 돌려준다.
 - 포트를 이미 다른 프로세스가 쓰고 있으면 uvicorn이 `address already in use` 오류를 출력하고 시작 실패 종료 코드 3(`uvicorn.config.STARTUP_FAILURE`)으로 끝난다. 이 경우에도 이벤트 저장소를 닫는다. (M1-T4 실측으로 확인)
 
 ## 3. hook 설정 편집

@@ -1,11 +1,14 @@
 """Read Claude Code transcript files incrementally into the event store.
 
 @doc: docs/design/Transcript.md
+@doc: docs/design/Transcript.md#41-hook-이벤트를-받을-때-m2-t3
 """
 
 import hashlib
 import json
+import logging
 import os
+import threading
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -16,6 +19,8 @@ from agentvis.store import EventStore, RawEvent, TranscriptCursor
 INGESTED_TYPES = ("user", "assistant", "system", "queue-operation")
 # @doc: docs/design/Transcript.md#2-이어-읽기
 BATCH_LINES = 500
+
+_log = logging.getLogger("agentvis.transcript")
 
 
 @dataclass(frozen=True)
@@ -161,3 +166,101 @@ def read_subagent_meta(store: EventStore, path: Path, projects_dir: Path) -> boo
         dedup_key=f"sha256:{hashlib.sha256(content).hexdigest()}",
     )
     return store.append_batch([event]) == 1
+
+
+def paths_to_read(hook_event: dict) -> list[Path]:
+    """Return the transcript files a hook event says may have new content.
+
+    @doc: docs/design/Transcript.md#41-hook-이벤트를-받을-때-m2-t3
+    """
+    paths: list[Path] = []
+    transcript_path = hook_event.get("transcript_path")
+    if isinstance(transcript_path, str):
+        paths.append(Path(transcript_path))
+        agent_id = hook_event.get("agent_id")
+        if isinstance(agent_id, str):
+            subagent = subagent_transcript_path(Path(transcript_path), agent_id)
+            paths += [subagent, subagent.with_name(f"agent-{agent_id}.meta.json")]
+    agent_transcript_path = hook_event.get("agent_transcript_path")
+    if isinstance(agent_transcript_path, str):
+        paths.append(Path(agent_transcript_path))
+    return list(dict.fromkeys(paths))
+
+
+class TranscriptReader:
+    """A background worker that reads requested transcript files one at a time.
+
+    @doc: docs/design/Transcript.md#41-hook-이벤트를-받을-때-m2-t3
+    """
+
+    def __init__(self, store: EventStore, projects_dir: Path) -> None:
+        self._store = store
+        self._projects_dir = projects_dir
+        self._pending: dict[Path, None] = {}
+        self._busy = False
+        self._stopping = False
+        self._condition = threading.Condition()
+        self._thread = threading.Thread(target=self._run, name="agentvis-transcript-reader", daemon=True)
+
+    def request(self, path: Path) -> None:
+        """Queue a file for reading unless it is already waiting.
+
+        @doc: docs/design/Transcript.md#41-hook-이벤트를-받을-때-m2-t3
+        """
+        with self._condition:
+            self._pending.setdefault(path, None)
+            self._condition.notify_all()
+
+    def start(self) -> None:
+        """Start the worker thread.
+
+        @doc: docs/design/Transcript.md#41-hook-이벤트를-받을-때-m2-t3
+        """
+        self._thread.start()
+
+    def stop(self) -> None:
+        """Finish the file being read, drop the rest, and stop the worker.
+
+        @doc: docs/design/Transcript.md#41-hook-이벤트를-받을-때-m2-t3
+        """
+        with self._condition:
+            self._stopping = True
+            self._pending.clear()
+            self._condition.notify_all()
+        if self._thread.is_alive():
+            self._thread.join()
+
+    def wait_until_idle(self, timeout: float) -> bool:
+        """Wait until nothing is queued or being read; return False on timeout.
+
+        @doc: docs/design/Transcript.md#41-hook-이벤트를-받을-때-m2-t3
+        """
+        with self._condition:
+            return self._condition.wait_for(lambda: not self._pending and not self._busy, timeout)
+
+    def _run(self) -> None:
+        while True:
+            with self._condition:
+                self._condition.wait_for(lambda: self._pending or self._stopping)
+                if self._stopping:
+                    return
+                path = next(iter(self._pending))
+                del self._pending[path]
+                self._busy = True
+            try:
+                self._read(path)
+            except Exception:  # noqa: BLE001 - one bad file must not stop the worker
+                _log.exception("세션 기록 읽기 실패: %s", path)
+            finally:
+                with self._condition:
+                    self._busy = False
+                    self._condition.notify_all()
+
+    def _read(self, path: Path) -> None:
+        if path.name.endswith(".meta.json"):
+            read_subagent_meta(self._store, path, self._projects_dir)
+            return
+        result = read_new_records(self._store, path, self._projects_dir)
+        if result.skipped:
+            _log.info("세션 기록 %s: 저장 %d, 건너뜀 %d", path, result.stored, result.skipped)
+

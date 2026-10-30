@@ -57,8 +57,18 @@
 
 ### 4.1 hook 이벤트를 받을 때 (M2-T3)
 
-- 수집기는 hook 이벤트를 저장하고 응답을 보낸 뒤, 그 이벤트의 `transcript_path`를 기록 리더에 읽기 요청으로 넘긴다. 이벤트에 `agent_id`가 있으면 그 서브에이전트의 기록 파일과 메타 파일도 넘긴다.
-- `TranscriptReader`는 서버 안의 작업 스레드 하나로 요청을 처리한다. 같은 파일에 대한 요청이 처리를 기다리는 동안 다시 오면 한 번만 읽는다. 읽기가 실패해도 hook 응답과 수집에는 영향을 주지 않으며, 실패는 서버 로그에 남긴다.
+- 수집기는 hook 이벤트를 저장한 뒤 [paths_to_read](../../src/agentvis/transcript.py#paths_to_read)`(hook_event: dict) -> list[Path]`로 읽을 파일을 계산해 기록 리더의 대기열에 넣고 응답한다. 대기열에 넣는 일은 즉시 끝나며, 읽기는 작업 스레드가 응답과 따로 한다.
+  - 이벤트의 `transcript_path`
+  - 이벤트에 `agent_id`가 있으면 그 서브에이전트의 기록 파일과 메타 파일(`subagent_transcript_path`로 계산)
+  - `SubagentStop`의 `agent_transcript_path`
+  - 문자열이 아닌 값은 무시하고, 같은 경로는 한 번만 넣는다.
+- [TranscriptReader](../../src/agentvis/transcript.py#TranscriptReader)`(store, projects_dir)`는 서버 안의 작업 스레드 하나로 요청을 처리한다.
+  - [TranscriptReader.request](../../src/agentvis/transcript.py#TranscriptReader.request)`(path)`: 경로를 대기열에 넣는다. 처리를 기다리는 같은 경로가 이미 있으면 다시 넣지 않는다. 지금 읽고 있는 경로가 다시 요청되면 읽기가 끝난 뒤 한 번 더 읽는다(그 사이 파일이 자랐을 수 있으므로).
+  - `.meta.json`으로 끝나는 경로는 `read_subagent_meta`로, 나머지는 `read_new_records`로 읽는다. 커서가 없는 파일은 처음부터 읽으므로, AgentVis를 켜기 전에 시작된 진행 중 세션도 첫 hook 이벤트 때 시작부터 채워진다.
+  - 읽기가 실패해도(기록 루트 밖 경로, 입출력 오류 등) hook 응답과 수집, 다음 요청 처리에는 영향을 주지 않으며, 실패는 `agentvis.transcript` 로거로 남긴다.
+  - [TranscriptReader.start](../../src/agentvis/transcript.py#TranscriptReader.start)`()`, [TranscriptReader.stop](../../src/agentvis/transcript.py#TranscriptReader.stop)`()`: 작업 스레드를 시작하고 멈춘다. 멈출 때는 지금 읽는 파일까지만 끝내고 남은 요청은 버린다. 버린 요청은 다음 hook 이벤트나 서버 시작 시 찾기(4.2)가 다시 채운다.
+  - [TranscriptReader.wait_until_idle](../../src/agentvis/transcript.py#TranscriptReader.wait_until_idle)`(timeout: float) -> bool`: 대기열이 비고 읽는 파일이 없을 때까지 기다린다. 테스트와 실측에서 쓴다.
+- `agentvis serve`는 이벤트 저장소와 함께 `TranscriptReader`를 만들어 시작하고, 서버 앱에 넘긴다. 서버가 끝나면 기록 리더를 멈춘 뒤 이벤트 저장소를 닫는다.
 - 세션 기록은 실행 중인 도구 호출 하나만큼 늦게 쓰이므로([두 소스 비교](../DataSource.md#4-두-소스-비교)), 실행 중인 도구는 hook 이벤트로 표시되고 결과가 나온 뒤의 hook 이벤트에서 세션 기록이 따라온다.
 
 ### 4.2 서버가 시작될 때 (M2-T4)
@@ -85,7 +95,7 @@
 
 ## 6. 테스트
 
-[tests/test_transcript.py](../../tests/test_transcript.py)에서 임시 기록 루트와 임시 이벤트 저장소로 확인한다. 아래 항목 중 서버 시작 시 찾기(M2-T4), `TranscriptReader`·수집기 연동(M2-T3)은 해당 태스크에서 추가한다.
+[tests/test_transcript.py](../../tests/test_transcript.py)에서 임시 기록 루트와 임시 이벤트 저장소로 확인한다. 아래 항목 중 서버 시작 시 찾기(M2-T4)는 해당 태스크에서 추가한다.
 
 - 실측 형태의 `user`(사용자 지시, 도구 결과), `assistant`(thinking, text, tool_use), `system`, `queue-operation` 줄이 표대로 바뀐다. 대상이 아닌 유형·해석할 수 없는 줄·시각 없는 줄은 건너뛰고 수가 세어진다.
 - 이어 읽기: 두 번째 읽기는 새로 덧붙인 줄만 저장하고, 줄바꿈 없는 마지막 줄은 다음 읽기로 넘어가며, 같은 파일을 처음부터 다시 읽어도 중복 저장되지 않는다.
@@ -93,5 +103,6 @@
 - 기록 루트 밖의 경로는 읽지 않는다.
 - 서브에이전트 기록 경로가 올바르게 만들어지고, 메타 파일은 내용이 바뀔 때만 다시 저장된다.
 - 서버 시작 시 찾기는 커서보다 커진 파일과 수집 시작 이후의 새 파일만 고른다.
-- `TranscriptReader`는 같은 파일 요청을 한 번만 처리하고, 읽기 실패가 다음 요청 처리를 막지 않는다.
-- 수집기가 hook 이벤트를 저장한 뒤 `transcript_path`와 서브에이전트 경로로 읽기를 요청한다.
+- `paths_to_read`가 `transcript_path`, 서브에이전트 기록·메타, `agent_transcript_path`를 중복 없이 고르고 문자열이 아닌 값은 무시한다.
+- `TranscriptReader`는 같은 파일 요청을 한 번만 처리하고, 읽는 동안 다시 온 요청은 한 번 더 처리하며, 읽기 실패가 다음 요청 처리를 막지 않는다.
+- 수집기가 hook 이벤트를 저장한 뒤 `transcript_path`와 서브에이전트 경로로 읽기를 요청하고, 실제 `TranscriptReader`와 함께 쓰면 hook 이벤트 하나로 세션 기록 내용까지 저장된다.

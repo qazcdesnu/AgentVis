@@ -24,6 +24,7 @@ from agentvis.hook_settings import (
 )
 from agentvis.server import create_app
 from agentvis.store import EventStore, data_dir, default_db_path
+from agentvis.transcript import TranscriptReader, default_projects_dir
 
 # @doc: docs/design/Cli.md#21-serve
 DEFAULT_PORT = 8765
@@ -40,9 +41,14 @@ def _port(value: str) -> int:
 def _serve(args: argparse.Namespace) -> int:
     path = default_db_path()
     with EventStore(path) as store:
-        print(f"AgentVis 서버: http://{_HOST}:{args.port}")
-        print(f"데이터베이스: {path}", flush=True)
-        uvicorn.run(create_app(store), host=_HOST, port=args.port)
+        reader = TranscriptReader(store, default_projects_dir())
+        reader.start()
+        try:
+            print(f"AgentVis 서버: http://{_HOST}:{args.port}")
+            print(f"데이터베이스: {path}", flush=True)
+            uvicorn.run(create_app(store, reader), host=_HOST, port=args.port)
+        finally:
+            reader.stop()
     return 0
 
 

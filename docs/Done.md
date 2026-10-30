@@ -2,6 +2,39 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## M2-T3 hook 이벤트를 받을 때마다 해당 세션 기록 이어 읽기
+
+- 시작일: 2026-10-31
+- 완료일: 2026-10-31
+- 근거 문서: [기록 리더 설계](design/Transcript.md#41-hook-이벤트를-받을-때-m2-t3), [수집기 설계](design/Collector.md#2-http-엔드포인트)
+
+### 계획
+- 기록 리더 설계 4.1절의 빈틈(읽을 경로 계산, 작업 스레드의 대기열·종료 동작, 테스트용 대기)을 메우고 코드 포인터를 건다.
+- `TranscriptReader`와 읽을 경로 계산을 구현하고, 수집기와 `serve`에 연결한다.
+- 실제 서버를 다시 띄워 이 세션의 사고 과정·작업 중 메시지가 이벤트 저장소에 쌓이는지 확인한다.
+
+### 진행 기록
+- 2026-10-31: 로드맵을 `[~]`로 바꾸고 시작했다.
+- 2026-10-31: [기록 리더 설계 4.1](design/Transcript.md#41-hook-이벤트를-받을-때-m2-t3)의 빈틈을 먼저 메웠다. 읽을 경로 계산(`paths_to_read`), 대기열 동작(기다리는 요청은 합치고 읽는 중 다시 온 요청은 한 번 더), 종료 동작(남은 요청은 버림), 테스트용 대기(`wait_until_idle`)가 대상이었다. [수집기 설계](design/Collector.md)와 [CLI 설계](design/Cli.md)에 연결 방식을 적고, 포인터 검사기가 미구현 6건을 보고하는 것을 확인했다.
+- 2026-10-31: `TranscriptReader`와 `paths_to_read`를 구현했다. 수집기는 hook 이벤트를 저장한 뒤 읽기를 요청하고, `serve`는 기록 리더를 시작·정지한다. 스레드를 쓰는 테스트가 있어 전체 테스트를 다섯 번 반복해 모두 통과함을 확인했다.
+- 2026-10-31: 실제 서버를 다시 띄웠다. 첫 hook 이벤트에서 이 세션과 ProjInit 세션의 세션 기록이 처음부터 들어왔다. 이 세션에서는 모델 응답 724개, 사용자·도구 결과 362개, 시스템 61개, 작업 중 메시지 20개가 쌓였다. 작업 중 메시지에는 M0-T2 진행 중 사용자가 보낸 "파이썬은 무조건 uv 환경에서 써라."가 있었다.
+- 2026-10-31: 실제 대화형 세션에서 `Notification` hook 이벤트(`idle_prompt`, "Claude is waiting for your input")가 들어온 것을 발견해, M1-T6에서 "미확인"이던 [데이터 소스](DataSource.md#23-사용하는-이벤트) 표를 실측으로 고쳤다.
+
+### 결정 사항
+- 대기열에 넣는 일은 hook 응답 전에 하되 즉시 끝나고, 실제 읽기는 작업 스레드가 응답과 따로 한다. 응답이 읽기를 기다리지 않게 하기 위해서다.
+- 커서가 없는 파일은 처음부터 읽으므로, AgentVis를 켜기 전에 시작된 진행 중 세션도 첫 hook 이벤트 때 시작부터 채워진다.
+
+### 변경 파일
+- 수정: `src/agentvis/transcript.py`, `src/agentvis/server.py`, `src/agentvis/cli.py`, `tests/test_transcript.py`, `docs/design/Transcript.md`, `docs/design/Collector.md`, `docs/design/Cli.md`, `docs/DataSource.md`, `docs/Roadmap.md`, `docs/Ongoing.md`, `docs/Done.md`
+
+### 결과
+- hook 이벤트가 올 때마다 해당 세션 기록이 이어 읽혀, 사고 과정·응답·도구 결과·작업 중 사용자 메시지가 거의 실시간으로 이벤트 저장소에 쌓인다.
+
+### 검증
+- `uv run python -m tools.check_docs`, `check_pointers`, `check_tasks`, `check_commits`: 통과
+- `uv run python -m unittest discover -s tests -t .`: 86개 통과, 다섯 번 반복 모두 통과
+- 실제 서버 실측: 위 진행 기록 참고
+
 ## M2-T2 세션 기록 이어 읽기와 원시 이벤트 저장 구현
 
 - 시작일: 2026-10-31

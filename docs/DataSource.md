@@ -45,7 +45,7 @@ Claude Code는 작업 중 정해진 시점에 hook을 실행하고, 이벤트 �
 | `PostToolUseFailure` | 도구 실패 (Bash의 0이 아닌 종료 코드 포함) | `error`(표시용 문자열), `is_interrupt`, `tool_use_id`, `duration_ms` | 실측 |
 | `PermissionRequest` | 권한 확인이 필요한 도구 호출. 비대화 모드(`-p`)에서도 발생한다. | `tool_name`, `tool_input`, `permission_suggestions` (`tool_use_id` 없음) | 실측 |
 | `PermissionDenied` | auto 모드에서 권한 거부 | `tool_name`, `tool_use_id`, `reason` | 미확인 |
-| `Notification` | 알림 | `message`, `notification_type` | 미확인 |
+| `Notification` | 알림. 대화형 세션에서 Claude가 사용자 입력을 기다릴 때(`idle_prompt`) 온다. | `message`(예: `Claude is waiting for your input`), `notification_type` | 실측 |
 | `SubagentStart` / `SubagentStop` | 서브에이전트 시작·종료 | `agent_id`, `agent_type`, `agent_transcript_path`·`last_assistant_message`(종료 시) | 실측 |
 | `Stop` | 턴 종료 | `last_assistant_message` | 실측 |
 | `StopFailure` | API 오류로 턴 실패 | `error`(예: `model_not_found`), `last_assistant_message`, `error_details`(있을 때만) | 실측 |
@@ -53,7 +53,7 @@ Claude Code는 작업 중 정해진 시점에 hook을 실행하고, 이벤트 �
 | `SessionEnd` | 세션 종료 | `reason` (비대화 모드에서는 `other`) | 실측 |
 
 - "실측"은 직접 받아 확인한 것이다. M0-T4(command hook, 2026-10-31)와 M1-T6(AgentVis 수집기와 `http` hook, 2026-10-31, Claude Code 2.1.314)에서 확인했다.
-- "미확인"은 공식 문서에만 근거한 것이다. `PermissionDenied`는 auto 모드가 위험하다고 판정한 명령에서만 생기므로 일부러 일으키지 않았다. `Notification`은 대화형 화면의 알림이라 비대화 모드에서 일으킬 수 없었다. 실제 세션에서 수집되면 이 표를 고친다.
+- "미확인"은 공식 문서에만 근거한 것이다. 실제 세션에서 수집되면 이 표를 고친다. `PermissionDenied`는 auto 모드가 위험하다고 판정한 명령에서만 생기므로 일부러 일으키지 않았다. `Notification`은 비대화 모드에서 일으킬 수 없었으나, M2-T3에서 실제 대화형 세션의 `idle_prompt` 알림이 수집되어 실측으로 바꿨다.
 - `SessionStart`는 `http` hook을 지원하지 않으므로(공식 문서: "Only `type: "command"` and `type: "mcp_tool"` hooks are supported") 사용하지 않는다. M1-T6에서 `http` hook으로 세 세션을 실행해 한 번도 오지 않음을 확인했다. M0-T4에서는 command hook으로 받았다(`source`: `startup`, `resume`, `clear`, `compact`, `fork`).
 - `PostToolBatch`(위 도구 이벤트와 중복)와 `MessageDisplay`(화면 표시용 스트리밍 조각)는 사용하지 않는다.
 
