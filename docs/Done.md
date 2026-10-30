@@ -2,6 +2,33 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## I22 병합된 PR 브랜치 자동 삭제 설정과 PR 규칙 반영
+
+- 시작일: 2026-10-31
+- 완료일: 2026-10-31
+- 근거 문서: 사용자 지시, [PR 규칙](PullRequestRule.md#4-병합)
+
+### 계획
+- GitHub 저장소 설정 "Automatically delete head branches"를 켜고 PR 규칙의 병합 후 정리 절차를 고친다.
+
+### 진행 기록
+- 2026-10-31: PR #1, #2 병합 후 원격 작업 브랜치를 지우려 했으나 권한 검사에서 원격 브랜치 삭제가 막혔다. 사용자가 명시적으로 지시해 `git push origin --delete i20-pr-rules i21-stacked-prs`로 지웠다. 로컬 브랜치는 `git branch -d`로 지웠다.
+- 2026-10-31: 사용자 지시로 `gh api -X PATCH repos/qazcdesnu/AgentVis -F delete_branch_on_merge=true`를 실행해 설정을 켰다. 이 설정은 켠 뒤 병합되는 PR에만 적용된다.
+
+### 결정 사항
+- 원격 작업 브랜치 삭제는 GitHub 설정에 맡기고, Claude는 로컬 정리만 한다.
+
+### 변경 파일
+- 수정: `docs/PullRequestRule.md`, `docs/Issue.md`, `docs/Done.md`
+- GitHub 저장소 설정: `delete_branch_on_merge = true`
+
+### 결과
+- PR을 병합하면 원격 작업 브랜치가 자동으로 지워진다.
+
+### 검증
+- `gh api` 응답의 `delete_branch_on_merge`: `true`
+- `uv run python -m tools.check_docs`, `check_tasks`: 통과
+
 ## I21 PR을 번호 순서대로 병합하면 충돌이 생기지 않도록 하는 규칙
 
 - 시작일: 2026-10-31
