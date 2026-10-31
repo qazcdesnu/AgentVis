@@ -50,16 +50,82 @@ AgentVis는 Claude Code 에이전트가 작업한 과정을 수집해 브라우�
 
 ## 3. 설치와 실행
 
-**필요한 것**: macOS, Python 3.12, [uv](https://docs.astral.sh/uv/), git, Claude Code. Python은 반드시 uv로 실행합니다. 시스템 `python3`는 쓰지 않습니다.
+AgentVis는 macOS, Linux, Windows 10·11에서 설치하고 실행할 수 있습니다. 세 운영체제 모두 CI에서 같은 검증을 돌립니다([운영체제 이식성](docs/CodeRule.md#31-운영체제-이식성)). 운영체제에 따라 다른 것은 도구 설치 방법과 경로 표기뿐이고, AgentVis 명령은 모두 `uv run ...`으로 같습니다.
+
+### 3.1 필요한 것
+
+| 도구 | 용도 | 비고 |
+| --- | --- | --- |
+| [uv](https://docs.astral.sh/uv/) | Python 설치와 실행 | Python 3.12는 uv가 알아서 받습니다. Python을 따로 설치할 필요가 없고, 시스템 `python3`는 쓰지 않습니다. |
+| git | 저장소 받기, 커밋 | Windows에서는 Git for Windows가 필요합니다. 커밋 메시지 검사 hook을 실행하고, Claude Code도 씁니다. |
+| [Claude Code](https://code.claude.com/) | 기록을 수집할 대상 | 설치 방법은 공식 문서를 따릅니다. |
+| 웹 브라우저 | 화면 보기 | Chrome, Edge, Firefox, Safari 최신판 |
+
+### 3.2 macOS
+
+터미널에서 실행합니다.
 
 ```sh
+# 도구 설치 (이미 있으면 건너뜀)
+xcode-select --install                                   # git (Xcode 명령행 도구)
+curl -LsSf https://astral.sh/uv/install.sh | sh          # uv (또는 brew install uv)
+curl -fsSL https://claude.ai/install.sh | bash           # Claude Code
+
+# 저장소 받기
 git clone git@github.com:qazcdesnu/AgentVis.git
 cd AgentVis
 uv sync                                  # 가상 환경과 의존성 설치
 git config core.hooksPath .githooks      # 커밋 메시지 검사 hook 켜기 (처음 한 번)
 ```
 
-**실행 순서**
+저장소를 iCloud가 동기화하는 폴더(데스크탑, 문서)에 두지 않습니다. 동기화 중에 `.venv` 파일에 숨김 속성이 붙어 패키지를 불러오지 못할 수 있습니다([8. 문제 해결](#8-문제-해결)).
+
+### 3.3 Linux
+
+Ubuntu·Debian 기준입니다. Fedora 등에서는 `apt` 대신 그 배포판의 패키지 관리자(`dnf` 등)를 씁니다.
+
+```sh
+# 도구 설치 (이미 있으면 건너뜀)
+sudo apt update && sudo apt install -y git curl
+curl -LsSf https://astral.sh/uv/install.sh | sh          # uv
+curl -fsSL https://claude.ai/install.sh | bash           # Claude Code
+# uv·claude 설치 후 새 터미널을 열거나 `source ~/.bashrc`로 PATH를 다시 읽습니다.
+
+# 저장소 받기
+git clone git@github.com:qazcdesnu/AgentVis.git
+cd AgentVis
+uv sync
+git config core.hooksPath .githooks
+```
+
+화면이 없는 원격 서버에서 실행하면 브라우저로 직접 열 수 없습니다. 이때는 내 컴퓨터에서 `ssh -L 8765:127.0.0.1:8765 <서버>`로 포트를 넘겨 받아 엽니다.
+
+### 3.4 Windows
+
+PowerShell에서 실행합니다.
+
+```powershell
+# 도구 설치 (이미 있으면 건너뜀)
+winget install --id Git.Git -e                                                   # Git for Windows
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"   # uv (또는 winget install --id astral-sh.uv -e)
+irm https://claude.ai/install.ps1 | iex                                          # Claude Code
+# 설치 후 PowerShell을 새로 열어 PATH를 다시 읽습니다.
+
+# 저장소 받기
+git clone git@github.com:qazcdesnu/AgentVis.git
+cd AgentVis
+uv sync
+git config core.hooksPath .githooks
+```
+
+- **Claude Code와 AgentVis는 같은 환경에서 실행합니다.**
+  - Claude Code를 Windows에 바로 설치했다면 AgentVis도 Windows(PowerShell)에서 실행합니다.
+  - Claude Code를 WSL 안에서 쓴다면 AgentVis도 WSL 안에서 [Linux 안내](#33-linux)대로 실행합니다.
+  - 둘이 다른 환경에 있으면 hook이 서버에 닿지 않고, 세션 기록 폴더도 서로 다릅니다.
+- 커밋 메시지 검사 hook은 Git for Windows의 `sh`가 실행합니다. 따로 설정할 것은 없습니다.
+- 줄바꿈은 저장소의 `.gitattributes`가 LF로 고정합니다. `core.autocrlf` 설정과 관계없이 그대로 둡니다.
+
+### 3.5 실행 (세 운영체제 공통)
 
 1. 수집 서버를 띄웁니다. 터미널 하나를 계속 열어 둡니다.
 
@@ -76,22 +142,37 @@ git config core.hooksPath .githooks      # 커밋 메시지 검사 hook 켜기 (
 3. Claude Code로 평소처럼 작업합니다.
 4. 브라우저에서 `http://127.0.0.1:8765/`를 열고 새로고침 단추로 갱신합니다.
 
-**꼭 알아야 할 점**
+### 3.6 꼭 알아야 할 점
 
-- **hook은 전역 설정을 바꿉니다.** `hooks install`은 `~/.claude/settings.json`에 hook 14개를 추가합니다. 그래서 이 컴퓨터의 **모든 프로젝트**에서 Claude Code를 쓸 때마다 이벤트가 서버로 갑니다.
-  - 기존 설정은 바꾸기 전에 `~/.agentvis/backups/`에 백업됩니다.
+- **hook은 전역 설정을 바꿉니다.** `hooks install`은 Claude Code 사용자 설정 파일에 hook 14개를 추가합니다. 그래서 이 컴퓨터의 **모든 프로젝트**에서 Claude Code를 쓸 때마다 이벤트가 서버로 갑니다.
+  - 기존 설정은 바꾸기 전에 AgentVis 데이터 폴더의 `backups/`에 백업됩니다.
   - `hooks uninstall`은 AgentVis hook만 지웁니다.
+  - Windows에서 Claude Code가 설정 파일을 쓰는 중이면 저장이 실패할 수 있습니다. 그때는 잠시 뒤 다시 실행합니다.
 - **서버가 꺼져 있어도 Claude Code 작업은 막히지 않습니다.** hook 전송만 실패하고, Claude Code에 hook 오류 알림이 보일 수 있습니다. 그 사이 작업은 hook 이후 세션 기록을 다시 읽을 때 채워집니다.
 - **hook을 설치한 뒤에 한 작업만 보입니다.** 지난 세션을 가져오는 명령은 아직 없습니다.
+- **경로**는 운영체제마다 표기가 다릅니다.
+
+  | 내용 | macOS·Linux | Windows |
+  | --- | --- | --- |
+  | Claude Code 사용자 설정 | `~/.claude/settings.json` | `%USERPROFILE%\.claude\settings.json` |
+  | Claude Code 세션 기록 | `~/.claude/projects/` | `%USERPROFILE%\.claude\projects\` |
+  | AgentVis 데이터(이벤트 저장소, 설정 백업) | `~/.agentvis/` | `%USERPROFILE%\.agentvis\` |
+
 - **실험이나 시험용 데이터는 따로 둡니다.** `AGENTVIS_HOME`을 지정하면 실제 데이터와 섞이지 않습니다.
 
   ```sh
+  # macOS·Linux
   AGENTVIS_HOME=/tmp/agentvis-test uv run agentvis serve --port 8766
+  ```
+
+  ```powershell
+  # Windows PowerShell
+  $env:AGENTVIS_HOME = "$env:TEMP\agentvis-test"; uv run agentvis serve --port 8766
   ```
 
   hook을 시험하려고 `claude -p`를 돌릴 때는 사용자 설정을 빼고 실행해야 실제 저장소에 섞이지 않습니다([데이터 소스의 실측 방법](docs/DataSource.md#24-실측-방법)).
 
-**화면 사용법**
+### 3.7 화면 사용법
 
 | 영역 | 기능 |
 | --- | --- |
@@ -109,8 +190,9 @@ git config core.hooksPath .githooks      # 커밋 메시지 검사 hook 켜기 (
 ## 4. 데이터와 개인정보
 
 - **모든 데이터는 로컬에만 있습니다.**
-  - 이벤트 저장소: `~/.agentvis/agentvis.db`
-  - Claude Code 원본 기록: `~/.claude/projects/`
+  - 이벤트 저장소: AgentVis 데이터 폴더의 `agentvis.db`
+  - Claude Code 원본 기록: Claude Code 세션 기록 폴더
+  - 운영체제별 위치는 [3.6절](#36-꼭-알아야-할-점)의 표에 있습니다.
   - 서버는 `127.0.0.1`에서만 받고, 다른 주소에서 온 요청과 브라우저 출처가 붙은 요청은 거부합니다([요청 검증](docs/design/Collector.md#21-요청-검증)).
 - **작업 기록에는 민감한 내용이 그대로 들어 있습니다.** 프롬프트, 파일 내용, 명령 출력, 경로가 모두 남습니다.
   - DB 파일이나 세션 기록을 저장소에 커밋하지 않습니다.
@@ -176,7 +258,10 @@ Claude Code로 이 저장소에서 작업하면 [CLAUDE.md](CLAUDE.md)가 자동
 
 | 증상 | 해결 |
 | --- | --- |
-| `ModuleNotFoundError: No module named 'agentvis'` | 저장소가 iCloud 동기화 폴더(데스크탑·문서) 안에 있으면 `.venv` 파일에 숨김 속성이 붙어 생깁니다(이슈 H1). iCloud "데스크탑 및 문서" 동기화를 끄거나 저장소를 동기화 밖으로 옮긴 뒤 `.venv`를 지우고 `uv sync`를 다시 실행합니다. |
+| `ModuleNotFoundError: No module named 'agentvis'` (macOS) | 저장소가 iCloud 동기화 폴더(데스크탑·문서) 안에 있으면 `.venv` 파일에 숨김 속성이 붙어 생깁니다(이슈 H1). iCloud "데스크탑 및 문서" 동기화를 끄거나 저장소를 동기화 밖으로 옮긴 뒤 `.venv`를 지우고 `uv sync`를 다시 실행합니다. |
+| `uv`·`claude` 명령을 찾을 수 없음 | 설치 직후에는 PATH가 반영되지 않았을 수 있습니다. 터미널(PowerShell)을 새로 엽니다. |
+| 커밋할 때 `uv: command not found` (Windows) | 커밋 hook은 Git for Windows의 `sh`에서 돕니다. uv 설치 후 Git Bash·PowerShell을 새로 열거나 컴퓨터에 다시 로그인해 PATH를 반영합니다. |
+| hook이 서버에 닿지 않음 (Windows + WSL) | Claude Code와 AgentVis가 같은 환경(둘 다 Windows, 또는 둘 다 WSL)에서 실행되는지 확인합니다([3.4절](#34-windows)). |
 | 서버 시작 시 포트 사용 중 | 이미 다른 `agentvis serve`가 떠 있습니다. 그 서버를 쓰거나 `--port`로 다른 포트를 씁니다. hook은 설치할 때의 포트로 보내므로, 포트를 바꾸면 `hooks install --port <포트>`로 다시 설치합니다. |
 | 화면에 세션이 안 보임 | 서버가 켜져 있는지(`http://127.0.0.1:8765/health`), hook이 설치되어 있는지 확인합니다. hook 설치 전의 세션은 보이지 않습니다. |
 | 브라우저에서 400 오류 | `http://127.0.0.1:<포트>/` 또는 `http://localhost:<포트>/`로 엽니다. 다른 호스트 이름은 거부됩니다. |

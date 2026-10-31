@@ -9,7 +9,7 @@ import re
 import sys
 from pathlib import Path
 
-from tools.doclib import REPO_ROOT, Problem, extract_links, is_external, iter_prose_lines, resolve_link
+from tools.doclib import REPO_ROOT, Problem, extract_links, is_external, iter_prose_lines, resolve_link, use_utf8_output
 
 # @doc: docs/VerificationTools.md#10-웹-정적-파일-검사기
 WEB_DIR = "src/agentvis/web"
@@ -90,6 +90,7 @@ def main(argv: list[str] | None = None) -> int:
 
     @doc: docs/VerificationTools.md#10-웹-정적-파일-검사기
     """
+    use_utf8_output()
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--root", type=Path, default=REPO_ROOT)
     args = parser.parse_args(argv)

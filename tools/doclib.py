@@ -4,6 +4,7 @@
 """
 
 import re
+import sys
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
@@ -46,9 +47,9 @@ def display_path(path: Path, root: Path) -> str:
     @doc: docs/VerificationTools.md#2-공통-모듈
     """
     try:
-        return str(path.relative_to(root))
+        return path.relative_to(root).as_posix()
     except ValueError:
-        return str(path)
+        return path.as_posix()
 
 
 @dataclass(frozen=True)
@@ -111,6 +112,16 @@ def iter_prose_lines(text: str) -> Iterator[tuple[int, str]]:
             continue
         if fence is None:
             yield number, line
+
+
+def use_utf8_output() -> None:
+    """Switch standard output and error to UTF-8 so Korean messages print on any platform.
+
+    @doc: docs/VerificationTools.md#2-공통-모듈
+    """
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
 
 
 def strip_inline_code(line: str) -> str:

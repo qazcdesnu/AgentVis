@@ -167,11 +167,11 @@ class SubagentTest(RepoTestCase):
         )
         meta = session.with_suffix("") / "subagents" / "agent-aa50d957.meta.json"
         meta.parent.mkdir(parents=True)
-        meta.write_text('{"agentType": "general-purpose", "toolUseId": "toolu_1", "finished": false}')
+        meta.write_text('{"agentType": "general-purpose", "toolUseId": "toolu_1", "finished": false}', encoding="utf-8")
         with EventStore(self.root / "agentvis.db") as store:
             self.assertTrue(read_subagent_meta(store, meta, projects))
             self.assertFalse(read_subagent_meta(store, meta, projects))
-            meta.write_text('{"agentType": "general-purpose", "toolUseId": "toolu_1", "finished": true}')
+            meta.write_text('{"agentType": "general-purpose", "toolUseId": "toolu_1", "finished": true}', encoding="utf-8")
             self.assertTrue(read_subagent_meta(store, meta, projects))
             events = store.events()
             self.assertEqual([(event.kind, event.session_id) for event in events], [("subagent-meta", "s1")] * 2)
