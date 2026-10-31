@@ -57,6 +57,14 @@ class SessionApiTest(RepoTestCase):
         self.assertEqual(self.client.get("/api/sessions/nope").status_code, 404)
         self.assertEqual(self.client.get("/api/sessions", headers={"Host": "attacker.example"}).status_code, 400)
 
+    def test_turn_graph_and_missing_turn(self) -> None:
+        graph = self.client.get("/api/sessions/s-new/turns/1/graph").json()
+        self.assertEqual((graph["session_id"], graph["turn_index"], [lane["id"] for lane in graph["lanes"]]), ("s-new", 1, ["main"]))
+        self.assertEqual([(node["kind"], node["status"]) for node in graph["nodes"]], [("prompt", None), ("tool_call", "error")])
+        self.assertEqual(graph["edges"], [{"source": "prompt", "target": graph["nodes"][1]["id"], "kind": "next"}])
+        self.assertEqual(self.client.get("/api/sessions/s-new/turns/2/graph").status_code, 404)
+        self.assertEqual(self.client.get("/api/sessions/nope/turns/1/graph").status_code, 404)
+
     def test_project_list_groups_sessions(self) -> None:
         real = self.root / "home" / "work" / "real-app"
         real.mkdir(parents=True)

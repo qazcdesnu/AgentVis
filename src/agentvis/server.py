@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from agentvis.analysis.catalog import get_session, list_projects, list_sessions
+from agentvis.analysis.catalog import get_session, get_turn_graph, list_projects, list_sessions
 from agentvis.collector import InvalidHookEvent, hook_event_to_raw
 from agentvis.store import EventStore
 from agentvis.transcript import TranscriptReader, paths_to_read
@@ -41,6 +41,7 @@ def create_app(store: EventStore, reader: TranscriptReader | None = None) -> Fas
     """Build the FastAPI app that stores hook events in the given store.
 
     @doc: docs/design/Collector.md#2-http-엔드포인트
+    @doc: docs/design/FlowGraph.md#5-조회-api
     """
     app = FastAPI(title="AgentVis")
     # Rejects DNS-rebinding requests, whose Host is the attacker's domain.
@@ -86,6 +87,13 @@ def create_app(store: EventStore, reader: TranscriptReader | None = None) -> Fas
         if view is None:
             raise HTTPException(status_code=404, detail="세션 없음")
         return jsonable_encoder(view)
+
+    @app.get("/api/sessions/{session_id}/turns/{index}/graph")
+    def turn_graph(session_id: str, index: int) -> dict:
+        graph = get_turn_graph(store, session_id, index)
+        if graph is None:
+            raise HTTPException(status_code=404, detail="세션 또는 턴 없음")
+        return jsonable_encoder(graph)
 
     # Mounted last so the API routes above take precedence over static files.
     app.mount("/", StaticFiles(directory=_WEB_DIR, html=True), name="web")
