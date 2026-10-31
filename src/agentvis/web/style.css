@@ -15,6 +15,9 @@
   --user-message-bg: #fff3c4;
   --user-message-line: #e0a800;
   --warning-bg: #fdecea;
+  --band: #fafaf8;
+  --band-odd: #f2f2ef;
+  --edge: #b9b9bd;
   font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI", sans-serif;
 }
 
@@ -35,6 +38,9 @@
     --user-message-bg: #4a3d0d;
     --user-message-line: #e0b43a;
     --warning-bg: #4a1f1c;
+    --band: #1b1b1e;
+    --band-odd: #222226;
+    --edge: #55555c;
   }
 }
 
@@ -209,6 +215,48 @@ details > summary { cursor: pointer; list-style-position: outside; }
 }
 
 .error-text { color: var(--error); }
+
+/* Flow graph: docs/design/FlowGraph.md section 6.3. */
+.view-toggle { display: flex; gap: 4px; margin-top: 8px; }
+.view-toggle button.active { background: var(--selected); border-color: var(--running); }
+.turn-select { font: inherit; max-width: 100%; margin: 4px 0; padding: 3px 6px; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
+.graph-box { margin: 8px 0; }
+.g-toolbar { display: flex; gap: 6px; align-items: center; margin-bottom: 4px; }
+.g-toolbar button { padding: 2px 10px; }
+.g-canvas { display: flex; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); overflow: hidden; }
+.g-labels { flex: none; border-right: 1px solid var(--line); }
+.g-scroller { flex: 1 1 auto; min-width: 0; overflow-x: auto; }
+.g-svg { display: block; font-size: 11px; }
+.g-band { fill: var(--band); }
+.g-band.odd { fill: var(--band-odd); }
+.g-lane-label { fill: var(--text); font-weight: 600; }
+.g-lane-kind { fill: var(--muted); font-weight: 400; }
+.g-lane-label.status-error { fill: var(--error); }
+.g-edge { fill: none; stroke: var(--edge); stroke-width: 1.2; }
+.g-edge.spawn, .g-edge.return { stroke: var(--running); stroke-dasharray: 4 3; }
+.g-arrow { fill: var(--running); }
+.g-guide { stroke: var(--user-message-line); stroke-width: 1.5; stroke-dasharray: 2 3; }
+.g-break { stroke: var(--muted); stroke-dasharray: 1 4; }
+.g-break-label { fill: var(--muted); font-size: 10px; }
+.g-node { cursor: pointer; }
+.g-node rect, .g-node circle, .g-node path { stroke: var(--panel); stroke-width: 1; }
+.g-node.status-success rect { fill: var(--success); }
+.g-node.status-error rect { fill: var(--error); }
+.g-node.status-interrupted rect { fill: var(--interrupted); }
+.g-node.status-running rect { fill: var(--running); }
+.g-node.status-unfinished rect { fill: var(--unfinished); }
+.g-node.approximate rect { stroke: var(--text); stroke-dasharray: 2 2; }
+.g-node.open rect { stroke: var(--text); stroke-dasharray: 6 3; }
+.g-node.kind-prompt circle { fill: var(--text); }
+.g-node.kind-model circle { fill: var(--muted); }
+.g-node.kind-notification circle { fill: var(--panel); stroke: var(--muted); stroke-width: 1.5; }
+.g-node.kind-compact rect { fill: var(--muted); }
+.g-node.kind-hook_failure rect { fill: var(--error); }
+.g-node.kind-user_message path { fill: var(--user-message-line); stroke: var(--text); }
+.g-node:hover rect, .g-node:hover circle, .g-node:hover path { stroke: var(--text); stroke-width: 2; }
+.g-node.selected rect, .g-node.selected circle, .g-node.selected path { stroke: var(--running); stroke-width: 3; }
+.g-bar-label { fill: #ffffff; pointer-events: none; }
+.node-detail { border-top: 1px solid var(--line); padding-top: 8px; }
 
 @media (max-width: 900px) {
   .panes { grid-template-columns: 1fr; height: auto; }
