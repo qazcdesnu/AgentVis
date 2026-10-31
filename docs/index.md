@@ -40,7 +40,8 @@ AgentVis가 무엇을 만드는지 이해할 때 읽는다. 제품 기능에 관
 | [수집기 설계](design/Collector.md) | hook 이벤트 변환, `POST /hooks`, `GET /health` | M1-T3 |
 | [기록 리더 설계](design/Transcript.md) | 세션 기록 이어 읽기, 기록 변환, 실행 시점(hook 수신·서버 시작·가져오기), 오류 처리 | M2-T2~M2-T5 |
 | [분석기 설계](design/Analysis.md) | 프로젝트·세션·턴·단계·도구 호출 구성 규칙, 조회 API | M3-T2, M3-T4, M3-T5 |
-| [웹 UI 설계](design/WebUI.md) | 화면 구성, 단계 종류·상태 표시, 기술·라이브러리 선택, 보안 규칙 | M4-T2~M4-T5 |
+| [웹 UI 설계](design/WebUI.md) | 화면 구성, 단계 종류·상태 표시, 기술·라이브러리 선택(저장소에 넣은 라이브러리), 보안 규칙 | M4-T2~M4-T5, M4-T8 |
+| [작업 흐름 그래프 설계](design/FlowGraph.md) | 턴의 실행 구조(병렬 호출·서브에이전트·백그라운드 작업) 그래프 모델, 조회 API, D3 화면 배치 | M4-T6~M4-T8 |
 | [CLI 설계](design/Cli.md) | 패키지 골격, `serve`, `hooks install/uninstall`, 설정 편집 | M1-T1, M1-T4, M1-T5 |
 
 ### 문서 작업

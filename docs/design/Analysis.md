@@ -65,12 +65,13 @@
 | `text` | `assistant`의 `text` 블록 | `text` |
 | `tool_call` | `assistant`의 `tool_use` 블록, 같은 `tool_use_id`의 도구 결과·hook 이벤트 | 5절 |
 | `user_message` | 작업 도중 사람이 보낸 메시지가 모델에게 전달된 기록(`attachment.type` = `queued_command`, `origin.kind` = `human`) | `text` |
-| `notification` | 하위 에이전트 보고, 백그라운드 작업 알림(`queued_command`의 다른 출처, `peer` 기록), 사용자가 `!`로 직접 실행한 셸 명령과 출력(`<bash-input>`, `<bash-stdout>`, `<bash-stderr>`로 시작하는 `user` 기록, `source` = `user_shell`) | `text`, `source` |
+| `notification` | 하위 에이전트 보고, 백그라운드 작업 알림(`queued_command`의 다른 출처, `peer` 기록), 사용자가 `!`로 직접 실행한 셸 명령과 출력(`<bash-input>`, `<bash-stdout>`, `<bash-stderr>`로 시작하는 `user` 기록, `source` = `user_shell`) | `text`, `source`. 작업 알림(`source` = `task-notification`)은 본문의 `<task-id>`, `<tool-use-id>`, `<status>`를 `task_id`, `tool_use_id`, `status`로 더한다(M4-T7). |
 | `compact` | `system`의 `compact_boundary`, `PreCompact`·`PostCompact` hook | `trigger` |
 | `hook_failure` | hook 전달 실패(`attachment.type` = `hook_non_blocking_error`). 수집이 빠진 구간을 보여 준다. | `hook_event`, `message` |
 | `subagent` | 띄운 도구 호출과 연결되지 않은 서브에이전트(6절) | `agent_id`, `substeps` |
 
 - 단계는 [Step](../../src/agentvis/analysis/session.py#Step)으로 나타내며, 모든 단계는 `id`(원시 이벤트 `id`), `at`(발생 시각), `source`(`transcript`/`hook`)를 가진다. 종류별 필드는 `text`, `tool_call`, `detail`(사전), `substeps`(`subagent` 단계의 하위 단계)에 담는다.
+- `assistant` 기록에서 나온 단계(`thinking`, `text`, `tool_call`)는 그 기록의 `message.id`를 `message_id`로 가진다. 같은 모델 응답의 블록을 묶어 병렬 호출을 알아보는 데 쓴다([작업 흐름 그래프](FlowGraph.md#33-간선)). 그 밖의 단계는 `None`이다(M4-T7).
 - 세션 기록의 `queue-operation`은 단계로 만들지 않는다. 메시지가 모델에게 실제로 전달된 시점은 `queued_command` 첨부 기록이 나타낸다.
 - `user_message`, `notification`, `hook_failure`는 첨부 기록이 저장되어야 나온다(I18, M3-T2에서 저장 대상 확장).
 - `turn_duration` 같은 나머지 `system` 기록은 단계로 만들지 않고 턴 정보에만 쓴다.
@@ -90,6 +91,9 @@
 | `subagent` | 이 호출이 서브에이전트를 띄웠으면 그 서브에이전트의 단계 목록(6절) |
 | `agent_id` | 이 호출이 띄운 서브에이전트 ID(`toolUseResult.agentId`) |
 | `is_error`, `interrupted` | 상태 판정에 쓴 사실(오류 표시, 중단 표시). 결과가 아직 없으면 `is_error`는 비어 있다. |
+| `started_at`, `ended_at` | 실행 구간(M4-T7). 시작은 `PreToolUse` 시각, 없으면 `tool_use` 기록 시각. 끝은 `PostToolUse`·`PostToolUseFailure` 시각, 없으면 도구 결과 기록 시각, 둘 다 없으면 `None`. `tool_use` 기록 시각은 생성 시각이다([실측](../DataSource.md#35-병렬-실행과-백그라운드-작업의-연결)). |
+| `approximate` | 시작이나 끝을 hook이 아닌 세션 기록 시각으로 정했는지(M4-T7) |
+| `background` | 백그라운드 실행(`input.run_in_background`가 참)이면 사전, 아니면 `None`(M4-T7). `kind`(`shell`·`agent`), `task_id`(`toolUseResult.backgroundTaskId`, 서브에이전트는 `agentId`), 그리고 `tool_use_id`가 이 호출인 작업 알림 단계에서 가져온 `status`, `ended_at`(알림 시각), `notification_step_id`. 알림이 아직 없으면 뒤의 셋은 `None`이다. |
 
 **상태**는 확인된 사실만으로 정한다. 의미 해석이 필요한 판정(권한 거부 확정, 반복 실패, fallback)은 신호 설계(M3-T3, M5, I16)에서 한다.
 
@@ -108,6 +112,7 @@
 - 서브에이전트 기록(`isSidechain`이 참, `agentId`)은 같은 턴 구성 규칙으로 단계를 만들되, 부모 세션의 턴에 직접 넣지 않고 그 서브에이전트를 띄운 도구 호출의 `subagent`에 넣는다.
 - 연결은 서브에이전트를 띄운 도구 호출의 결과 기록(`toolUseResult.agentId`)으로 한다. 2026-10-31 실측: `Agent` 도구의 결과 기록 3건 모두 `agentId`가 서브에이전트 기록의 `agentId`와 같았다. 서브에이전트 메타 이벤트에는 서브에이전트 ID가 남지 않아 연결에 쓰지 않는다.
 - 서브에이전트 기록의 첫 `user` 기록은 부모가 맡긴 지시로, 띄운 도구 호출의 입력(`input.prompt`)과 같으므로 단계로 만들지 않는다. 2026-10-31 실측: 서브에이전트 기록 3개 모두 첫 기록이 이 지시였다.
+- 백그라운드 서브에이전트(`toolUseResult.isAsync`가 참)도 결과의 `agentId`로 같이 연결한다. 결과가 띄우는 즉시 오므로, 서브에이전트 단계는 결과 시각 뒤에도 이어진다.
 - 연결되지 않은 서브에이전트(띄운 도구의 결과가 아직 없음 등)는 그 첫 기록의 `promptId` 턴에 `subagent` 단계로 둔다.
 - 문맥 압축의 요약 서브에이전트(`agent_type`이 빈 `SubagentStop`)는 `compact` 단계에 붙이고 사용자 작업으로 세지 않는다.
 

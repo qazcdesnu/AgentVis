@@ -29,5 +29,6 @@ uv run python -m tools.check_docs
 uv run python -m tools.check_pointers
 uv run python -m tools.check_tasks
 uv run python -m tools.check_commits
+uv run python -m tools.check_web
 uv run python -m unittest discover -s tests -t .
 ```

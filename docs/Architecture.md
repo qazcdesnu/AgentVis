@@ -127,7 +127,7 @@ CLI의 hook 설치 명령이 Claude Code 사용자 설정(`~/.claude/settings.js
 | 웹 서버 | FastAPI + uvicorn | 비동기 처리와 SSE 응답이 간단하고 널리 쓰인다. |
 | 이벤트 저장소 | SQLite (표준 라이브러리 `sqlite3`) | 설치가 필요 없고 로컬 단일 사용자에 충분하다. |
 | 실시간 전송 | SSE (Server-Sent Events) | 서버 → 브라우저 단방향이면 충분하고 WebSocket보다 단순하다. |
-| 웹 UI | 빌드 단계 없는 정적 HTML·JS | 초기 단계에서 도구 체인을 늘리지 않는다. 첫 화면은 시각화 라이브러리 없이 만든다([웹 UI 설계](design/WebUI.md#1-기술과-라이브러리)). |
+| 웹 UI | 빌드 단계 없는 정적 HTML·JS | 초기 단계에서 도구 체인을 늘리지 않는다. 첫 화면은 시각화 라이브러리 없이 만들고, 작업 흐름 그래프는 D3를 쓴다. 라이브러리는 외부 CDN이 아니라 저장소에 넣어 쓴다([웹 UI 설계](design/WebUI.md#11-저장소에-넣은-라이브러리)). |
 
 데이터 디렉터리는 `~/.agentvis/`이며 SQLite 파일(`agentvis.db`)과 hook 설정 백업을 둔다.
 

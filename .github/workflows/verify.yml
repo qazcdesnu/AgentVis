@@ -26,6 +26,8 @@ jobs:
         run: uv run python -m tools.check_tasks
       - name: 커밋 메시지 이력
         run: uv run python -m tools.check_commits
+      - name: 웹 화면 파일의 외부 주소와 라이브러리
+        run: uv run python -m tools.check_web
       - name: PR 제목과 브랜치 이름
         if: github.event_name == 'pull_request'
         env:

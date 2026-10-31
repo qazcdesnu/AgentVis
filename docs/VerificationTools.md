@@ -1,6 +1,6 @@
 # 검증 도구
 
-이 문서는 문서와 코드의 규칙 준수를 자동으로 검증하는 도구를 규정한다. 도구는 `tools/` 패키지에 있으며 [코드 작업 규칙](CodeRule.md)에 따라 표준 라이브러리만 사용한다. 검증하는 규칙은 [문서 작업 규칙](DocumentationRule.md), [포인터 규약](Traceability.md), [작업 관리 규칙](TaskRule.md), [커밋 규칙](CommitRule.md)이다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
+이 문서는 문서와 코드의 규칙 준수를 자동으로 검증하는 도구를 규정한다. 도구는 `tools/` 패키지에 있으며 [코드 작업 규칙](CodeRule.md)에 따라 표준 라이브러리만 사용한다. 검증하는 규칙은 [문서 작업 규칙](DocumentationRule.md), [포인터 규약](Traceability.md), [작업 관리 규칙](TaskRule.md), [커밋 규칙](CommitRule.md), [웹 UI 설계의 저장소에 넣은 라이브러리](design/WebUI.md#11-저장소에-넣은-라이브러리)이다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
 ## 1. 실행 방법
 
@@ -11,6 +11,7 @@ uv run python -m tools.check_docs        # 문서 링크와 고아 문서 검사
 uv run python -m tools.check_pointers    # 문서 ↔ 코드 포인터 검사
 uv run python -m tools.check_tasks       # 작업 ID 기준 작업 관리 문서 정합성 검사
 uv run python -m tools.check_commits     # 기준 커밋 이후 커밋 메시지 검사
+uv run python -m tools.check_web         # 웹 화면 파일의 외부 주소와 저장소에 넣은 라이브러리 검사
 uv run python -m unittest discover -s tests -t .   # 도구 자체의 테스트
 ```
 
@@ -97,6 +98,7 @@ uv run python -m unittest discover -s tests -t .   # 도구 자체의 테스트
 - [tests/test_check_pointers.py](../tests/test_check_pointers.py): 정상 양방향 포인터, 없는 심볼, 줄 번호 포인터, 주석 포인터, 소속 없는 주석 포인터, 커버리지 누락, 역방향 포인터 누락.
 - [tests/test_check_tasks.py](../tests/test_check_tasks.py): 정상 저장소, 형식 오류, 번호 누락, 상태와 기록의 불일치, 연결 작업, 기록 필드·절 누락, 완료 순서, `없음` 규칙, 알 수 없는 ID 참조(한글 조사가 붙은 ID 포함).
 - [tests/test_check_commits.py](../tests/test_check_commits.py): 정상 메시지(여러 ID, 트레일러, 주석 줄), 제목 형식·길이·마침표·빈 줄 오류, 없는 ID, 시작하지 않은 ID, 임시 git 저장소의 이력 검사와 기준 커밋·병합 커밋 제외, 브랜치 이름 형식과 없는 ID, PR 제목·브랜치 검사 명령.
+- [tests/test_check_web.py](../tests/test_check_web.py): 정상 저장소, 외부 주소(절대·프로토콜 상대), 허용된 XML 이름공간 주소, `vendor/` 안 파일 제외, 표에 없는 `vendor/` 파일, 해시 불일치, 표에 있으나 없는 파일.
 
 ## 6. 작업 관리 검사기
 
@@ -182,3 +184,27 @@ uv run python -m tools.check_pr_order --pr <PR 번호> --open-prs open-prs.json
 - [main](../tools/check_pr_order.py#main): 빠진 PR마다 `PR #<번호> (<브랜치>)를 포함하지 않음` 문제를 [1. 실행 방법](#1-실행-방법)의 형식으로 출력한다. 위치는 `PR #<검사하는 번호>:1`이다.
 - 테스트: [tests/test_check_pr_order.py](../tests/test_check_pr_order.py)가 임시 git 저장소로 쌓인 브랜치(포함)와 `main`에서 따로 만든 브랜치(빠짐), 번호가 뒤인 PR은 무시함, 저장소에 없는 커밋을 확인한다.
 
+
+## 10. 웹 정적 파일 검사기
+
+[tools/check_web.py](../tools/check_web.py)는 [웹 UI 설계의 저장소에 넣은 라이브러리](design/WebUI.md#11-저장소에-넣은-라이브러리) 규칙 중 기계적으로 확인할 수 있는 부분을 검사한다.
+
+```sh
+uv run python -m tools.check_web
+```
+
+| 상수 | 값 | 의미 |
+| --- | --- | --- |
+| [WEB_DIR](../tools/check_web.py#WEB_DIR) | `src/agentvis/web` | 화면 파일 디렉터리 |
+| [VENDOR_DIR](../tools/check_web.py#VENDOR_DIR) | `src/agentvis/web/vendor` | 저장소에 넣은 라이브러리 디렉터리 |
+| [WEB_DOC](../tools/check_web.py#WEB_DOC) | `docs/design/WebUI.md` | 라이브러리 표가 있는 문서 |
+| [ALLOWED_URLS](../tools/check_web.py#ALLOWED_URLS) | SVG·XLink·XHTML의 XML 이름공간 주소 | 요청이 아니라 식별자로만 쓰는 주소 |
+
+- [external_references](../tools/check_web.py#external_references)`(root) -> list[Problem]`: `WEB_DIR` 아래에서 `vendor/` 밖에 있는 `.html`, `.js`, `.css` 파일을 줄마다 읽어 아래 외부 주소를 찾는다. 라이브러리 파일은 내용을 고치지 않으므로(그 안의 주소 문자열은 우리가 통제하지 않는다) 검사하지 않는다.
+  - `http://`·`https://` 주소. 단, `ALLOWED_URLS`로 시작하는 주소는 제외한다.
+  - `src=`, `href=`, `url(`, `import`, `from` 뒤에 따옴표·괄호를 건너뛰고 `//`로 시작하는 프로토콜 상대 주소.
+- [vendor_problems](../tools/check_web.py#vendor_problems)`(root) -> list[Problem]`: `WEB_DOC`의 표 줄 중 첫 칸이 `VENDOR_DIR` 안 파일로 가는 링크이고 마지막 칸이 64자리 16진수 인라인 코드인 줄을 라이브러리 항목으로 읽는다. 아래 경우를 문제로 낸다.
+  - 항목 파일의 SHA-256이 표와 다르다.
+  - 항목 파일이 없다.
+  - `VENDOR_DIR`의 파일이 어떤 항목 줄에도 링크되지 않았다. 라이선스 파일처럼 첫 칸이 아닌 칸에 링크된 파일도 항목 줄에 있으면 된다.
+- [main](../tools/check_web.py#main): 두 검사의 문제를 [1. 실행 방법](#1-실행-방법)의 형식으로 출력한다. 통과하면 검사한 화면 파일 수와 라이브러리 수를 출력한다.
