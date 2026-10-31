@@ -30,6 +30,7 @@ uv run python -m unittest discover -s tests -t .   # 도구 자체의 테스트
 | [REPO_ROOT](../tools/doclib.py#REPO_ROOT) | `tools/`의 상위 디렉터리 | 기본 저장소 루트 |
 | [INDEX_DOC](../tools/doclib.py#INDEX_DOC) | `docs/index.md` | 고아 문서 판정의 출발점 |
 | [ENTRY_DOC](../tools/doclib.py#ENTRY_DOC) | `CLAUDE.md` | 작업자가 가장 먼저 읽는 진입 문서 |
+| [README_DOC](../tools/doclib.py#README_DOC) | `README.md` | 저장소 첫 화면의 팀 동료용 안내 문서 |
 | [DOCS_DIR](../tools/doclib.py#DOCS_DIR) | `docs` | 문서 디렉터리 |
 | [CODE_ROOTS](../tools/doclib.py#CODE_ROOTS) | `src`, `tools`, `tests` | 커버리지 검사 대상 코드 디렉터리 |
 | [CODE_SUFFIXES](../tools/doclib.py#CODE_SUFFIXES) | `.py` | 코드 포인터로 취급하는 링크 대상 확장자 |
@@ -41,7 +42,7 @@ uv run python -m unittest discover -s tests -t .   # 도구 자체의 테스트
 
 **함수**
 
-- [find_doc_files](../tools/doclib.py#find_doc_files): 검사 대상 문서 목록. `ENTRY_DOC`과 `docs/` 아래의 모든 `.md` 파일이다.
+- [find_doc_files](../tools/doclib.py#find_doc_files): 검사 대상 문서 목록. `ENTRY_DOC`, `README_DOC`(있으면), `docs/` 아래의 모든 `.md` 파일이다.
 - [find_code_files](../tools/doclib.py#find_code_files): `CODE_ROOTS` 아래의 모든 코드 파일 목록. 없는 디렉터리는 건너뛴다.
 - [extract_links](../tools/doclib.py#extract_links): 문서 본문에서 링크를 찾는다. 이미지 링크(`![...](...)`), 펜스 코드 블록(```` ``` ````, `~~~`) 안, 인라인 코드 안의 링크는 제외한다.
 - [is_external](../tools/doclib.py#is_external): `http://`, `https://`, `mailto:`로 시작하는 외부 링크인지 판정한다. 외부 링크는 검사하지 않는다.
@@ -61,8 +62,9 @@ uv run python -m unittest discover -s tests -t .   # 도구 자체의 테스트
   - 대상 파일이나 디렉터리가 없으면 문제다.
   - 대상이 `.md` 문서이고 앵커가 있으면, 대상 문서에 그 앵커가 있어야 한다.
 - [check_entry](../tools/check_docs.py#check_entry): `ENTRY_DOC`이 존재하고 `INDEX_DOC`으로 가는 링크를 가지는지 검사한다.
+- [check_readme](../tools/check_docs.py#check_readme): `README_DOC`이 존재하고 `INDEX_DOC`과 `ENTRY_DOC`으로 가는 링크를 모두 가지는지 검사한다([문서 작업 규칙의 형식](DocumentationRule.md#2-형식)). 링크 자체는 `README_DOC`도 [find_doc_files](../tools/doclib.py#find_doc_files)에 들어가므로 `check_links`가 검사한다.
 - [find_orphans](../tools/check_docs.py#find_orphans): `INDEX_DOC`에서 문서 간 링크를 따라 너비 우선 탐색을 하고, 도달하지 못한 `docs/` 아래 문서를 고아 문서로 보고한다. `INDEX_DOC`이 없으면 그 자체를 문제로 보고한다.
-- [main](../tools/check_docs.py#main): 세 검사를 실행하고 결과를 [1. 실행 방법](#1-실행-방법)의 형식으로 출력한다.
+- [main](../tools/check_docs.py#main): 네 검사를 실행하고 결과를 [1. 실행 방법](#1-실행-방법)의 형식으로 출력한다.
 
 ## 4. 포인터 검사기
 
@@ -94,7 +96,7 @@ uv run python -m unittest discover -s tests -t .   # 도구 자체의 테스트
 
 - [tests/support.py](../tests/support.py): 테스트 공통 기반. [RepoTestCase](../tests/support.py#RepoTestCase)는 테스트마다 임시 저장소 루트(`self.root`)를 만들고 지우며, [RepoTestCase.write](../tests/support.py#RepoTestCase.write)로 그 아래에 파일을 만든다.
 - [tests/test_doclib.py](../tests/test_doclib.py): 링크 추출(코드 블록·인라인 코드·이미지 제외), 앵커 생성(한글, 중복 제목).
-- [tests/test_check_docs.py](../tests/test_check_docs.py): 깨진 링크, 없는 앵커, 고아 문서, 진입 문서 누락, 정상 저장소.
+- [tests/test_check_docs.py](../tests/test_check_docs.py): 깨진 링크, 없는 앵커, 고아 문서, 진입 문서 누락, README 누락과 필수 링크 누락, 정상 저장소.
 - [tests/test_check_pointers.py](../tests/test_check_pointers.py): 정상 양방향 포인터, 없는 심볼, 줄 번호 포인터, 주석 포인터, 소속 없는 주석 포인터, 커버리지 누락, 역방향 포인터 누락.
 - [tests/test_check_tasks.py](../tests/test_check_tasks.py): 정상 저장소, 형식 오류, 번호 누락, 상태와 기록의 불일치, 연결 작업, 기록 필드·절 누락, 완료 순서, `없음` 규칙, 알 수 없는 ID 참조(한글 조사가 붙은 ID 포함).
 - [tests/test_check_commits.py](../tests/test_check_commits.py): 정상 메시지(여러 ID, 트레일러, 주석 줄), 제목 형식·길이·마침표·빈 줄 오류, 없는 ID, 시작하지 않은 ID, 임시 git 저장소의 이력 검사와 기준 커밋·병합 커밋 제외, 브랜치 이름 형식과 없는 ID, PR 제목·브랜치 검사 명령.

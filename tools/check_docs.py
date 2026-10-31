@@ -13,6 +13,7 @@ from tools.doclib import (
     DOCS_DIR,
     ENTRY_DOC,
     INDEX_DOC,
+    README_DOC,
     REPO_ROOT,
     Problem,
     extract_links,
@@ -63,6 +64,22 @@ def check_entry(root: Path) -> list[Problem]:
     return [Problem(entry, 1, f"진입 문서에 {INDEX_DOC} 링크 없음")]
 
 
+def check_readme(root: Path) -> list[Problem]:
+    """Report a missing README or a README without links to the index and the entry document.
+
+    @doc: docs/VerificationTools.md#3-문서-링크-검사기
+    """
+    readme = root / README_DOC
+    if not readme.is_file():
+        return [Problem(readme, 1, "README 없음")]
+    targets = {resolve_link(link)[0] for link in extract_links(readme, readme.read_text(encoding="utf-8")) if not is_external(link.target)}
+    return [
+        Problem(readme, 1, f"README에 {name} 링크 없음")
+        for name in (INDEX_DOC, ENTRY_DOC)
+        if (root / name).resolve() not in targets
+    ]
+
+
 def find_orphans(root: Path) -> list[Problem]:
     """Report documents under the docs directory unreachable from the index.
 
@@ -98,7 +115,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--root", type=Path, default=REPO_ROOT)
     root = parser.parse_args(argv).root.resolve()
-    problems = check_links(root) + check_entry(root) + find_orphans(root)
+    problems = check_links(root) + check_entry(root) + check_readme(root) + find_orphans(root)
     for problem in problems:
         print(problem.format(root))
     if problems:
