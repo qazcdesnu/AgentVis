@@ -12,6 +12,7 @@ from urllib.parse import unquote
 REPO_ROOT = Path(__file__).resolve().parent.parent
 INDEX_DOC = "docs/index.md"
 ENTRY_DOC = "CLAUDE.md"
+README_DOC = "README.md"
 DOCS_DIR = "docs"
 CODE_ROOTS = ("src", "tools", "tests")
 CODE_SUFFIXES = (".py",)
@@ -64,14 +65,14 @@ class Link:
 
 
 def find_doc_files(root: Path) -> list[Path]:
-    """Return the entry document and every markdown file under the docs directory.
+    """Return the entry document, the README and every markdown file under the docs directory.
 
     @doc: docs/VerificationTools.md#2-공통-모듈
     """
     docs = []
-    entry = root / ENTRY_DOC
-    if entry.is_file():
-        docs.append(entry)
+    for name in (ENTRY_DOC, README_DOC):
+        if (root / name).is_file():
+            docs.append(root / name)
     docs_dir = root / DOCS_DIR
     if docs_dir.is_dir():
         docs.extend(sorted(docs_dir.rglob("*.md")))

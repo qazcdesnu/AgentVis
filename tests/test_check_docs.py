@@ -6,7 +6,7 @@
 import unittest
 
 from tests.support import RepoTestCase
-from tools.check_docs import check_entry, check_links, find_orphans
+from tools.check_docs import check_entry, check_links, check_readme, find_orphans
 
 
 class CheckDocsTest(RepoTestCase):
@@ -17,9 +17,11 @@ class CheckDocsTest(RepoTestCase):
         self.write("CLAUDE.md", "# C\n\n[index](docs/index.md)\n")
         self.write("docs/index.md", "# Index\n\n[rule](Rule.md#1-intro)\n")
         self.write("docs/Rule.md", "# Rule\n\n## 1. Intro\n\n[back](index.md)\n")
+        self.write("README.md", "# R\n\n[index](docs/index.md) [rules](CLAUDE.md)\n")
 
     def test_clean_repository_passes(self) -> None:
-        self.assertEqual(check_links(self.root) + check_entry(self.root) + find_orphans(self.root), [])
+        problems = check_links(self.root) + check_entry(self.root) + check_readme(self.root) + find_orphans(self.root)
+        self.assertEqual(problems, [])
 
     def test_reports_missing_file_and_anchor(self) -> None:
         self.write("docs/Rule.md", "# Rule\n\n## 1. Intro\n\n[gone](Gone.md) [bad](index.md#nope)\n")
@@ -37,6 +39,15 @@ class CheckDocsTest(RepoTestCase):
     def test_reports_entry_without_index_link(self) -> None:
         self.write("CLAUDE.md", "# C\n")
         self.assertEqual(len(check_entry(self.root)), 1)
+
+    def test_readme_links_are_checked_and_required_links_reported(self) -> None:
+        self.write("README.md", "# R\n\n[index](docs/index.md) [gone](docs/Gone.md)\n")
+        self.assertEqual([problem.message for problem in check_links(self.root)], ["링크 대상 없음: docs/Gone.md"])
+        self.assertEqual([problem.message for problem in check_readme(self.root)], ["README에 CLAUDE.md 링크 없음"])
+
+    def test_reports_missing_readme(self) -> None:
+        (self.root / "README.md").unlink()
+        self.assertEqual([problem.message for problem in check_readme(self.root)], ["README 없음"])
 
 
 if __name__ == "__main__":
