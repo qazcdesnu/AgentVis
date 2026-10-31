@@ -22,5 +22,5 @@ class RepoTestCase(unittest.TestCase):
     def write(self, relative: str, text: str) -> Path:
         path = self.root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text, encoding="utf-8")
+        path.write_text(text, encoding="utf-8", newline="\n")
         return path

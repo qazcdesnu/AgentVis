@@ -58,6 +58,10 @@ AgentVis는 macOS, Linux, Windows(10·11)에서 설치하고 실행할 수 있�
   - 외부 명령: `subprocess.run`으로 텍스트 출력을 받을 때 `encoding="utf-8"`을 준다(`text=True`만 쓰지 않는다).
   - 콘솔 출력: 명령의 진입 함수(`agentvis` CLI와 각 검사기의 `main`)는 시작할 때 표준 출력·오류를 UTF-8로 바꾼다. 출력이 파이프로 갈 때 Windows는 기본 인코딩을 쓰기 때문이다.
 - **줄바꿈**: 저장소의 텍스트 파일은 LF로 고정한다(`.gitattributes`의 `* text=auto eol=lf`). Windows git이 체크아웃하면서 CRLF로 바꾸면 검사기의 줄 해석과 해시가 달라지기 때문이다. [저장소에 넣은 라이브러리](design/WebUI.md#11-저장소에-넣은-라이브러리)는 내용을 그대로 두어야 하므로 변환하지 않는다(`-text`).
+- **테스트의 운영체제 차이**
+  - 테스트가 파일을 쓸 때는 줄바꿈을 `\n` 그대로 쓴다(`newline="\n"`). Windows의 텍스트 모드는 `\n`을 CRLF로 바꾸어 해시와 줄 해석이 달라진다.
+  - 홈 디렉터리를 바꿀 때는 환경 변수(`HOME`)가 아니라 `Path.home`을 가짜로 바꾼다. Windows는 `HOME`이 아니라 `USERPROFILE`을 본다.
+  - 검사기 메시지의 경로는 `/`로 비교한다([display_path](VerificationTools.md#2-공통-모듈)).
 - **운영체제마다 다른 기능**(심볼릭 링크, 권한 비트 등)에 기대는 테스트는, 그 기능이 없는 운영체제에서 `unittest.skipIf`로 건너뛰고 이유를 적는다. 제품 코드는 그런 기능이 없어도 동작해야 한다.
 - **셸 스크립트**(`.githooks/`)는 POSIX `sh`로 쓴다. Windows에서는 Git for Windows에 들어 있는 `sh`가 실행한다.
 - 세 운영체제에서 실제로 동작하는지는 [CI](VerificationTools.md#8-ci)가 macOS·Linux·Windows에서 모든 검증을 돌려 확인한다.

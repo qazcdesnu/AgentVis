@@ -4,6 +4,7 @@
 """
 
 import os
+from pathlib import Path
 from dataclasses import replace
 from unittest import mock
 
@@ -74,12 +75,13 @@ class SessionApiTest(RepoTestCase):
         self.store.append_batch([replace(event, session_id="s-real", id=None) for event in built.events])
         self.store.append(replace(built.events[0], session_id="s-nocwd", cwd=None, dedup_key="uuid:nocwd",
                                   payload='{"type": "system", "subtype": "turn_duration"}', id=None))
-        with mock.patch.dict(os.environ, {"HOME": str(self.root / "home")}):
+        # Path.home, not HOME: Windows looks up USERPROFILE.
+        with mock.patch("pathlib.Path.home", return_value=self.root / "home"):
             projects = self.client.get("/api/projects").json()["projects"]
         self.assertEqual([item["name"] for item in projects], ["real-app", "app", "other"])
-        self.assertEqual((projects[0]["parent"], projects[0]["exists"], projects[0]["session_count"]), ("~/work", True, 1))
+        self.assertEqual((projects[0]["parent"], projects[0]["exists"], projects[0]["session_count"]), (f"~{os.sep}work", True, 1))
         self.assertEqual((projects[1]["path"], projects[1]["parent"], projects[1]["exists"], projects[1]["session_count"]),
-                         ("/Users/me/app", "/Users/me", False, 2))
+                         ("/Users/me/app", str(Path("/Users/me")), False, 2))
         self.assertTrue(projects[1]["last_activity"].endswith("+00:00"))
 
 

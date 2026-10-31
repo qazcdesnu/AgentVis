@@ -48,7 +48,7 @@ uv run python -m unittest discover -s tests -t .   # 도구 자체의 테스트
 - [is_external](../tools/doclib.py#is_external): `http://`, `https://`, `mailto:`로 시작하는 외부 링크인지 판정한다. 외부 링크는 검사하지 않는다.
 - [resolve_link](../tools/doclib.py#resolve_link): 링크 대상을 (절대 경로, 앵커)로 나눈다. `#앵커`만 있는 링크는 출처 문서 자신을 가리킨다. 앵커는 URL 디코딩한다.
 - [slugify](../tools/doclib.py#slugify): 제목 문자열을 앵커로 바꾼다. 규칙은 [문서 작업 규칙](DocumentationRule.md#3-링크-규칙)에 있다.
-- [display_path](../tools/doclib.py#display_path): 출력용 경로 문자열. 저장소 루트 기준 상대 경로이며, 루트 밖이면 절대 경로다. [Problem.format](../tools/doclib.py#Problem.format)과 검사기 메시지가 함께 쓴다.
+- [display_path](../tools/doclib.py#display_path): 출력용 경로 문자열. 저장소 루트 기준 상대 경로이며, 루트 밖이면 절대 경로다. 구분자는 운영체제와 관계없이 `/`다. 그래서 같은 문제가 모든 운영체제에서 같은 메시지로 나온다. [Problem.format](../tools/doclib.py#Problem.format)과 검사기 메시지가 함께 쓴다.
 - [heading_anchors](../tools/doclib.py#heading_anchors): 문서의 모든 ATX 제목(`#` ~ `######`, 코드 블록 밖)의 앵커 집합. 같은 앵커가 반복되면 두 번째부터 `-1`, `-2`를 붙인다.
 - [iter_prose_lines](../tools/doclib.py#iter_prose_lines): 펜스 코드 블록 밖의 줄을 (줄 번호, 줄)로 차례로 돌려준다. 펜스 줄 자체도 제외한다.
 - [use_utf8_output](../tools/doclib.py#use_utf8_output): 표준 출력·오류를 UTF-8로 바꾼다. 각 검사기의 `main`이 시작할 때 부른다([운영체제 이식성](CodeRule.md#31-운영체제-이식성)). 출력이 파이프로 갈 때 Windows가 기본 인코딩을 써서 한글 메시지를 출력하지 못하는 것을 막는다.

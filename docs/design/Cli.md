@@ -72,7 +72,7 @@ AgentVis hook은 URL의 쿼리 `client=agentvis`로 식별한다. Claude Code �
 | --- | --- |
 | [default_settings_path](../../src/agentvis/hook_settings.py#default_settings_path) `() -> Path` | `~/.claude/settings.json` (Claude Code 사용자 설정). `~`는 `Path.home()`이며 Windows에서는 `%USERPROFILE%`이다. Windows에서 설정 파일을 바꿔치기할 때 다른 프로그램이 파일을 열고 있으면 실패할 수 있다. 이때는 오류를 그대로 보이고 백업은 남는다. |
 | [load_settings](../../src/agentvis/hook_settings.py#load_settings) `(path: Path) -> dict` | 파일이 없으면 `{}`. JSON이 아니거나 JSON 객체가 아니면 `SettingsError`를 낸다. |
-| [backup_settings](../../src/agentvis/hook_settings.py#backup_settings) `(path: Path, backup_dir: Path) -> Path \| None` | 파일이 있으면 `backup_dir/settings-<UTC 시각, 마이크로초까지>.json`으로 내용을 복사하고 그 경로를 돌려준다. 파일이 없으면 `None`. 백업 디렉터리는 데이터 디렉터리 아래 `backups/`다. |
+| [backup_settings](../../src/agentvis/hook_settings.py#backup_settings) `(path: Path, backup_dir: Path) -> Path \| None` | 파일이 있으면 `backup_dir/settings-<UTC 시각, 마이크로초까지>.json`으로 내용을 복사하고 그 경로를 돌려준다. 같은 이름이 이미 있으면(Windows는 시계 해상도가 약 16ms라 연달아 부르면 시각이 같을 수 있다) 이름 끝에 `-1`, `-2` …를 붙여 겹치지 않게 한다. 파일이 없으면 `None`. 백업 디렉터리는 데이터 디렉터리 아래 `backups/`다. |
 | [save_settings](../../src/agentvis/hook_settings.py#save_settings) `(path: Path, settings: dict) -> None` | 경로가 심볼릭 링크면 링크가 가리키는 실제 파일에 쓴다. 같은 디렉터리의 임시 파일에 쓴 뒤 바꿔치기해 원자적으로 저장하고, 원래 파일이 있었으면 그 권한을 유지한다. 들여쓰기 2칸, `ensure_ascii=False`, 마지막 줄바꿈 포함. 부모 디렉터리가 없으면 만든다. |
 
 설치·제거 명령은 `load_settings` → `install_hooks`/`uninstall_hooks` 순서로 새 설정을 계산하고, 설정이 실제로 바뀌는 경우에만 `backup_settings` → `save_settings`를 실행한다. 바뀌지 않으면 백업도 저장도 하지 않는다.
