@@ -2,12 +2,14 @@
 
 @doc: docs/design/Analysis.md#8-조회-api
 @doc: docs/design/Analysis.md#2-프로젝트
+@doc: docs/design/FlowGraph.md#5-조회-api
 """
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
+from agentvis.analysis.graph import FlowGraph, build_turn_graph
 from agentvis.analysis.session import SessionView, build_session
 from agentvis.store import EventStore
 
@@ -51,6 +53,15 @@ def get_session(store: EventStore, session_id: str) -> SessionView | None:
     """
     events = store.events(session_id=session_id)
     return build_session(events) if events else None
+
+
+def get_turn_graph(store: EventStore, session_id: str, index: int) -> FlowGraph | None:
+    """Return the flow graph of one turn, or None if the session or turn does not exist.
+
+    @doc: docs/design/FlowGraph.md#5-조회-api
+    """
+    view = get_session(store, session_id)
+    return build_turn_graph(view, index) if view is not None else None
 
 
 def list_projects(store: EventStore) -> list[ProjectView]:

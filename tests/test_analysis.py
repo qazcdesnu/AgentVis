@@ -165,7 +165,8 @@ class SubagentAndProjectTest(unittest.TestCase):
         steps = view.turns[0].steps
         agent_call = steps[0].tool_call
         self.assertEqual((agent_call.agent_id, [step.kind for step in agent_call.subagent]), ("ag1", ["tool_call"]))
-        self.assertEqual(agent_call.subagent[0].tool_call.status, "unfinished")
+        # A subagent call without a result follows the parent turn, which is still running.
+        self.assertEqual(agent_call.subagent[0].tool_call.status, "running")
         self.assertEqual((steps[-1].kind, steps[-1].detail, len(steps[-1].substeps)), ("subagent", {"agent_id": "ag2"}, 1))
         self.assertEqual(view.tool_call_count, 1)
 
@@ -176,3 +177,42 @@ class SubagentAndProjectTest(unittest.TestCase):
         view = s.build()
         self.assertEqual((view.project, view.project_from_hook), ("/Users/me/app", False))
         self.assertEqual(build_session([]).turns, [])
+
+
+class GraphFieldTest(unittest.TestCase):
+    """@doc: docs/design/Analysis.md#9-테스트"""
+
+    def test_message_id_spans_and_background_link(self) -> None:
+        s = _Session()
+        s.prompt("u1", "p1", "테스트 돌려")
+        s.assistant("a1", "u1", {"type": "tool_use", "id": "toolu_bg", "name": "Bash", "input": {"command": "pytest", "run_in_background": True}})
+        s.result("r1", "a1", "p1", "toolu_bg", "running", tool_use_result={"backgroundTaskId": "b1"})
+        s.hook("PreToolUse", prompt_id="p1", tool_use_id="toolu_bg", tool_name="Bash", tool_input={})
+        s.record(type="attachment", uuid="n1", parentUuid="r1", attachment={"type": "queued_command", "commandMode": "task-notification",
+                 "prompt": "<task-notification>\n<task-id>b1</task-id>\n<tool-use-id>toolu_bg</tool-use-id>\n<status>completed</status>\n</task-notification>"})
+        steps = s.build().turns[0].steps
+        call, note = steps[0].tool_call, steps[1]
+        self.assertEqual(note.detail, {"source": "task-notification", "task_id": "b1", "tool_use_id": "toolu_bg", "status": "completed"})
+        self.assertEqual(call.background, {"kind": "shell", "task_id": "b1", "status": "completed", "ended_at": note.at, "notification_step_id": note.id})
+        # The start came from the hook but the end only from the transcript result.
+        self.assertEqual((call.started_at, call.approximate), (s.events[3].occurred_at, True))
+        self.assertIsNone(steps[0].message_id)
+
+    def test_subagent_hooks_join_the_subagent_not_the_parent_turn(self) -> None:
+        s = _Session()
+        s.prompt("u1", "p1", "리뷰해")
+        s.assistant("a1", "u1", {"type": "tool_use", "id": "toolu_ag", "name": "Agent", "input": {}}, )
+        s.record(type="user", uuid="g-u", parentUuid=None, promptId="p1", isSidechain=True, agentId="ag1", message={"content": "일"})
+        s.record(type="assistant", uuid="g-a", parentUuid="g-u", isSidechain=True, agentId="ag1",
+                 message={"id": "msg_g", "content": [{"type": "tool_use", "id": "toolu_r", "name": "Read", "input": {}}]})
+        s.hook("PreToolUse", prompt_id="p1", agent_id="ag1", tool_use_id="toolu_r", tool_name="Read", tool_input={})
+        s.hook("PostToolUse", prompt_id="p1", agent_id="ag1", tool_use_id="toolu_r", tool_name="Read", duration_ms=12, tool_response="x")
+        s.hook("PreToolUse", prompt_id="p1", agent_id="ag-unknown", tool_use_id="toolu_x", tool_name="Read", tool_input={})
+        s.result("r1", "a1", "p1", "toolu_ag", "보고", tool_use_result={"agentId": "ag1"})
+        view = s.build()
+        steps = view.turns[0].steps
+        self.assertEqual([step.kind for step in steps], ["tool_call"])
+        inner = steps[0].tool_call.subagent[0]
+        self.assertEqual((inner.message_id, inner.tool_call.status, inner.tool_call.duration_ms, inner.tool_call.approximate), ("msg_g", "success", 12, False))
+        self.assertEqual(view.tool_call_count, 1)
+

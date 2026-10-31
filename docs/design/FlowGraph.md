@@ -2,7 +2,7 @@
 
 이 문서는 턴 하나의 실제 실행 구조(병렬 도구 호출, 서브에이전트, 백그라운드 작업)를 시간 위의 그래프로 보여 주는 기능을 설계한다. 그래프의 재료는 [분석기 설계](Analysis.md)의 세션 모델이고, 근거가 되는 기록 구조는 [데이터 소스의 병렬 실행과 백그라운드 작업](../DataSource.md#35-병렬-실행과-백그라운드-작업의-연결)에 있다. 화면 기술과 보안 규칙은 [웹 UI 설계](WebUI.md)를 따른다. 관련 작업은 이슈 I24와 [로드맵](../Roadmap.md#m4-실시간-웹-ui)의 M4-T6~M4-T8이다. 전체 문서 목록은 [문서 인덱스](../index.md)에서 확인한다.
 
-구현할 심볼은 인라인 코드로 적었다. 태스크를 시작할 때 [작업 관리 규칙](../TaskRule.md#41-시작)에 따라 코드 포인터 링크로 바꾼다.
+구현할 심볼은 인라인 코드로 적었다. 태스크를 시작할 때 [작업 관리 규칙](../TaskRule.md#41-시작)에 따라 코드 포인터 링크로 바꾼다. 3~5절은 M4-T7에서 바꿨다([graph 모듈](../../src/agentvis/analysis/graph.py)).
 
 ## 1. 목적
 
@@ -36,7 +36,7 @@
 
 그래프의 단위는 **턴 하나**다. 턴 단위면 노드 수가 화면에서 읽을 만하고(이 세션의 턴당 도구 호출은 대부분 수십 개), 턴은 사람이 준 지시 하나의 수행 과정이라 분석 질문과도 맞는다. 세션 전체 그래프는 [7. 나중에 정할 것](#7-나중에-정할-것)에 둔다.
 
-`build_turn_graph(session: SessionView, index: int) -> FlowGraph | None`이 [분석기](Analysis.md)가 만든 세션 모델에서 그래프를 계산한다. 원시 이벤트를 다시 읽지 않는 순수 함수이며, 모듈은 `src/agentvis/analysis/graph.py`다. 턴이 없으면 `None`이다.
+[build_turn_graph](../../src/agentvis/analysis/graph.py#build_turn_graph)`(session: SessionView, index: int) -> FlowGraph | None`이 [분석기](Analysis.md)가 만든 세션 모델에서 그래프를 계산한다. 원시 이벤트를 다시 읽지 않는 순수 함수이며, 모듈은 [graph 모듈](../../src/agentvis/analysis/graph.py)이다. 턴이 없으면 `None`이다.
 
 ### 3.1 줄
 
@@ -44,12 +44,12 @@
 
 | `kind` | 내용 | 시작 | 끝 |
 | --- | --- | --- | --- |
-| `main` | 턴의 주 에이전트 | 턴 시작 | 턴 끝 |
+| `main` | 턴의 주 에이전트 | 턴 시작 | 턴 끝과 이 줄 노드의 마지막 시각 중 늦은 것(백그라운드 줄은 넣지 않는다). 턴이 `running`이면 `None` |
 | `subagent` | 동기 서브에이전트(`Agent` 호출의 결과가 서브에이전트가 끝난 뒤 옴) | 띄운 호출의 시작 | 띄운 호출의 끝 |
 | `background_agent` | 백그라운드 서브에이전트 | 띄운 호출의 시작 | 그 호출의 작업 알림. 없으면 열린 채 |
 | `background_shell` | 백그라운드 셸 명령 | 띄운 호출의 시작 | 그 호출의 작업 알림. 없으면 열린 채 |
 
-줄의 필드는 다음과 같다.
+줄은 [Lane](../../src/agentvis/analysis/graph.py#Lane)으로 나타내며, 필드는 다음과 같다.
 
 | 필드 | 값 |
 | --- | --- |
@@ -66,7 +66,7 @@
 - 백그라운드 줄은 작업 알림의 `status`로 정한다. `completed`는 `success`, `failed`는 `error`, `killed`는 `interrupted`이고, 그 밖의 값은 `unfinished`다.
 - 작업 알림이 없으면 세션이 진행 중일 때 `running`, 아니면 `unfinished`다.
 
-서브에이전트가 다시 띄운 서브에이전트·백그라운드 작업도 같은 규칙으로 줄이 되며, `parent`가 그 서브에이전트 줄이다. 줄은 `main`을 첫째로 하고, 나머지는 시작 시각 순서다.
+띄운 도구 호출과 연결되지 않은 서브에이전트([분석기의 `subagent` 단계](Analysis.md#6-서브에이전트))도 `subagent` 줄이 된다. 줄 `id`는 `agent:<agent_id>`이고 `spawned_by`는 `None`이며, 상태는 턴이 `running`이면 `running`, 아니면 `unfinished`다. 서브에이전트가 다시 띄운 서브에이전트·백그라운드 작업도 같은 규칙으로 줄이 되며, `parent`가 그 서브에이전트 줄이다. 줄은 `main`을 첫째로 하고, 나머지는 시작 시각 순서다.
 
 ### 3.2 노드
 
@@ -80,11 +80,11 @@
 | `notification` | `notification` 단계 | 점 |
 | `compact`, `hook_failure` | 같은 이름의 단계 | 점 |
 
-노드의 필드는 다음과 같다.
+노드는 [Node](../../src/agentvis/analysis/graph.py#Node)로 나타내며, 필드는 다음과 같다.
 
 | 필드 | 값 |
 | --- | --- |
-| `id` | 원천 단계의 `id`. 원천 단계가 없는 노드에는 다른 규칙으로 붙인다. `model`은 묶음 첫 단계의 `id`이고, `background_task`는 `bg:<tool_use_id>`다. |
+| `id` | 문자열. 원천 단계의 `id`다. 원천 단계가 하나가 아닌 노드는 다르게 붙인다. `prompt`는 `prompt`, `model`은 묶음 첫 단계의 `id`, `background_task`는 `bg:<tool_use_id>`다. |
 | `lane` | 줄 `id` |
 | `kind` | 위 표 |
 | `started_at`, `ended_at` | 막대 노드는 실행 구간이다(아래). 점 노드는 둘 다 단계 시각이다. 끝나지 않은 막대는 `ended_at`이 `None`이다. |
@@ -107,12 +107,12 @@
 | `spawn` | 도구 호출이 줄을 띄움: 띄운 호출 → 자식 줄의 첫 노드 | 점선 |
 | `return` | 자식 줄의 결과가 돌아옴. 동기 서브에이전트는 줄의 마지막 노드들 → 띄운 호출의 끝으로 간다. 백그라운드 줄은 마지막 노드 → 부모 줄의 작업 알림 노드로 간다. | 점선, 화살표 |
 
-간선의 필드는 `source`, `target`(노드 `id`), `kind`다.
+간선은 [Edge](../../src/agentvis/analysis/graph.py#Edge)로 나타내며, 필드는 `source`, `target`(노드 `id`), `kind`다. 양 끝 노드가 그래프에 없는 간선(작업 알림이 다른 턴에 있는 백그라운드 줄 등)은 넣지 않는다. 같은 간선은 한 번만 넣는다.
 
 **`next` 간선 규칙**은 줄 하나의 노드를 시각 순서로 묶어 적용한다.
 - 묶음은 둘 중 하나다.
-  - 모델 응답 하나: `model` 노드와 같은 `message_id`의 도구 호출 노드들.
-  - 그 밖의 노드 하나.
+  - 모델 응답 하나: 연달아 놓인, `message_id`가 같은 `thinking`·`text`·`tool_call` 단계. 묶음의 `model` 노드와 도구 호출 노드들이다.
+  - 그 밖의 노드 하나. `message_id`가 없는 도구 호출(세션 기록이 아직 없어 hook으로만 만든 단계)도 여기에 든다.
 - 직전 묶음의 끝 노드 집합을 **전선**(frontier)이라 한다. `main` 줄의 첫 전선은 `{prompt}`이다. 자식 줄의 첫 전선은 비어 있으며, 첫 노드는 `spawn` 간선으로만 들어온다.
 - 모델 응답 묶음은 이렇게 잇는다.
   - `model` 노드 M이 있으면 전선의 각 노드 → M, 그리고 M → 각 도구 호출 노드로 잇는다(갈라짐).
@@ -124,17 +124,17 @@
 
 ### 3.4 그래프
 
-`FlowGraph`는 다음 필드를 가진다.
+[FlowGraph](../../src/agentvis/analysis/graph.py#FlowGraph)는 다음 필드를 가진다.
 - `session_id`
 - `turn_index`
-- `started_at`, `ended_at`: 턴의 값
+- `started_at`, `ended_at`: `main` 줄의 값. 턴이 멈춘 뒤 백그라운드 작업 알림을 받아 같은 턴으로 이어서 일하면 그 기록도 이 턴에 속하므로, 턴의 `Stop` 시각보다 늦은 노드가 있을 수 있다.
 - `lanes`, `nodes`, `edges`: 3.1~3.3절
 
 노드는 시작 시각 순서다.
 
 ## 4. 분석기 보강
 
-그래프에는 지금 세션 모델에 없는 사실이 필요하다. M4-T7에서 [분석기 설계](Analysis.md)에 아래 필드를 더한다(그 문서의 해당 표에 "M4-T7"로 표시했다).
+그래프에는 원래 세션 모델에 없던 사실이 필요해, M4-T7에서 [분석기 설계](Analysis.md)에 아래 필드를 더했다(그 문서의 해당 표에 "M4-T7"로 표시했다). 같은 작업에서 서브에이전트 안의 hook 이벤트를 그 서브에이전트에 합치도록 고쳤다([분석기의 서브에이전트](Analysis.md#6-서브에이전트), H3).
 
 - 단계의 `message_id`: `assistant` 기록의 `message.id`. 같은 응답의 블록을 묶는다.
 - 도구 호출의 `started_at`, `ended_at`: 3.2절의 실행 구간 규칙.
@@ -150,7 +150,7 @@
 | --- | --- |
 | `GET /api/sessions/{session_id}/turns/{index}/graph` | 3.4절의 그래프. 세션이나 턴이 없으면 `404`다. |
 
-- `get_turn_graph(store, session_id, index) -> FlowGraph | None`은 [분석기 설계의 조회 API](Analysis.md#8-조회-api)의 catalog 모듈에 있다. 이 함수는 그 문서의 `get_session`으로 세션을 만든 뒤 그래프를 계산한다.
+- [get_turn_graph](../../src/agentvis/analysis/catalog.py#get_turn_graph)`(store, session_id, index) -> FlowGraph | None`은 [분석기 설계의 조회 API](Analysis.md#8-조회-api)의 catalog 모듈에 있다. 이 함수는 그 문서의 `get_session`으로 세션을 만든 뒤 그래프를 계산한다. 경로는 [서버 앱](../../src/agentvis/server.py#create_app)에 있다.
 - 응답 형식, 시각 표기, 동기 경로 함수, `Host` 검사는 [분석기 설계의 조회 API](Analysis.md#8-조회-api)와 같다.
 - 노드의 상세 내용(입력 전체, 결과, 오류)은 그래프 응답에 다시 넣지 않는다. 화면이 이미 받은 세션 상세에서 `step_ids`로 찾는다.
 
@@ -200,7 +200,7 @@
 
 ## 8. 테스트
 
-- [분석기 설계의 테스트](Analysis.md#9-테스트)와 같은 방식으로, 실측 형태의 원시 이벤트로 세션을 만든 뒤 그래프를 확인한다. 테스트 파일은 `tests/test_graph.py`다. 확인할 것:
+- [분석기 설계의 테스트](Analysis.md#9-테스트)와 같은 방식으로, 실측 형태의 원시 이벤트로 세션을 만든 뒤 그래프를 확인한다. 테스트 파일은 [tests/test_graph.py](../../tests/test_graph.py)다. 확인할 것:
   - 병렬 호출의 갈라짐과 합류
   - 생각·글이 없는 응답(`model` 노드 없음)
   - 동기 서브에이전트 줄과 `spawn`·`return`

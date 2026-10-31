@@ -2,6 +2,42 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## M4-T7 작업 흐름 그래프 모델과 조회 API
+
+- 시작일: 2026-10-31
+- 완료일: 2026-10-31
+- 근거 문서: [작업 흐름 그래프 설계](design/FlowGraph.md), [분석기 설계](design/Analysis.md)
+- 관련 이슈: I24, H3
+
+### 계획
+- 분석기에 단계의 `message_id`, 도구 호출의 실행 구간·`approximate`·`background`, 작업 알림 본문 해석을 더한다.
+- H3: 서브에이전트 안의 hook 이벤트를 그 서브에이전트의 도구 호출에 합친다.
+- `analysis/graph.py`에 `build_turn_graph`를, catalog에 `get_turn_graph`를, 서버 앱에 `GET /api/sessions/{session_id}/turns/{index}/graph`를 만든다.
+- 테스트(`tests/test_graph.py`, `tests/test_analysis.py`, `tests/test_api.py`)를 더하고 실제 세션으로 그래프를 확인한다.
+- PR #10(`m4-t6-flow-graph-design`) 위에 쌓은 브랜치 `m4-t7-flow-graph-api`에서 진행한다.
+
+### 진행 기록
+- 2026-10-31: 로드맵을 `[~]`로 바꾸고 시작했다. 실제 세션을 분석해 보니 서브에이전트 도구 호출 33건이 부모 턴에 hook만 있는 단계로 중복되어 H3으로 등록했다.
+- 2026-10-31: 분석기에 `message_id`, 실행 구간(`started_at`, `ended_at`, `approximate`), `background`, 작업 알림 본문 해석을 더하고, 서브에이전트 기록을 hook 적용 전에 만들어 `agent_id`가 있는 hook을 그 서브에이전트에 합쳤다(H3). 서브에이전트 도구 호출의 상태는 부모 턴의 상태를 따른다.
+- 2026-10-31: 실제 세션으로 그래프를 그려 보고 두 가지를 설계에 반영했다. 서버처럼 턴보다 오래 사는 백그라운드 작업은 세션이 끝나기 전까지 `running`이다(구현이 설계와 달라 고쳤다). 턴이 멈춘 뒤 작업 알림을 받아 이어서 일하면 그 기록도 같은 턴에 속하므로, 주 에이전트 줄의 끝은 턴 끝과 줄 노드 마지막 시각 중 늦은 것이다.
+- 2026-10-31: 미리보기 서버(8766)에서 이 세션의 35번째 턴 그래프가 주 에이전트와 백그라운드 서브에이전트 두 줄, 노드 68개, 간선 74개로 나오고, 없는 턴은 `404`임을 확인했다. hook이 없어 근사한 막대는 0개였다.
+
+### 결정 사항
+- 서브에이전트 hook 중 그 서브에이전트 기록이 아직 없는 것은 버린다. 세션 기록을 읽으면 다시 계산되기 때문이다([분석기의 서브에이전트](design/Analysis.md#6-서브에이전트)).
+
+### 변경 파일
+- `src/agentvis/analysis/session.py`, `src/agentvis/analysis/graph.py`(새 모듈), `src/agentvis/analysis/catalog.py`, `src/agentvis/server.py`
+- `tests/test_graph.py`(새 테스트), `tests/test_analysis.py`, `tests/test_api.py`
+- `docs/design/FlowGraph.md`, `docs/design/Analysis.md`, `docs/Issue.md`, `docs/Roadmap.md`, `docs/Ongoing.md`, `docs/Done.md`
+
+### 결과
+- `GET /api/sessions/{session_id}/turns/{index}/graph`가 턴 하나의 줄·노드·간선을 돌려준다. 병렬 호출의 갈라짐·합류, 서브에이전트·백그라운드 작업 줄, hook 기준 실행 구간이 들어 있어 M4-T8 화면을 만들 수 있다.
+- 서브에이전트 도구 호출이 부모 턴에 중복으로 나오지 않고, hook의 실행 시간과 실패가 서브에이전트 도구 호출에 붙는다(H3).
+
+### 검증
+- `check_docs`, `check_pointers`, `check_tasks`, `check_commits`, `check_web` 통과. 단위 테스트 125개 통과(그래프 10개, 분석기 2개, API 1개 추가).
+
+
 ## M4-T6 작업 흐름 그래프 상세 설계와 라이브러리(D3) 도입 방침
 
 - 시작일: 2026-10-31

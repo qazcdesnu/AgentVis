@@ -47,7 +47,7 @@
 - [ ] M4-T4 실패 지점 강조와 단계 상세 보기
 - [ ] M4-T5 프로젝트 선택 화면 (목록 선택, 경로 직접 입력)
 - [x] M4-T6 작업 흐름 그래프 상세 설계와 라이브러리(D3) 도입 방침
-- [ ] M4-T7 작업 흐름 그래프 모델과 조회 API (`/api/sessions/{id}/turns/{index}/graph`)
+- [x] M4-T7 작업 흐름 그래프 모델과 조회 API (`/api/sessions/{id}/turns/{index}/graph`)
 - [ ] M4-T8 작업 흐름 그래프 화면 (D3)
 
 ## M5 추정 신호
