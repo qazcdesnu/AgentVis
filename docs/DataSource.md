@@ -131,6 +131,17 @@ M1-T6에서 확인한, 분석에 영향을 주는 동작이다.
 | `permissionDecision` | `user` | 도구 실행에 대한 권한 판정 |
 | `cwd`, `gitBranch`, `version` | 대부분의 기록 | 작업 디렉터리(절대 경로), 브랜치, Claude Code 버전. 세션 기록의 첫 `cwd`가 그 세션의 프로젝트 경로다. |
 
+### 3.5 병렬 실행과 백그라운드 작업의 연결
+
+M4-T6에서 이 세션의 세션 기록(기록 4,295개)과 실제 이벤트 저장소의 hook 이벤트로 확인한, 실행 구조를 복원할 때 필요한 동작이다. [작업 흐름 그래프 설계](design/FlowGraph.md)가 이 사실에 기대어 있다.
+
+- **`parentUuid`는 기록이 쓰인 순서의 사슬이다.** 모델 응답 하나(같은 `message.id`)에 도구 호출이 여럿 있어도 `assistant` 기록은 블록마다 하나씩 앞 블록을 부모로 삼아 한 줄로 이어진다(예: `Write → Write → Write → Bash`). 각 `tool_use` 기록의 자식은 그 도구 결과 `user` 기록과 hook 첨부 기록이다. 갈라짐 250곳 대부분이 이런 곁가지였다. 따라서 `parentUuid`만으로는 무엇이 동시에 실행되었는지 알 수 없다.
+- **병렬로 낸 도구 호출은 같은 `message.id`로 묶인다.** 이 세션에서 도구 호출이 둘 이상인 모델 응답이 52개였다.
+- **`tool_use` 기록의 `timestamp`는 실행 시각이 아니라 모델이 그 블록을 생성한 시각이다.** 한 응답의 `tool_use` 기록들은 몇 초 간격으로 쓰이고, 결과 기록들은 마지막 블록 직후 몇십 ms 안에 몰려 쓰였다. 실제 실행 구간은 hook의 `PreToolUse`·`PostToolUse`(또는 `PostToolUseFailure`) 시각으로 정한다. 실측: 한 응답의 `WebFetch` 4개는 실행 구간이 겹쳤고(동시 실행), `Write`·`Bash`는 앞 호출이 끝난 뒤 차례로 시작했다. 실행 구간에는 권한 대기가 들어갈 수 있다.
+- **백그라운드 셸 명령**(`Bash`의 `input.run_in_background`가 참): 도구 결과가 바로 돌아오고(`Command running in background with ID: <작업 ID>`), 결과 기록의 `toolUseResult.backgroundTaskId`가 그 작업 ID다. 명령은 그 뒤에도 계속 실행된다.
+- **백그라운드 서브에이전트**(`Agent`의 `input.run_in_background`가 참): 도구 결과가 바로 돌아오고, `toolUseResult`에 `isAsync: true`, `status: "async_launched"`, `agentId`가 있다. 서브에이전트 기록은 동기 서브에이전트와 같이 `agentId`로 연결된다.
+- **백그라운드 작업의 끝**은 `queued_command` 첨부 기록(`commandMode` = `task-notification`)의 `<task-notification>` 본문이 알린다. 본문에 `<task-id>`, 띄운 도구 호출 ID `<tool-use-id>`, `<status>`, `<summary>`가 있다. 이 세션의 작업 알림 10건 모두 `<tool-use-id>`가 있었고 `status`는 모두 `completed`였다. `completed`가 아닌 값(실패, 강제 종료)의 표기는 아직 관찰하지 못했다.
+
 ## 4. 두 소스 비교
 
 2026-10-31에 로컬 세션 기록(세션 5개, 서브에이전트 기록 3개)과 hook 실측(M0-T4, M1-T6, H2)으로 확인했다. 이 비교에 따라 세션 기록을 주 내용 출처로, hook을 신호로 쓴다(I17).
