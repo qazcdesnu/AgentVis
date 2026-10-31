@@ -74,13 +74,13 @@
 
 | 파일 | 내용 |
 | --- | --- |
-| `src/agentvis/web/index.html` | 화면 뼈대 |
-| `src/agentvis/web/app.js` | 조회 API 호출, 화면 그리기, 해시 상태 |
-| `src/agentvis/web/style.css` | 배치, 단계 종류·상태 색, 밝은·어두운 테마(`prefers-color-scheme`) |
+| [src/agentvis/web/index.html](../../src/agentvis/web/index.html) | 화면 뼈대 |
+| [src/agentvis/web/app.js](../../src/agentvis/web/app.js) | 조회 API 호출, 화면 그리기, 해시 상태 |
+| [src/agentvis/web/style.css](../../src/agentvis/web/style.css) | 배치, 단계 종류·상태 색, 밝은·어두운 테마(`prefers-color-scheme`) |
 
-서버 앱은 조회 API 경로를 먼저 등록하고 마지막에 `web/`를 `/`에 정적 파일로 연결한다. 정적 파일 연결은 [수집기 설계의 서버 앱](Collector.md#2-http-엔드포인트)에 더한다. 화면 코드는 Python이 아니므로 포인터 커버리지 검사 대상이 아니며, 이 문서가 파일 단위로 가리킨다.
+[서버 앱](../../src/agentvis/server.py#create_app)은 조회 API 경로를 먼저 등록하고 마지막에 `web/`를 `/`에 정적 파일로 연결한다. 정적 파일 연결은 [수집기 설계의 서버 앱](Collector.md#2-http-엔드포인트)에 더한다. 화면 코드는 Python이 아니므로 포인터 커버리지 검사 대상이 아니며, 이 문서가 파일 단위로 가리킨다.
 
 ## 6. 테스트
 
-- `TestClient`로 `GET /`가 `index.html`을, `/app.js`·`/style.css`가 정적 파일을 돌려주고, 조회 API 경로가 정적 파일 연결에 가려지지 않음을 확인한다.
+- [tests/test_api.py](../../tests/test_api.py)에서 `TestClient`로 `GET /`가 `index.html`을, `/app.js`·`/style.css`가 정적 파일을 돌려주고, 조회 API 경로가 정적 파일 연결에 가려지지 않음을 확인한다.
 - 화면 동작(그리기, 접고 펴기, 해시 상태)은 자동 테스트 도구를 두지 않고, 실제 서버를 띄워 브라우저로 확인한 결과를 완료 기록에 남긴다. 화면이 커지면 브라우저 자동 테스트를 설계한다.

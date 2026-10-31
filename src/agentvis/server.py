@@ -3,14 +3,17 @@
 @doc: docs/design/Collector.md#2-http-엔드포인트
 @doc: docs/design/Collector.md#21-요청-검증
 @doc: docs/design/Analysis.md#8-조회-api
+@doc: docs/design/WebUI.md#5-파일-구성
 """
 
 import json
 from datetime import UTC, datetime
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
@@ -21,6 +24,7 @@ from agentvis.transcript import TranscriptReader, paths_to_read
 
 # @doc: docs/design/Collector.md#21-요청-검증
 ALLOWED_HOSTS = ("127.0.0.1", "localhost")
+_WEB_DIR = Path(__file__).parent / "web"
 
 
 def _rejection(request: Request) -> JSONResponse | None:
@@ -83,4 +87,6 @@ def create_app(store: EventStore, reader: TranscriptReader | None = None) -> Fas
             raise HTTPException(status_code=404, detail="세션 없음")
         return jsonable_encoder(view)
 
+    # Mounted last so the API routes above take precedence over static files.
+    app.mount("/", StaticFiles(directory=_WEB_DIR, html=True), name="web")
     return app
