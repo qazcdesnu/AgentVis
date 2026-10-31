@@ -2,6 +2,44 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## I28 Windows·Linux 지원과 README 운영체제별 설치·실행 안내
+
+- 시작일: 2026-10-31
+- 완료일: 2026-10-31
+- 근거 문서: [코드 작업 규칙의 운영체제 이식성](CodeRule.md#31-운영체제-이식성), [시스템 구조의 기술 선택](Architecture.md#6-기술-선택)
+
+### 계획
+- 지원 운영체제(macOS, Linux, Windows)와 이식성 규칙(경로, UTF-8, 줄바꿈, 운영체제별 테스트, 셸 스크립트)을 문서에 정한다.
+- 코드를 규칙에 맞춘다. 대상은 git 출력과 콘솔 출력의 UTF-8 처리, `.gitattributes`, 심볼릭 링크·권한 테스트의 Windows 건너뛰기다.
+- CI를 macOS·Linux·Windows 세 곳에서 돌려 실제로 확인하고, 실패를 고친다.
+- README.md "3. 설치와 실행"을 운영체제별 안내로 다시 쓴다.
+- PR #14(`i27-readme`) 위에 쌓은 브랜치 `i28-cross-platform`에서 진행한다.
+
+### 진행 기록
+- 2026-10-31: 코드를 살펴보니 macOS 전용 기능은 없었다. Windows 위험은 세 가지였다. 커밋 검사기가 `git log` 출력을 기본 인코딩으로 해석하는 것, 출력이 파이프로 갈 때 한글이 출력되지 않는 것, git이 줄바꿈을 바꿔 D3 해시가 달라지는 것이다. 심볼릭 링크·권한 테스트도 Windows에서 실패한다. 이식성 규칙을 문서에 정하고 이에 맞춰 고쳤다.
+- 2026-10-31: 세 운영체제 CI의 첫 실행에서 macOS·Linux는 통과했다. Windows는 검사기 다섯 개는 통과했지만 테스트 8개가 실패했다. 원인은 네 가지였다. 검사기 메시지의 경로 구분자, 테스트가 `HOME`으로 홈을 바꾼 것(Windows는 `USERPROFILE`), 테스트 파일 쓰기의 CRLF 변환, 같은 시각 백업 이름 충돌이다. 마지막은 제품 결함이라 [CLI 설계](design/Cli.md#33-파일-입출력)에 이름 충돌 규칙을 더하고 고쳤다. 나머지는 [운영체제 이식성](CodeRule.md#31-운영체제-이식성)의 테스트 규칙으로 정하고 고쳤다.
+- 2026-10-31: 고친 뒤 세 운영체제 CI가 모두 통과했다. 단위 테스트만으로는 설치·실행을 확인할 수 없어, CI에 실행 확인 단계를 더했다. 임시 데이터 폴더로 서버를 띄워 응답을 보고, 임시 설정 파일로 hook을 설치·제거한다. Windows에서도 hook 14개 설치·제거, 서버 시작, `/health`·`/` 응답을 확인했다.
+
+### 결정 사항
+- 지원 운영체제는 macOS, Linux, Windows 10·11이다([시스템 구조의 기술 선택](Architecture.md#6-기술-선택)). Windows에서 Claude Code를 WSL 안에서 쓰면 AgentVis도 WSL 안에서 실행한다(README 3.4절).
+- 검사기 메시지의 경로는 운영체제와 관계없이 `/`로 쓴다. 화면의 프로젝트 상위 경로는 그 운영체제의 구분자를 쓴다.
+
+### 변경 파일
+- `README.md`, `.gitattributes`(새 파일), `.github/workflows/verify.yml`
+- `docs/Architecture.md`, `docs/CodeRule.md`, `docs/VerificationTools.md`, `docs/design/Cli.md`, `docs/design/Store.md`, `docs/design/WebUI.md`, `docs/design/Analysis.md`, `docs/Issue.md`, `docs/Ongoing.md`, `docs/Done.md`
+- `src/agentvis/cli.py`, `src/agentvis/hook_settings.py`
+- `tools/doclib.py`, `tools/check_commits.py`, `tools/check_docs.py`, `tools/check_pointers.py`, `tools/check_pr_order.py`, `tools/check_tasks.py`, `tools/check_web.py`
+- `tests/support.py`, `tests/test_api.py`, `tests/test_store.py`, `tests/test_hook_settings.py`, `tests/test_transcript.py`, `tests/test_check_commits.py`, `tests/test_check_pr_order.py`
+
+### 결과
+- macOS, Linux, Windows에서 설치하고 실행할 수 있다. CI가 세 운영체제에서 모든 검증과 실행 확인을 돌린다.
+- README.md "3. 설치와 실행"에 운영체제별 도구 설치, 저장소 받기, 공통 실행, 운영체제별 경로·환경 변수 표기, 문제 해결이 있다.
+
+### 검증
+- `check_docs`, `check_pointers`, `check_tasks`, `check_commits`, `check_web` 통과. 단위 테스트 128개 통과(macOS 로컬). Windows에서는 심볼릭 링크·권한 테스트 1개를 건너뛴다.
+- GitHub Actions(PR #15): `ubuntu-latest`, `macos-latest`, `windows-latest` 모두 통과(검증 명령, 실행 확인 포함).
+
+
 ## I27 팀 동료를 위한 README.md 작성
 
 - 시작일: 2026-10-31
