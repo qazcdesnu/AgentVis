@@ -1,5 +1,7 @@
-// AgentVis first screen: projects → sessions → turns and steps.
-// Spec: docs/design/WebUI.md. All session text is untrusted: only ever use textContent.
+// AgentVis screen: projects → sessions → turns as a flow graph or a list.
+// Spec: docs/design/WebUI.md, docs/design/FlowGraph.md. All session text is untrusted: only ever use textContent.
+
+import { renderGraph } from "./graph.js";
 
 const STATUS = {
   success: ["✓", "성공"],
@@ -34,13 +36,20 @@ function el(tag, className, text) {
 
 function readHash() {
   const params = new URLSearchParams(location.hash.slice(1));
-  return { project: params.get("project"), session: params.get("session") };
+  return {
+    project: params.get("project"),
+    session: params.get("session"),
+    view: params.get("view") === "list" ? "list" : "graph",
+    turn: Number(params.get("turn")) || null,
+  };
 }
 
-function writeHash(project, session) {
+function writeHash(project, session, options = {}) {
   const params = new URLSearchParams();
   if (project) params.set("project", project);
   if (session) params.set("session", session);
+  if (options.view) params.set("view", options.view);
+  if (options.turn) params.set("turn", String(options.turn));
   location.hash = params.toString();
 }
 
@@ -187,34 +196,107 @@ function renderTurn(turn, open) {
   return details;
 }
 
-async function loadSession(session) {
+function indexSteps(steps, index = new Map()) {
+  for (const step of steps || []) {
+    index.set(step.id, step);
+    indexSteps(step.substeps, index);
+    indexSteps(step.tool_call?.subagent, index);
+  }
+  return index;
+}
+
+function viewToggle(state, view) {
+  const toggle = el("div", "view-toggle");
+  for (const [value, label] of [["graph", "흐름 그래프"], ["list", "목록"]]) {
+    const button = el("button", value === state.view ? "active" : null, label);
+    button.type = "button";
+    button.addEventListener("click", () => writeHash(state.project, view.session_id, { view: value, turn: state.turn }));
+    toggle.append(button);
+  }
+  return toggle;
+}
+
+function renderList(view) {
+  const turns = el("div", "turns");
+  if (view.preamble.length) turns.append(renderSteps(view.preamble));
+  view.turns.forEach((turn, index) => {
+    const open = turn.failure_count > 0 || turn.state !== "ended" || index === view.turns.length - 1;
+    turns.append(renderTurn(turn, open));
+  });
+  return turns;
+}
+
+function renderNodeDetail(container, node, turn, steps) {
+  container.replaceChildren();
+  if (node.kind === "prompt") {
+    container.append(el("div", "label", "지시"), el("pre", "prompt-full", turn.prompt));
+    return;
+  }
+  const found = node.step_ids.map((id) => steps.get(id)).filter(Boolean);
+  if (!found.length) {
+    container.append(el("p", "empty", "이 노드의 단계를 찾지 못했습니다. 새로고침해 보세요."));
+    return;
+  }
+  container.append(renderSteps(found));
+  container.querySelectorAll("details").forEach((details) => { details.open = true; });
+}
+
+async function renderGraphView(state, view) {
+  const wrapper = el("div", "graph-view");
+  if (!view.turns.length) {
+    wrapper.append(el("p", "empty", "턴이 없습니다."));
+    return wrapper;
+  }
+  const turnIndex = view.turns.some((turn) => turn.index === state.turn) ? state.turn : view.turns[view.turns.length - 1].index;
+  const turn = view.turns.find((item) => item.index === turnIndex);
+  const select = el("select", "turn-select");
+  for (const item of view.turns) {
+    const option = el("option", null, `#${item.index} ${firstLine(item.prompt, 80)}${item.failure_count ? ` · 실패 ${item.failure_count}` : ""}`);
+    option.value = String(item.index);
+    option.selected = item.index === turnIndex;
+    select.append(option);
+  }
+  select.addEventListener("change", () => writeHash(state.project, view.session_id, { view: "graph", turn: Number(select.value) }));
+  const meta = el("div", "meta", `${formatTime(turn.started_at)} · ${turn.state} · 도구 ${turn.tool_call_count}`);
+  if (turn.failure_count) meta.append(" · ", el("span", "fail-count", `실패 ${turn.failure_count}`));
+  const graphBox = el("div", "graph-box");
+  const detail = el("div", "node-detail");
+  detail.append(el("p", "empty", "노드를 누르면 여기에 상세가 나옵니다."));
+  wrapper.append(select, meta, graphBox, detail);
+  try {
+    const graph = await getJSON(`/api/sessions/${encodeURIComponent(view.session_id)}/turns/${turnIndex}/graph`);
+    const steps = indexSteps(turn.steps);
+    // The graph needs its container laid out to fit the width, so draw after it is attached.
+    requestAnimationFrame(() => renderGraph(graphBox, graph, (node) => renderNodeDetail(detail, node, turn, steps)));
+  } catch (error) {
+    showError(graphBox, error);
+  }
+  return wrapper;
+}
+
+async function loadSession(state) {
   const container = document.getElementById("detail");
-  if (!session) {
+  if (!state.session) {
     container.replaceChildren(el("p", "empty", "세션을 고르세요."));
     return;
   }
   try {
-    const view = await getJSON(`/api/sessions/${encodeURIComponent(session)}`);
+    const view = await getJSON(`/api/sessions/${encodeURIComponent(state.session)}`);
     const header = el("div", "session-header");
     header.append(el("div", "name", view.title || view.session_id));
     const meta = el("div", "meta", `${view.project || ""} · 턴 ${view.turn_count} · 도구 ${view.tool_call_count}`);
     if (view.failure_count) meta.append(" · ", el("span", "fail-count", `실패 ${view.failure_count}`));
-    header.append(meta);
-    const turns = el("div", "turns");
-    if (view.preamble.length) turns.append(renderSteps(view.preamble));
-    view.turns.forEach((turn, index) => {
-      const open = turn.failure_count > 0 || turn.state !== "ended" || index === view.turns.length - 1;
-      turns.append(renderTurn(turn, open));
-    });
-    container.replaceChildren(header, turns);
+    header.append(meta, viewToggle(state, view));
+    const body = state.view === "list" ? renderList(view) : await renderGraphView(state, view);
+    container.replaceChildren(header, body);
   } catch (error) {
     showError(container, error);
   }
 }
 
 async function render() {
-  const { project, session } = readHash();
-  await Promise.all([loadProjects(project), loadSessions(project, session), loadSession(session)]);
+  const state = readHash();
+  await Promise.all([loadProjects(state.project), loadSessions(state.project, state.session), loadSession(state)]);
 }
 
 window.addEventListener("hashchange", render);

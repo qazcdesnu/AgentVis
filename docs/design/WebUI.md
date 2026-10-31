@@ -30,13 +30,13 @@
 3. 아래 표에 파일, 버전, 라이선스, 출처, SHA-256을 적는다. 판올림할 때도 같은 절차를 밟고 표를 고친다.
 4. `index.html`에서 `app.js`보다 먼저 일반 `<script>`로 불러온다. D3의 배포 파일은 전역 변수 `d3`를 만든다.
 
-**넣은 라이브러리**: 아직 없다. D3(7.9.0, ISC 라이선스)는 [작업 흐름 그래프 화면](FlowGraph.md#6-화면)을 만드는 M4-T8에서 넣고, 이 자리에 아래 형식의 표를 둔다.
+**넣은 라이브러리**
 
-```markdown
 | 파일 | 라이브러리 | 버전 | 라이선스 | 출처 | SHA-256 |
 | --- | --- | --- | --- | --- | --- |
-| [d3-7.9.0.min.js](../../src/agentvis/web/vendor/d3-7.9.0.min.js) | D3 | 7.9.0 | ISC ([LICENSE-d3.txt](../../src/agentvis/web/vendor/LICENSE-d3.txt)) | npm `d3@7.9.0` `dist/d3.min.js` | `<64자리 16진수>` |
-```
+| [d3-7.9.0.min.js](../../src/agentvis/web/vendor/d3-7.9.0.min.js) | D3 | 7.9.0 | ISC ([LICENSE-d3.txt](../../src/agentvis/web/vendor/LICENSE-d3.txt)) | npm `d3@7.9.0` `dist/d3.min.js` | `f2094bbf6141b359722c4fe454eb6c4b0f0e42cc10cc7af921fc158fceb86539` |
+
+2026-10-31 M4-T8: `https://registry.npmjs.org/d3/-/d3-7.9.0.tgz`의 SHA-512가 레지스트리의 `dist.integrity`와 같음을 확인했다.
 
 [웹 정적 파일 검사기](../VerificationTools.md#10-웹-정적-파일-검사기)가 이 절의 규칙 중 기계적으로 확인할 수 있는 부분을 검사한다.
 - `vendor/`의 모든 파일이 이 표에 있고, 그 SHA-256이 표와 같은가
@@ -107,11 +107,12 @@
 | [src/agentvis/web/index.html](../../src/agentvis/web/index.html) | 화면 뼈대 |
 | [src/agentvis/web/app.js](../../src/agentvis/web/app.js) | 조회 API 호출, 화면 그리기, 해시 상태 |
 | [src/agentvis/web/style.css](../../src/agentvis/web/style.css) | 배치, 단계 종류·상태 색, 밝은·어두운 테마(`prefers-color-scheme`) |
+| `src/agentvis/web/graph.js` | 작업 흐름 그래프 그리기([작업 흐름 그래프 설계의 화면](FlowGraph.md#6-화면)) |
 | `src/agentvis/web/vendor/` | 저장소에 넣은 외부 라이브러리([1.1절](#11-저장소에-넣은-라이브러리)) |
 
 [서버 앱](../../src/agentvis/server.py#create_app)은 조회 API 경로를 먼저 등록하고 마지막에 `web/`를 `/`에 정적 파일로 연결한다. 정적 파일 연결은 [수집기 설계의 서버 앱](Collector.md#2-http-엔드포인트)에 더한다. 화면 코드는 Python이 아니므로 포인터 커버리지 검사 대상이 아니며, 이 문서가 파일 단위로 가리킨다.
 
 ## 6. 테스트
 
-- [tests/test_api.py](../../tests/test_api.py)에서 `TestClient`로 `GET /`가 `index.html`을, `/app.js`·`/style.css`가 정적 파일을 돌려주고, 조회 API 경로가 정적 파일 연결에 가려지지 않음을 확인한다.
+- [tests/test_api.py](../../tests/test_api.py)에서 `TestClient`로 `GET /`가 `index.html`을, `/app.js`·`/style.css`·`/graph.js`·저장소에 넣은 D3가 정적 파일을 돌려주고, 조회 API 경로가 정적 파일 연결에 가려지지 않음을 확인한다.
 - 화면 동작(그리기, 접고 펴기, 해시 상태)은 자동 테스트 도구를 두지 않고, 실제 서버를 띄워 브라우저로 확인한 결과를 완료 기록에 남긴다. 화면이 커지면 브라우저 자동 테스트를 설계한다.
