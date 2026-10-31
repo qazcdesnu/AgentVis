@@ -27,6 +27,7 @@
 | `tests/` | 자동 테스트. |
 | `.githooks/` | git hook. 커밋 메시지 검사([커밋 규칙](CommitRule.md#5-강제)). |
 | `.github/` | PR 템플릿과 CI([PR 규칙](PullRequestRule.md)). |
+| `.gitattributes` | 줄바꿈 고정과 저장소에 넣은 라이브러리의 변환 금지([운영체제 이식성](#31-운영체제-이식성)). |
 | `pyproject.toml`, `.python-version`, `uv.lock` | uv 프로젝트 설정. [3. 언어와 스타일](#3-언어와-스타일)을 따른다. |
 
 새로운 최상위 디렉터리가 필요하면 이 표를 먼저 수정한다.
@@ -46,6 +47,20 @@
 - 함수 하나는 한 가지 일만 한다. 같은 로직이 두 곳 이상에 생기면 공통 모듈로 옮긴다.
 - 사용하지 않는 코드, 주석 처리된 코드는 남기지 않는다.
 - 주석은 "무엇"이 아니라 "왜"를 적는다. 동작 설명은 문서에 있어야 한다.
+
+### 3.1 운영체제 이식성
+
+AgentVis는 macOS, Linux, Windows(10·11)에서 설치하고 실행할 수 있어야 한다([시스템 구조의 기술 선택](Architecture.md#6-기술-선택)). 제품 코드, 검사기, 테스트 모두 아래 규칙을 따른다.
+
+- **경로**는 `pathlib.Path`로 다룬다. 사용자 홈 아래 경로(`~/.claude`, `~/.agentvis`)는 `Path.home()`에서 만든다. Windows에서는 `%USERPROFILE%` 아래가 된다. 경로 구분자(`/`, 역슬래시)를 문자열로 붙이거나 자르지 않는다.
+- **텍스트 인코딩**은 항상 UTF-8로 명시한다. Windows의 기본 인코딩(예: cp1252, cp949)은 한글이나 일부 문자를 다루지 못한다.
+  - 파일: `read_text`, `write_text`, `open`에 `encoding="utf-8"`을 준다. 바이너리로 읽는 경우는 예외다.
+  - 외부 명령: `subprocess.run`으로 텍스트 출력을 받을 때 `encoding="utf-8"`을 준다(`text=True`만 쓰지 않는다).
+  - 콘솔 출력: 명령의 진입 함수(`agentvis` CLI와 각 검사기의 `main`)는 시작할 때 표준 출력·오류를 UTF-8로 바꾼다. 출력이 파이프로 갈 때 Windows는 기본 인코딩을 쓰기 때문이다.
+- **줄바꿈**: 저장소의 텍스트 파일은 LF로 고정한다(`.gitattributes`의 `* text=auto eol=lf`). Windows git이 체크아웃하면서 CRLF로 바꾸면 검사기의 줄 해석과 해시가 달라지기 때문이다. [저장소에 넣은 라이브러리](design/WebUI.md#11-저장소에-넣은-라이브러리)는 내용을 그대로 두어야 하므로 변환하지 않는다(`-text`).
+- **운영체제마다 다른 기능**(심볼릭 링크, 권한 비트 등)에 기대는 테스트는, 그 기능이 없는 운영체제에서 `unittest.skipIf`로 건너뛰고 이유를 적는다. 제품 코드는 그런 기능이 없어도 동작해야 한다.
+- **셸 스크립트**(`.githooks/`)는 POSIX `sh`로 쓴다. Windows에서는 Git for Windows에 들어 있는 `sh`가 실행한다.
+- 세 운영체제에서 실제로 동작하는지는 [CI](VerificationTools.md#8-ci)가 macOS·Linux·Windows에서 모든 검증을 돌려 확인한다.
 
 ## 4. 문서-코드 추적성
 

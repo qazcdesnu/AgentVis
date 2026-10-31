@@ -12,7 +12,7 @@
 
 | 심볼 | 역할 |
 | --- | --- |
-| [data_dir](../../src/agentvis/store.py#data_dir) `() -> Path` | 데이터 디렉터리 경로를 돌려준다. `AGENTVIS_HOME`의 `~`는 홈 디렉터리로 펼친다. 디렉터리를 만들지는 않는다. |
+| [data_dir](../../src/agentvis/store.py#data_dir) `() -> Path` | 데이터 디렉터리 경로를 돌려준다. 기본은 `Path.home() / ".agentvis"`(Windows에서는 `%USERPROFILE%\.agentvis`)이다. `AGENTVIS_HOME`의 `~`는 홈 디렉터리로 펼친다. 디렉터리를 만들지는 않는다. |
 | [default_db_path](../../src/agentvis/store.py#default_db_path) `() -> Path` | `data_dir() / "agentvis.db"` |
 
 ## 2. 스키마

@@ -70,7 +70,7 @@ AgentVis hook은 URL의 쿼리 `client=agentvis`로 식별한다. Claude Code �
 
 | 심볼 | 동작 |
 | --- | --- |
-| [default_settings_path](../../src/agentvis/hook_settings.py#default_settings_path) `() -> Path` | `~/.claude/settings.json` (Claude Code 사용자 설정) |
+| [default_settings_path](../../src/agentvis/hook_settings.py#default_settings_path) `() -> Path` | `~/.claude/settings.json` (Claude Code 사용자 설정). `~`는 `Path.home()`이며 Windows에서는 `%USERPROFILE%`이다. Windows에서 설정 파일을 바꿔치기할 때 다른 프로그램이 파일을 열고 있으면 실패할 수 있다. 이때는 오류를 그대로 보이고 백업은 남는다. |
 | [load_settings](../../src/agentvis/hook_settings.py#load_settings) `(path: Path) -> dict` | 파일이 없으면 `{}`. JSON이 아니거나 JSON 객체가 아니면 `SettingsError`를 낸다. |
 | [backup_settings](../../src/agentvis/hook_settings.py#backup_settings) `(path: Path, backup_dir: Path) -> Path \| None` | 파일이 있으면 `backup_dir/settings-<UTC 시각, 마이크로초까지>.json`으로 내용을 복사하고 그 경로를 돌려준다. 파일이 없으면 `None`. 백업 디렉터리는 데이터 디렉터리 아래 `backups/`다. |
 | [save_settings](../../src/agentvis/hook_settings.py#save_settings) `(path: Path, settings: dict) -> None` | 경로가 심볼릭 링크면 링크가 가리키는 실제 파일에 쓴다. 같은 디렉터리의 임시 파일에 쓴 뒤 바꿔치기해 원자적으로 저장하고, 원래 파일이 있었으면 그 권한을 유지한다. 들여쓰기 2칸, `ensure_ascii=False`, 마지막 줄바꿈 포함. 부모 디렉터리가 없으면 만든다. |
@@ -98,7 +98,7 @@ AgentVis hook은 URL의 쿼리 `client=agentvis`로 식별한다. Claude Code �
   - 사용자가 만든 hook과 다른 설정 키는 설치·제거 후에도 순서까지 그대로다. 같은 그룹에 섞인 사용자 hook도 남는다.
   - 제거 후 비게 된 그룹·목록·`hooks` 객체가 사라지고, 입력 객체는 바뀌지 않는다.
   - 구조가 예상과 다른 설정과 JSON 객체가 아닌 설정 파일은 `SettingsError`를 낸다.
-  - 저장한 파일을 다시 읽으면 같은 설정이고, 권한이 유지되며, 심볼릭 링크는 링크로 남고 대상 파일이 바뀐다. 백업 파일은 원본과 같고 이름이 겹치지 않는다.
+  - 저장한 파일을 다시 읽으면 같은 설정이고 임시 파일이 남지 않는다. POSIX(macOS, Linux)에서는 권한이 유지되며, 심볼릭 링크는 링크로 남고 대상 파일이 바뀐다. 이 확인은 Windows에서 건너뛴다([운영체제 이식성](../CodeRule.md#31-운영체제-이식성)). 백업 파일은 원본과 같고 이름이 겹치지 않는다.
 - [tests/test_cli.py](../../tests/test_cli.py) (M1-T5 추가분)
   - 임시 설정 파일로 `hooks install` → `hooks uninstall`을 실행하면 원래 설정으로 돌아오고, 백업은 `AGENTVIS_HOME/backups/`에 생긴다.
   - 같은 설치를 다시 하면 `변경 없음`을 출력하고 백업을 만들지 않는다.

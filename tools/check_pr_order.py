@@ -9,7 +9,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from tools.doclib import REPO_ROOT, Problem
+from tools.doclib import REPO_ROOT, Problem, use_utf8_output
 
 
 def _is_ancestor(root: Path, commit: str) -> bool:
@@ -34,6 +34,7 @@ def main(argv: list[str] | None = None) -> int:
 
     @doc: docs/VerificationTools.md#9-pr-순서-검사기
     """
+    use_utf8_output()
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--root", type=Path, default=REPO_ROOT)
     parser.add_argument("--pr", type=int, required=True)

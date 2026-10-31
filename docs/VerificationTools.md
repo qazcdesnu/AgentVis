@@ -51,6 +51,7 @@ uv run python -m unittest discover -s tests -t .   # 도구 자체의 테스트
 - [display_path](../tools/doclib.py#display_path): 출력용 경로 문자열. 저장소 루트 기준 상대 경로이며, 루트 밖이면 절대 경로다. [Problem.format](../tools/doclib.py#Problem.format)과 검사기 메시지가 함께 쓴다.
 - [heading_anchors](../tools/doclib.py#heading_anchors): 문서의 모든 ATX 제목(`#` ~ `######`, 코드 블록 밖)의 앵커 집합. 같은 앵커가 반복되면 두 번째부터 `-1`, `-2`를 붙인다.
 - [iter_prose_lines](../tools/doclib.py#iter_prose_lines): 펜스 코드 블록 밖의 줄을 (줄 번호, 줄)로 차례로 돌려준다. 펜스 줄 자체도 제외한다.
+- [use_utf8_output](../tools/doclib.py#use_utf8_output): 표준 출력·오류를 UTF-8로 바꾼다. 각 검사기의 `main`이 시작할 때 부른다([운영체제 이식성](CodeRule.md#31-운영체제-이식성)). 출력이 파이프로 갈 때 Windows가 기본 인코딩을 써서 한글 메시지를 출력하지 못하는 것을 막는다.
 - [strip_inline_code](../tools/doclib.py#strip_inline_code): 줄에서 인라인 코드 구간을 지운다. 여는 백틱 수와 같은 수의 백틱으로 닫힌 구간을 지운다.
 
 ## 3. 문서 링크 검사기
@@ -168,6 +169,7 @@ uv run python -m unittest discover -s tests -t .   # 도구 자체의 테스트
 [.github/workflows/verify.yml](../.github/workflows/verify.yml)은 GitHub Actions에서 [1. 실행 방법](#1-실행-방법)의 검증 명령을 모두 실행한다. [PR 규칙](PullRequestRule.md#5-ci)이 이 CI를 쓴다.
 
 - 실행 시점: PR이 열리거나 갱신될 때, `main`에 push될 때.
+- 실행 환경: `ubuntu-latest`, `macos-latest`, `windows-latest` 세 곳에서 같은 검증을 돌린다([운영체제 이식성](CodeRule.md#31-운영체제-이식성)). 한 곳이 실패해도 나머지는 끝까지 돌려 실패한 운영체제를 모두 보인다(`fail-fast: false`). PR 제목·브랜치 검사와 PR 순서 검사는 운영체제와 무관하므로 Linux에서만 돌린다. Windows에서는 셸을 `bash`(Git for Windows)로 맞춘다.
 - 커밋 이력 검사가 기준 커밋까지 볼 수 있도록 전체 이력을 받는다(`fetch-depth: 0`).
 - Python은 `astral-sh/setup-uv`로 설치한 uv가 `.python-version`에 따라 준비한다.
 - PR에서는 PR 제목과 브랜치 이름을 [커밋 검사기](#7-커밋-검사기)의 PR 검사로, 앞선 열린 PR 포함 여부를 [PR 순서 검사기](#9-pr-순서-검사기)로 확인한다. 열린 PR 목록은 GitHub CLI(`gh pr list`)와 워크플로의 `GITHUB_TOKEN`으로 받는다.

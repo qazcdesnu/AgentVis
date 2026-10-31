@@ -68,7 +68,7 @@ class CommitHistoryTest(RepoTestCase):
 
     def git(self, *args: str) -> str:
         command = ["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", *args]
-        return subprocess.run(command, cwd=self.root, capture_output=True, text=True, check=True).stdout.strip()
+        return subprocess.run(command, cwd=self.root, capture_output=True, encoding="utf-8", check=True).stdout.strip()
 
     def commit(self, message: str) -> str:
         self.git("commit", "-q", "--allow-empty", "-m", message)

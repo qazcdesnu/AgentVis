@@ -1,0 +1,4 @@
+# Line endings: docs/CodeRule.md section 3.1. Keep LF everywhere so checkers and hashes match on Windows.
+* text=auto eol=lf
+# Vendored libraries must stay byte-identical to their recorded SHA-256 (docs/design/WebUI.md section 1.1).
+src/agentvis/web/vendor/** -text
