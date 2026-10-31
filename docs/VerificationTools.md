@@ -170,6 +170,7 @@ uv run python -m unittest discover -s tests -t .   # 도구 자체의 테스트
 
 - 실행 시점: PR이 열리거나 갱신될 때, `main`에 push될 때.
 - 실행 환경: `ubuntu-latest`, `macos-latest`, `windows-latest` 세 곳에서 같은 검증을 돌린다([운영체제 이식성](CodeRule.md#31-운영체제-이식성)). 한 곳이 실패해도 나머지는 끝까지 돌려 실패한 운영체제를 모두 보인다(`fail-fast: false`). PR 제목·브랜치 검사와 PR 순서 검사는 운영체제와 무관하므로 Linux에서만 돌린다. Windows에서는 셸을 `bash`(Git for Windows)로 맞춘다.
+- 실행 확인: 검증 명령 뒤에, README의 설치·실행 절차가 각 운영체제에서 실제로 되는지 확인한다. 임시 데이터 폴더(`AGENTVIS_HOME`)로 `agentvis serve`를 띄워 `GET /health`와 `GET /`가 응답하는지 본다. 임시 설정 파일(`--settings`)로 `agentvis hooks install`과 `uninstall`을 실행한다. 사용자 설정과 실제 데이터는 건드리지 않는다.
 - 커밋 이력 검사가 기준 커밋까지 볼 수 있도록 전체 이력을 받는다(`fetch-depth: 0`).
 - Python은 `astral-sh/setup-uv`로 설치한 uv가 `.python-version`에 따라 준비한다.
 - PR에서는 PR 제목과 브랜치 이름을 [커밋 검사기](#7-커밋-검사기)의 PR 검사로, 앞선 열린 PR 포함 여부를 [PR 순서 검사기](#9-pr-순서-검사기)로 확인한다. 열린 PR 목록은 GitHub CLI(`gh pr list`)와 워크플로의 `GITHUB_TOKEN`으로 받는다.
