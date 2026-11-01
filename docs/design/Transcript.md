@@ -25,7 +25,7 @@
 3. 줄마다 [3. 기록 변환](#3-기록-변환)을 거쳐 원시 이벤트로 바꾼다.
 4. 바꾼 원시 이벤트들과 새 커서 위치를 **한 트랜잭션으로** 저장한다. 한 트랜잭션에는 최대 [BATCH_LINES](../../src/agentvis/transcript.py#BATCH_LINES)(500)줄을 담아 쓰기 잠금을 짧게 잡는다. 둘 중 하나만 저장되면 기록을 잃거나 다시 읽게 되기 때문이다. 다시 읽더라도 중복 제거 키 때문에 중복 저장되지는 않는다.
 
-- 파일 식별자(장치·inode)가 커서에 저장된 것과 다르거나 파일 크기가 커서 위치보다 작으면, 파일이 바뀐 것으로 보고 처음부터 다시 읽는다.
+- 파일 식별자(장치·inode)는 크기 제한이 없도록 10진 문자열로 저장하고 비교한다([이벤트 저장소의 H4 변경](Store.md#9-h4-변경)). 파일 식별자가 커서에 저장된 것과 다르거나 파일 크기가 커서 위치보다 작으면, 파일이 바뀐 것으로 보고 처음부터 다시 읽는다.
 - 서브에이전트 메타 파일은 JSONL이 아니므로 커서 없이 통째로 읽는다([read_subagent_meta](../../src/agentvis/transcript.py#read_subagent_meta)`(store, path, projects_dir) -> bool`, 새로 저장했으면 `True`).
 - 아직 없는 파일은 읽을 것이 없는 것으로 보고, 아무것도 저장하지 않은 결과를 돌려준다. hook 이벤트가 세션 기록 파일보다 먼저 올 수 있기 때문이다.
 - [read_new_records](../../src/agentvis/transcript.py#read_new_records)`(store, path, projects_dir) -> ReadResult`가 한 파일을 이어 읽는다. [ReadResult](../../src/agentvis/transcript.py#ReadResult)는 저장한 수, 건너뛴 줄 수(해석 실패, 대상이 아닌 유형, 시각 없음), 새 커서 위치를 가진다.

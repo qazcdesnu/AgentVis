@@ -132,6 +132,31 @@ M3-T2에서 만든다(I18).
 - 앞으로 기록 리더의 저장 대상이 바뀌면 같은 방식(커서를 비우는 스키마 이동)으로 지난 기록을 다시 읽게 한다.
 - 테스트: 2판 데이터베이스를 열면 3판으로 올라가고 커서가 비며 원시 이벤트는 남는다.
 
+## 9. H4 변경
+
+Windows에서는 파일 식별자(`st_dev`, `st_ino`)가 SQLite `INTEGER`의 범위(부호 있는 64비트)를 넘을 수 있다. ReFS 같은 파일 시스템이 큰 파일 ID를 쓰기 때문이다. 그대로 저장하면 `OverflowError`가 나고, 세션 기록이 저장되지 않는다(H4, [운영체제 이식성](../CodeRule.md#31-운영체제-이식성)).
+
+**스키마 4판**
+
+```sql
+CREATE TABLE transcript_cursors (
+    path        TEXT PRIMARY KEY,
+    offset      INTEGER NOT NULL,
+    device      TEXT NOT NULL,      -- 파일 식별자 st_dev의 10진 문자열
+    inode       TEXT NOT NULL,      -- 파일 식별자 st_ino의 10진 문자열
+    updated_at  TEXT NOT NULL
+);
+```
+
+- `SCHEMA_VERSION`은 4가 된다.
+- 3판 → 4판 이동은 커서 표를 지우고 위 형식으로 다시 만든다. 커서는 버려도 되는 값이라 내용을 옮기지 않는다. 다음 읽기 때 세션 기록을 처음부터 다시 읽지만, 중복 제거 키 때문에 원시 이벤트는 중복 저장되지 않는다([7절](#7-m3-변경)과 같은 방식).
+- [TranscriptCursor](../../src/agentvis/store.py#TranscriptCursor)의 `device`, `inode`는 `str`이다. 기록 리더는 `str(st_dev)`, `str(st_ino)`로 만들고 같은 방식으로 비교한다([기록 리더의 이어 읽기](Transcript.md#2-이어-읽기)).
+- 오프셋(`offset`)은 파일 크기라 64비트를 넘지 않으므로 정수 그대로 둔다.
+
+**테스트**(`tests/test_store.py`에 추가)
+- 64비트를 넘는 식별자(예: `2**64 + 5`)의 커서를 저장하고 그대로 읽는다.
+- 3판 데이터베이스를 열면 4판으로 올라가고, 커서는 비며 원시 이벤트는 남는다.
+
 ## 8. 조회 보조
 
 M3-T4에서 만든다.
