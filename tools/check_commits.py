@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 from tools.check_tasks import ISSUE_DOC, ROADMAP_DOC, parse_issues, parse_roadmap
-from tools.doclib import REPO_ROOT, Problem
+from tools.doclib import REPO_ROOT, Problem, use_utf8_output
 
 BASELINE_COMMIT = "2a80e26"
 SUBJECT_MAX_LENGTH = 72
@@ -103,7 +103,7 @@ def commit_messages(root: Path, revision_range: str) -> list[tuple[str, str]]:
         ["git", "log", "--no-merges", f"--format=%h{_FIELD_SEP}%B{_RECORD_SEP}", revision_range],
         cwd=root,
         capture_output=True,
-        text=True,
+        encoding="utf-8",
         check=True,
     ).stdout
     commits = []
@@ -119,6 +119,7 @@ def main(argv: list[str] | None = None) -> int:
 
     @doc: docs/VerificationTools.md#7-커밋-검사기
     """
+    use_utf8_output()
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--root", type=Path, default=REPO_ROOT)
     parser.add_argument("--message-file", type=Path)

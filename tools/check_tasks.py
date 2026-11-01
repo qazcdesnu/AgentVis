@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 
-from tools.doclib import REPO_ROOT, Problem, iter_prose_lines, strip_inline_code
+from tools.doclib import REPO_ROOT, Problem, iter_prose_lines, strip_inline_code, use_utf8_output
 
 ROADMAP_DOC = "docs/Roadmap.md"
 ISSUE_DOC = "docs/Issue.md"
@@ -291,6 +291,7 @@ def main(argv: list[str] | None = None) -> int:
 
     @doc: docs/VerificationTools.md#6-작업-관리-검사기
     """
+    use_utf8_output()
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--root", type=Path, default=REPO_ROOT)
     root = parser.parse_args(argv).root.resolve()

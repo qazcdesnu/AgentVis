@@ -119,6 +119,10 @@ def main(argv: list[str] | None = None) -> int:
 
     @doc: docs/design/Cli.md#1-패키지-골격
     """
+    # Windows prints through its legacy code page when output is piped, which cannot encode Korean.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     parser = _build_parser()
     args = parser.parse_args(argv)
     if args.command is None:

@@ -108,6 +108,14 @@ class SettingsFileTest(RepoTestCase):
             with self.subTest(text=text), self.assertRaises(SettingsError):
                 load_settings(path)
 
+    def test_save_round_trip(self) -> None:
+        path = self.write("settings.json", "{}\n")
+        save_settings(path, _USER_SETTINGS)
+        self.assertEqual(load_settings(path), _USER_SETTINGS)
+        self.assertEqual([p.name for p in path.parent.iterdir()], ["settings.json"])
+
+    # Windows needs admin rights or developer mode for symlinks and has no POSIX permission bits.
+    @unittest.skipIf(os.name == "nt", "심볼릭 링크와 권한 비트는 POSIX 기능")
     def test_save_round_trip_keeps_mode_and_symlink(self) -> None:
         target = self.write("dotfiles/settings.json", "{}\n")
         os.chmod(target, 0o600)

@@ -154,6 +154,11 @@ def backup_settings(path: Path, backup_dir: Path) -> Path | None:
     backup_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ")
     target = backup_dir / f"settings-{stamp}.json"
+    # Windows clocks tick about every 16 ms, so two quick backups can share a timestamp.
+    counter = 0
+    while target.exists():
+        counter += 1
+        target = backup_dir / f"settings-{stamp}-{counter}.json"
     shutil.copyfile(path, target)
     return target
 

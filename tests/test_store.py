@@ -196,8 +196,7 @@ class DataDirTest(RepoTestCase):
         with mock.patch.dict(os.environ, {"AGENTVIS_HOME": str(self.root)}):
             self.assertEqual(data_dir(), self.root)
             self.assertEqual(default_db_path(), self.root / "agentvis.db")
-        with mock.patch.dict(os.environ, {}, clear=True):
-            os.environ["HOME"] = str(self.root)
+        with mock.patch.dict(os.environ, {}, clear=True), mock.patch("pathlib.Path.home", return_value=self.root):
             self.assertEqual(data_dir(), self.root / ".agentvis")
         self.assertFalse((self.root / ".agentvis").exists())
 

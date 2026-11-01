@@ -21,6 +21,7 @@ from tools.doclib import (
     heading_anchors,
     is_external,
     resolve_link,
+    use_utf8_output,
 )
 
 
@@ -112,6 +113,7 @@ def main(argv: list[str] | None = None) -> int:
 
     @doc: docs/VerificationTools.md#3-문서-링크-검사기
     """
+    use_utf8_output()
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--root", type=Path, default=REPO_ROOT)
     root = parser.parse_args(argv).root.resolve()
