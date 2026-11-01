@@ -130,7 +130,7 @@ def read_new_records(store: EventStore, path: Path, projects_dir: Path) -> ReadR
         status = os.fstat(file.fileno())
         cursor = store.cursor(str(resolved))
         offset = cursor.offset if cursor else 0
-        if cursor and ((cursor.device, cursor.inode) != (status.st_dev, status.st_ino) or status.st_size < offset):
+        if cursor and ((cursor.device, cursor.inode) != (str(status.st_dev), str(status.st_ino)) or status.st_size < offset):
             offset = 0
         file.seek(offset)
         data = file.read()
@@ -148,7 +148,7 @@ def read_new_records(store: EventStore, path: Path, projects_dir: Path) -> ReadR
             else:
                 events.append(event)
         offset += sum(len(line) for line in chunk)
-        stored += store.append_batch(events, TranscriptCursor(str(resolved), offset, status.st_dev, status.st_ino))
+        stored += store.append_batch(events, TranscriptCursor(str(resolved), offset, str(status.st_dev), str(status.st_ino)))
     return ReadResult(stored, skipped, offset)
 
 

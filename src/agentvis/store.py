@@ -16,7 +16,7 @@ from pathlib import Path
 from types import TracebackType
 
 # @doc: docs/design/Store.md#2-스키마
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 _SOURCES = ("hook", "transcript")
 _BUSY_TIMEOUT_MS = 1000
@@ -61,6 +61,17 @@ _MIGRATIONS = (
     ),
     # The transcript reader stores more record types now; forget read positions to re-read old records.
     ("DELETE FROM transcript_cursors",),
+    # Windows file IDs can exceed SQLite's signed 64-bit INTEGER, so keep them as decimal text (H4).
+    (
+        "DROP TABLE transcript_cursors",
+        """CREATE TABLE transcript_cursors (
+            path        TEXT PRIMARY KEY,
+            offset      INTEGER NOT NULL,
+            device      TEXT NOT NULL,
+            inode       TEXT NOT NULL,
+            updated_at  TEXT NOT NULL
+        )""",
+    ),
 )
 
 
@@ -100,8 +111,8 @@ class TranscriptCursor:
 
     path: str
     offset: int
-    device: int
-    inode: int
+    device: str
+    inode: str
 
 
 def data_dir() -> Path:

@@ -142,7 +142,7 @@ class StoreM2Test(RepoTestCase):
     def test_version_2_database_is_migrated_and_cursors_are_reset(self) -> None:
         path = self.root / "v2.db"
         with EventStore(path) as store:
-            store.append_batch([replace(_EVENT, source="transcript", dedup_key="uuid:1")], TranscriptCursor("/p/s.jsonl", 9, 1, 2))
+            store.append_batch([replace(_EVENT, source="transcript", dedup_key="uuid:1")], TranscriptCursor("/p/s.jsonl", 9, "1", "2"))
         connection = sqlite3.connect(path)
         connection.execute("PRAGMA user_version = 2")
         connection.commit()
@@ -150,6 +150,32 @@ class StoreM2Test(RepoTestCase):
         with EventStore(path) as store:
             self.assertIsNone(store.cursor("/p/s.jsonl"))
             self.assertEqual(len(store.events()), 1)
+
+    def test_file_ids_beyond_64_bits_round_trip(self) -> None:
+        # Windows file IDs can exceed SQLite's signed 64-bit INTEGER (H4).
+        huge = TranscriptCursor("/p/s.jsonl", 9, str(2**64 + 5), str(2**127 + 3))
+        with EventStore(self.root / "huge.db") as store:
+            store.append_batch([replace(_EVENT, source="transcript", dedup_key="uuid:1")], huge)
+            self.assertEqual(store.cursor("/p/s.jsonl"), huge)
+
+    def test_version_3_database_gets_text_file_ids_and_cursors_are_reset(self) -> None:
+        path = self.root / "v3.db"
+        EventStore(path).close()
+        connection = sqlite3.connect(path)
+        connection.executescript(
+            "DROP TABLE transcript_cursors;"
+            "CREATE TABLE transcript_cursors (path TEXT PRIMARY KEY, offset INTEGER NOT NULL, "
+            "device INTEGER NOT NULL, inode INTEGER NOT NULL, updated_at TEXT NOT NULL);"
+            "INSERT INTO transcript_cursors VALUES ('/p/s.jsonl', 9, 1, 2, '2026-11-01T00:00:00+00:00');"
+            "PRAGMA user_version = 3;"
+        )
+        connection.close()
+        with EventStore(path) as store:
+            self.assertIsNone(store.cursor("/p/s.jsonl"))
+        connection = sqlite3.connect(path)
+        columns = {row[1]: row[2] for row in connection.execute("PRAGMA table_info(transcript_cursors)")}
+        connection.close()
+        self.assertEqual((columns["device"], columns["inode"]), ("TEXT", "TEXT"))
 
     def test_concurrent_first_open_succeeds(self) -> None:
         for attempt in range(10):
@@ -170,11 +196,11 @@ class StoreM2Test(RepoTestCase):
     def test_append_batch_stores_events_and_cursor_together(self) -> None:
         with EventStore(self.root / "a.db") as store:
             self.assertIsNone(store.first_received_at())
-            cursor = TranscriptCursor("/p/s.jsonl", 120, 1, 2)
+            cursor = TranscriptCursor("/p/s.jsonl", 120, "1", "2")
             keyed = [replace(_EVENT, source="transcript", dedup_key=f"uuid:{n}") for n in range(3)]
             self.assertEqual(store.append_batch(keyed, cursor), 3)
             self.assertEqual(store.cursor("/p/s.jsonl"), cursor)
-            moved = TranscriptCursor("/p/s.jsonl", 300, 1, 2)
+            moved = TranscriptCursor("/p/s.jsonl", 300, "1", "2")
             self.assertEqual(store.append_batch(keyed[1:] + [replace(keyed[0], dedup_key="uuid:9")], moved), 1)
             self.assertEqual(store.cursor("/p/s.jsonl"), moved)
             first = store.first_received_at()
@@ -184,7 +210,7 @@ class StoreM2Test(RepoTestCase):
         with EventStore(self.root / "a.db") as store:
             bad = [replace(_EVENT, dedup_key="uuid:1"), replace(_EVENT, source="other", dedup_key="uuid:2")]
             with self.assertRaises(ValueError):
-                store.append_batch(bad, TranscriptCursor("/p/s.jsonl", 10, 1, 2))
+                store.append_batch(bad, TranscriptCursor("/p/s.jsonl", 10, "1", "2"))
             self.assertEqual(store.events(), [])
             self.assertIsNone(store.cursor("/p/s.jsonl"))
 

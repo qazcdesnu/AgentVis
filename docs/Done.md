@@ -2,6 +2,37 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## H4 Windows 파일 식별자가 SQLite 정수 범위를 넘는 결함
+
+- 시작일: 2026-11-01
+- 완료일: 2026-11-01
+- 근거 문서: [이벤트 저장소 설계](design/Store.md), [기록 리더 설계](design/Transcript.md)
+
+### 계획
+- 읽기 커서의 파일 식별자(`device`, `inode`)를 크기 제한이 없는 10진 문자열로 저장하도록 설계를 고친다(스키마 4판).
+- 4판 이동은 커서 표를 새 형식으로 다시 만든다. 커서는 버려도 되는 값이라(다시 읽어도 중복 저장되지 않음) 내용을 옮기지 않는다.
+- 64비트를 넘는 식별자 테스트와 3판 → 4판 이동 테스트를 더한다.
+- 병합 대기 중인 PR #18(`i30-target-venues`) 위에 쌓은 브랜치 `h4-windows-file-id`에서 진행한다.
+
+### 진행 기록
+- 2026-11-01: 문서만 바꾼 PR #18의 Windows CI가 기록 리더 테스트 4개에서 실패했다. 파일 식별자를 SQLite 정수 칸에 넣다가 넘친 것이라 H4로 등록했다.
+- 2026-11-01: [이벤트 저장소 설계의 H4 변경](design/Store.md#9-h4-변경)대로 스키마 4판을 만들고 커서의 파일 식별자를 10진 문자열로 바꿨다. 64비트를 넘는 식별자 왕복 테스트와 3판 → 4판 이동 테스트를 더했다. 세 운영체제 CI가 통과했다(PR #19).
+
+### 결정 사항
+- 커서는 버려도 되는 값이므로 4판 이동에서 옮기지 않고 표를 다시 만든다. 실제 이벤트 저장소는 다음 서버 시작 때 4판으로 올라가고, 세션 기록을 처음부터 다시 읽는다. 원시 이벤트는 중복 저장되지 않는다.
+
+### 변경 파일
+- `src/agentvis/store.py`, `src/agentvis/transcript.py`, `tests/test_store.py`
+- `docs/design/Store.md`, `docs/design/Transcript.md`, `docs/Issue.md`, `docs/Ongoing.md`, `docs/Done.md`
+
+### 결과
+- Windows에서 파일 식별자가 64비트를 넘어도 세션 기록이 저장된다.
+
+### 검증
+- `check_docs`, `check_pointers`, `check_tasks`, `check_commits`, `check_web` 통과. 단위 테스트 130개 통과(H4 테스트 2개 추가).
+- GitHub Actions(PR #19): `ubuntu-latest`, `macos-latest`, `windows-latest` 모두 통과.
+
+
 ## I30 목표 학회 선정과 연구개발 목표 수정
 
 - 시작일: 2026-11-01
@@ -16,16 +47,17 @@
 ### 진행 기록
 - 2026-11-01: 사용자 지시로 I30을 등록하고 시작했다.
 - 2026-11-01: [목표 학회 비교](research/TargetVenues.md)를 새로 만들었다. 연구의 성격이 설계 연구(데이터·과업 추상화, 설계, 평가)이고, 가장 가까운 선례 AgentLens가 IEEE TVCG에 실렸으므로 주 목표를 IEEE VIS(TVCG 게재), 보조 목표를 CHI로 정했다. 제품 비전, README, 인덱스, 시각화 원칙 조사의 "CHI" 표기를 고쳤다. 학회 마감 시기는 통상 주기만 적고 [확인 필요]로 두었다.
+- 2026-11-01: 사용자가 목표를 다시 정했다. 1차 목표는 수업 과제의 완수이고, 연구 절차와 논문은 TVCG 기준에 맞춰 수행·작성하며, 학회 제출은 과제를 완성한 뒤 정한다. 제품 비전, README, 인덱스, 목표 학회 비교의 결정 절을 그에 맞게 고쳤다.
 
 ### 결정 사항
-- 주 목표는 IEEE VIS 정규 논문(IEEE TVCG 게재), 설계 연구 형식이다. 보조 목표는 CHI이고, 먼저 짧게 발표할 곳은 VL/HCC나 VISSOFT다.
+- 1차 목표는 수업 과제의 완수다. 연구 절차와 논문의 기준은 IEEE TVCG(IEEE VIS 정규 논문), 형식은 설계 연구다. 제출 학회(VIS, CHI, VL/HCC·VISSOFT 등)와 시기는 과제를 완성한 뒤 정한다.
 - 화면 재설계 문서에는 과업 짝짓기, 검토한 대안, 버린 이유를 함께 남긴다(VIS 심사 관행).
 
 ### 변경 파일
 - `docs/research/TargetVenues.md`(새 문서), `docs/ProductVision.md`, `README.md`, `docs/index.md`, `docs/research/VisualizationPrinciples.md`, `docs/Issue.md`, `docs/Ongoing.md`, `docs/Done.md`
 
 ### 결과
-- 연구개발 목표가 "IEEE VIS(TVCG) 설계 연구 논문"으로 문서에 정해졌고, 학회 비교와 논문 구성이 남아 있다.
+- 연구개발 목표가 "수업 과제 완수, TVCG 기준의 설계 연구"로 문서에 정해졌고, 학회 비교, 제출 후보, 논문 구성이 남아 있다.
 
 ### 검증
 - `check_docs`, `check_pointers`, `check_tasks`, `check_commits`, `check_web` 통과. 단위 테스트 128개 통과(코드 변경 없음).
