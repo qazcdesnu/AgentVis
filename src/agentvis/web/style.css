@@ -263,3 +263,32 @@ details > summary { cursor: pointer; list-style-position: outside; }
   .pane { border-right: none; border-bottom: 1px solid var(--line); max-height: 40vh; }
   .detail { max-height: none; }
 }
+
+/* Session overview strip and jump badges: docs/design/WebUI.md section 7. */
+.overview { margin: 8px 0; }
+.ov-badges { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-bottom: 4px; }
+.ov-badge { display: inline-flex; align-items: center; gap: 2px; font-size: 12px; }
+.ov-badge-label { margin-right: 4px; color: var(--muted); }
+.ov-badge-failure .ov-badge-label { color: var(--error); font-weight: 600; }
+.ov-badge button { padding: 0 8px; font-size: 11px; }
+.ov-badge button:disabled { opacity: 0.4; cursor: default; }
+.ov-strip { border: 1px solid var(--line); border-radius: 6px; background: var(--panel); overflow: hidden; }
+.ov-svg { display: block; font-size: 10px; }
+.ov-bar.routine { fill: var(--unfinished); opacity: 0.55; }
+.ov-bar.status-error { fill: var(--error); }
+.ov-bar.status-interrupted { fill: var(--interrupted); }
+.ov-symbol { font-size: 10px; font-weight: 700; }
+.ov-symbol-error { fill: var(--error); }
+.ov-symbol-interrupted { fill: var(--interrupted); }
+.ov-symbol-user { fill: var(--user-message-line); }
+.ov-compact { stroke: var(--text); stroke-dasharray: 3 2; }
+.ov-compact-label { fill: var(--muted); }
+.ov-turn { stroke: var(--muted); }
+.ov-turn-label { fill: var(--muted); }
+.ov-range { fill: var(--running); opacity: 0.12; }
+.ov-cursor { stroke: var(--running); stroke-width: 2; }
+.ov-brush .selection { fill: var(--running); fill-opacity: 0.15; stroke: none; }
+.ov-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 4px; }
+.ov-footer .view-toggle { margin-top: 0; }
+.ov-info { font-size: 12px; color: var(--text); overflow-wrap: anywhere; flex: 1 1 200px; }
+.step.focused { outline: 2px solid var(--running); outline-offset: 2px; border-radius: 4px; }
