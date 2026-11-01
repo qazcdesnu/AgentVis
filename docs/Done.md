@@ -2,6 +2,35 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## I30 목표 학회 선정과 연구개발 목표 수정
+
+- 시작일: 2026-11-01
+- 완료일: 2026-11-01
+- 근거 문서: [제품 비전](ProductVision.md#1-목적), [관련 결과물 조사](research/RelatedWork.md)
+
+### 계획
+- 연구 주제와 가까운 탑 학회(IEEE VIS/TVCG, CHI, EuroVis, UIST, VL/HCC, VISSOFT, 소프트웨어 공학 학회)를 비교하는 문서를 만든다.
+- 목표 학회와 그에 맞는 논문 구성을 제품 비전에 적고, README와 조사 문서의 "CHI" 표기를 고친다.
+- PR #16(`i29-related-work`) 위에 쌓은 브랜치 `i30-target-venues`에서 진행한다.
+
+### 진행 기록
+- 2026-11-01: 사용자 지시로 I30을 등록하고 시작했다.
+- 2026-11-01: [목표 학회 비교](research/TargetVenues.md)를 새로 만들었다. 연구의 성격이 설계 연구(데이터·과업 추상화, 설계, 평가)이고, 가장 가까운 선례 AgentLens가 IEEE TVCG에 실렸으므로 주 목표를 IEEE VIS(TVCG 게재), 보조 목표를 CHI로 정했다. 제품 비전, README, 인덱스, 시각화 원칙 조사의 "CHI" 표기를 고쳤다. 학회 마감 시기는 통상 주기만 적고 [확인 필요]로 두었다.
+
+### 결정 사항
+- 주 목표는 IEEE VIS 정규 논문(IEEE TVCG 게재), 설계 연구 형식이다. 보조 목표는 CHI이고, 먼저 짧게 발표할 곳은 VL/HCC나 VISSOFT다.
+- 화면 재설계 문서에는 과업 짝짓기, 검토한 대안, 버린 이유를 함께 남긴다(VIS 심사 관행).
+
+### 변경 파일
+- `docs/research/TargetVenues.md`(새 문서), `docs/ProductVision.md`, `README.md`, `docs/index.md`, `docs/research/VisualizationPrinciples.md`, `docs/Issue.md`, `docs/Ongoing.md`, `docs/Done.md`
+
+### 결과
+- 연구개발 목표가 "IEEE VIS(TVCG) 설계 연구 논문"으로 문서에 정해졌고, 학회 비교와 논문 구성이 남아 있다.
+
+### 검증
+- `check_docs`, `check_pointers`, `check_tasks`, `check_commits`, `check_web` 통과. 단위 테스트 128개 통과(코드 변경 없음).
+
+
 ## I29 관련 결과물 조사와 비교 (경쟁자, 배울 점)
 
 - 시작일: 2026-11-01

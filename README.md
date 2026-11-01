@@ -6,7 +6,10 @@ AgentVis는 Claude Code 에이전트가 작업한 과정을 수집해 브라우�
 
 ## 1. 무엇을, 왜 만드는가
 
-- **연구 프로젝트입니다.** 대학원 수업 프로젝트로 시작해 CHI 같은 학회에 낼 논문으로 발전시키는 것이 목표입니다([제품 비전의 목적](docs/ProductVision.md#1-목적)).
+- **연구 프로젝트입니다.** 대학원 수업 프로젝트로 시작해 시각화 분야 탑 학회 논문으로 발전시키는 것이 목표입니다([제품 비전의 목적](docs/ProductVision.md#1-목적)).
+  - 주 목표: IEEE VIS 정규 논문(IEEE TVCG 게재), 설계 연구(design study) 형식
+  - 보조 목표: CHI
+  - 근거: [목표 학회 비교](docs/research/TargetVenues.md)
 - **연구 질문**: Claude Code로 실제 바이브 코딩을 할 때 이 시각화 도구를 함께 쓰면 코딩 작업이 얼마나 수월해지는가.
 - **과제**는 다섯 가지입니다.
   1. 분석할 데이터(Claude Code 작업 기록)를 고른다.
@@ -249,7 +252,7 @@ Claude Code로 이 저장소에서 작업하면 [CLAUDE.md](CLAUDE.md)가 자동
 | 읽을 때 | 문서 |
 | --- | --- |
 | 처음 | [제품 비전](docs/ProductVision.md), [시스템 구조](docs/Architecture.md), [데이터 소스](docs/DataSource.md) |
-| 연구·논문 | [좋은 시각화 원칙 조사](docs/research/VisualizationPrinciples.md), [Claude Code 실무 고충 조사](docs/research/ClaudeCodePainPoints.md), [관련 결과물 조사](docs/research/RelatedWork.md) |
+| 연구·논문 | [목표 학회 비교](docs/research/TargetVenues.md), [좋은 시각화 원칙 조사](docs/research/VisualizationPrinciples.md), [Claude Code 실무 고충 조사](docs/research/ClaudeCodePainPoints.md), [관련 결과물 조사](docs/research/RelatedWork.md) |
 | 화면 작업 | [웹 UI 설계](docs/design/WebUI.md), [작업 흐름 그래프 설계](docs/design/FlowGraph.md), [분석기 설계](docs/design/Analysis.md) |
 | 할 일 | [로드맵](docs/Roadmap.md), [이슈](docs/Issue.md) |
 | 전체 목록 | [문서 인덱스](docs/index.md) |
