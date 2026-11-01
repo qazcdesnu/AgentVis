@@ -6,10 +6,9 @@ AgentVis는 Claude Code 에이전트가 작업한 과정을 수집해 브라우�
 
 ## 1. 무엇을, 왜 만드는가
 
-- **연구 프로젝트입니다.** 대학원 수업 프로젝트로 시작해 시각화 분야 탑 학회 논문으로 발전시키는 것이 목표입니다([제품 비전의 목적](docs/ProductVision.md#1-목적)).
-  - 주 목표: IEEE VIS 정규 논문(IEEE TVCG 게재), 설계 연구(design study) 형식
-  - 보조 목표: CHI
-  - 근거: [목표 학회 비교](docs/research/TargetVenues.md)
+- **연구 프로젝트입니다**([제품 비전의 목적](docs/ProductVision.md#1-목적)).
+  - 1차 목표: 대학원 수업 과제를 4주 안에 완수합니다. 연구 절차와 논문은 IEEE TVCG(IEEE VIS 정규 논문)의 기준에 맞춰 설계 연구(design study) 형식으로 수행하고 씁니다.
+  - 학회 제출은 과제를 완성한 뒤 정합니다. 후보와 근거: [목표 학회 비교](docs/research/TargetVenues.md)
 - **연구 질문**: Claude Code로 실제 바이브 코딩을 할 때 이 시각화 도구를 함께 쓰면 코딩 작업이 얼마나 수월해지는가.
 - **과제**는 다섯 가지입니다.
   1. 분석할 데이터(Claude Code 작업 기록)를 고른다.
