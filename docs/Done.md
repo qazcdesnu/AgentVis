@@ -2,6 +2,37 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## I31 과업별 정보 요구와 데이터 특성 분석
+
+- 시작일: 2026-11-01
+- 완료일: 2026-11-01
+- 근거 문서: [Claude Code 실무 고충 조사](research/ClaudeCodePainPoints.md), [좋은 시각화 원칙 조사](research/VisualizationPrinciples.md), [데이터 소스](DataSource.md)
+
+### 계획
+- 6가지 과업마다 사용자가 원본 기록으로 판정하는 절차를 적고, 그 절차에 필요한 정보 항목을 뽑는다.
+- 정보 항목을 공통 사전으로 모아 원천 필드, 데이터 유형, 원본·파생, 확정·추정, 규모를 분석한다.
+- 과업 × 정보 항목 표로 공통 항목과 과업 전용 항목을 가른다.
+- 결과를 `docs/design/TaskAbstraction.md`로 만들고, 인코딩(시각화 방식) 설계의 입력으로 둔다.
+- 최신 `main`에서 만든 브랜치 `i31-task-data-abstraction`에서 진행한다.
+
+### 진행 기록
+- 2026-11-01: 사용자 지시로 I31을 등록했다. 이 세션 기록에서 도구 결과의 실제 필드를 확인했다. Bash는 `stdout`·`stderr`·`interrupted`, 종료 코드는 오류 텍스트의 "Exit code N", Edit·Write는 `structuredPatch`·`filePath`·`originalFile`, 응답은 `usage`(토큰)를 가진다.
+- 2026-11-01: [과업과 데이터 추상화](design/TaskAbstraction.md) 초안을 썼다. 내용은 판정 절차 6개, 정보 항목 40개(D1~D40), 과업 × 정보 표, 데이터 특성에서 나온 설계 함의 6개다. 사용자에게 검토를 요청했다.
+- 2026-11-01: 사용자가 이 검토 결과를 기반으로 다음 단계를 진행하라고 지시했다. 초안을 확정본으로 완료 처리하고, 인코딩 설계는 다음 작업으로 이어 간다.
+
+### 결정 사항
+- 정보 목록은 연구자 분석에서 나온 가설로 두고, 형성 확인(팀원·파일럿)에서 고친다([다음 단계](design/TaskAbstraction.md#6-다음-단계)). 그 확인을 기다리지 않고 인코딩 설계를 먼저 진행한다(사용자 지시).
+
+### 변경 파일
+- `docs/design/TaskAbstraction.md`(새 문서), `docs/index.md`, `docs/Issue.md`, `docs/Ongoing.md`, `docs/Done.md`
+
+### 결과
+- 6가지 과업마다 판정 절차, 필수·보조 정보 항목(D1~D40), 각 항목의 데이터 유형과 원본·파생·확정·추정이 정리되어 인코딩 설계의 입력이 된다.
+
+### 검증
+- `check_docs`, `check_pointers`, `check_tasks`, `check_commits`, `check_web` 통과. 단위 테스트 130개 통과(문서만 바꿈).
+
+
 ## H4 Windows 파일 식별자가 SQLite 정수 범위를 넘는 결함
 
 - 시작일: 2026-11-01
