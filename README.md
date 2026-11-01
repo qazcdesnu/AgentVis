@@ -34,7 +34,7 @@ AgentVis는 Claude Code 에이전트가 작업한 과정을 수집해 브라우�
 | 구분 | 내용 |
 | --- | --- |
 | 된 것 | hook 수집과 세션 기록(JSONL) 이어 읽기, 이벤트 저장소(SQLite), 세션·턴·단계·도구 호출 분석, 조회 API, 웹 화면(프로젝트 → 세션 → 턴 목록, 턴별 흐름 그래프) |
-| 조사 | [좋은 시각화 원칙 조사](docs/research/VisualizationPrinciples.md), [Claude Code 실무 고충 조사](docs/research/ClaudeCodePainPoints.md) |
+| 조사 | [좋은 시각화 원칙 조사](docs/research/VisualizationPrinciples.md), [Claude Code 실무 고충 조사](docs/research/ClaudeCodePainPoints.md), [관련 결과물 조사](docs/research/RelatedWork.md) |
 | 다음 | 유저 스터디 설계(이슈 I26). 이어서 고충 6가지의 판정 규칙, "중요한 정보만 추린" 화면 재설계, 실시간 갱신 |
 | 아직 없는 것 | 지난 세션 가져오기(`agentvis import`), 서버 시작 시 놓친 기록 찾기, 실시간 갱신(지금은 새로고침 단추), 실패·반복·우회 판정 |
 
@@ -249,7 +249,7 @@ Claude Code로 이 저장소에서 작업하면 [CLAUDE.md](CLAUDE.md)가 자동
 | 읽을 때 | 문서 |
 | --- | --- |
 | 처음 | [제품 비전](docs/ProductVision.md), [시스템 구조](docs/Architecture.md), [데이터 소스](docs/DataSource.md) |
-| 연구·논문 | [좋은 시각화 원칙 조사](docs/research/VisualizationPrinciples.md), [Claude Code 실무 고충 조사](docs/research/ClaudeCodePainPoints.md) |
+| 연구·논문 | [좋은 시각화 원칙 조사](docs/research/VisualizationPrinciples.md), [Claude Code 실무 고충 조사](docs/research/ClaudeCodePainPoints.md), [관련 결과물 조사](docs/research/RelatedWork.md) |
 | 화면 작업 | [웹 UI 설계](docs/design/WebUI.md), [작업 흐름 그래프 설계](docs/design/FlowGraph.md), [분석기 설계](docs/design/Analysis.md) |
 | 할 일 | [로드맵](docs/Roadmap.md), [이슈](docs/Issue.md) |
 | 전체 목록 | [문서 인덱스](docs/index.md) |
