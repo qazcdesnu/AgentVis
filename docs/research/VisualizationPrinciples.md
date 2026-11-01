@@ -43,7 +43,7 @@
 | Cornelissen, Zaidman & van Deursen (IEEE TSE 2011) | Eclipse 대 Eclipse + 실행 트레이스 시각화(EXTRAVIS), 대표 이해 과업 8개 | 시간 22% 단축, 정답률 43% 증가(둘 다 유의) |
 | Beschastnikh et al., ShiViz (ACM TOSEM 2020) | 분산 시스템 로그 대 시공간 다이어그램, 학생 109명(통제 실험 39명) | 시스템 이해 질문의 정답이 유의하게 많고 효과 크기가 매우 컸다 |
 | Ko & Myers, Whyline (CHI 2004) | 도구 유무, 소규모 | 디버깅 시간이 약 1/8로 줄었다. 수치는 2차 자료로만 확인했다 [불확실] |
-| AgentLens (arXiv:2402.08995) | 기본 재생 시스템, 14명 | 정확도와 시간 모두 유의하게 개선, 시간 33~78% 단축 |
+| AgentLens (IEEE TVCG 2025) | 기본 재생 시스템, 14명 | 정확도와 시간 모두 유의하게 개선, 시간 33~78% 단축 |
 | AgentStepper (arXiv:2602.06593) | 편집기에서 원시 로그 열람, 12명 | 버그 식별 17% → 60%(유의), NASA-TLX 좌절감 5.4 → 2.4. 궤적 이해 점수는 64% → 67%로 거의 같았다 |
 | EvalLM (CHI 2024) | 수동 평가, 12명 | 검토한 출력 2배, 프롬프트 수정 59% 감소. 시각화 도구는 아니지만 LLM 결과물을 원시 형태로 검토하는 조건을 기준선으로 삼은 CHI 사례 |
 
@@ -161,7 +161,7 @@ Munzner의 중첩 모델과 과업 추상화([4.2절](#42-중첩-모델과-과�
 
 | 연구 | 설계 | 평가 | 교훈 |
 | --- | --- | --- | --- |
-| AgentLens (arXiv:2402.08995, TVCG 게재 표기 [불확실]) | 원시 이벤트를 행동 계층으로 구조화, 시점별 LLM 요약, 확대 구간 재요약, 원인 추적, 연동된 보기 3개 | 14명, 재생 시스템 대비 정확도·시간 개선, SUS 67.5 | 요약과 계층이 정보 밀도를 낮췄다. 긴 시간축 탐색과 초보자 안내는 부족했다. |
+| AgentLens (IEEE TVCG 31(8), 2025) | 원시 이벤트를 행동 계층으로 구조화, 시점별 LLM 요약, 확대 구간 재요약, 원인 추적, 연동된 보기 3개 | 14명, 재생 시스템 대비 정확도·시간 개선, SUS 67.5 | 요약과 계층이 정보 밀도를 낮췄다. 긴 시간축 탐색과 초보자 안내는 부족했다. |
 | AGDebugger (CHI 2025) | 메시지 이력 개요, 메시지 수정 후 그 지점부터 다시 실행 | 형성 인터뷰 5명, 사용자 연구 14명 | 긴 대화에서 오류 위치 찾기가 핵심 난점이다. |
 | AgentStepper (arXiv:2602.06593) | 에이전트↔LLM, 에이전트↔도구 대화를 나란히 배치, 이벤트별 한 줄 요약(직전과의 차이 강조), 도구 호출별 diff | 12명, 원시 로그 대비 | 실패 찾기에서는 효과가 컸고 이해에서는 작았다. |
 | TraceView (arXiv:2606.22110) | 생각·행동·결과 단계로 정규화, 반복 개요에서 상세로 이동 | 형성 연구 5명 | 훑어보기와 개요·상세 구조는 높게 평가됐다. 그래프 해석성과 미리보기 길이는 낮게 평가됐다. 짧은 노드 요약과 마우스 올림 미리보기를 요청받았다. |
@@ -304,7 +304,7 @@ Munzner의 중첩 모델과 과업 추상화([4.2절](#42-중첩-모델과-과�
 - Kim, T. S. et al. (2024). EvalLM. CHI 2024. https://arxiv.org/abs/2309.13633
 
 **같은 분야의 시스템과 연구**
-- Lu, J., Pan, B. et al. (2024). AgentLens: Visual Analysis for Agent Behaviors in LLM-based Autonomous Systems. https://arxiv.org/abs/2402.08995
+- Lu, J., Pan, B. et al. (2025). AgentLens: Visual Analysis for Agent Behaviors in LLM-based Autonomous Systems. IEEE TVCG 31(8). https://www.computer.org/csdl/journal/tg/2025/08/10520238/1WDYcwmHhvO (arXiv:2402.08995 https://arxiv.org/abs/2402.08995)
 - Epperson, W. et al. (2025). Interactive Debugging and Steering of Multi-Agent AI Systems (AGDebugger). CHI 2025. https://arxiv.org/abs/2503.02068
 - Hutter, R., & Pradel, M. (2026). AgentStepper: Interactive Debugging of Software Development Agents. https://arxiv.org/abs/2602.06593
 - Sajadi, A. et al. (2026). TraceView: Interactive Visualization of Agentic Program Repair Trajectories. arXiv:2606.22110.

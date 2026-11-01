@@ -66,7 +66,7 @@
 | Agent ATO | VISSOFT 2026 NIER, arXiv 2609.08301 | 콘솔 로그를 도구 유형별 타임라인으로 | 정식 평가 없음 |
 | SeaView | arXiv 2504.08696 | 환경 실패와 에이전트 실수 구분, 실행 간 비교 | 사용자 연구. 참가자 수는 조사마다 다르게 보고됨 [불확실] |
 | InconLens | arXiv 2603.28106 | 여러 실행을 정렬해 갈라지는 지점 탐지 | 사례 연구, 전문가 인터뷰 |
-| AgentLens | arXiv 2402.08995 (TVCG 2024, [불확실]) | 에이전트 행동 계층과 요약, 원인 추적 | 14명 |
+| AgentLens | IEEE TVCG 31(8), 2025. arXiv 2402.08995 | 에이전트 행동 계층과 요약, 원인 추적 | 14명 |
 | Signals | arXiv 2604.00356 | 오정렬·정체·실패·루프 신호 계산. 화면 없음, τ-bench 대상 | – |
 
 **그 밖에 확인한 것**(표에서 뺌)
@@ -182,7 +182,7 @@
 
 ## 5. 앞선 조사와 달라진 점
 
-- **AgentLens의 게재처.** [좋은 시각화 원칙 조사](VisualizationPrinciples.md)에서는 TVCG 게재가 [불확실]이었다. 이번 조사는 TVCG 2024로 보고했지만 원문으로 확인하지 않았으므로 [불확실]로 둔다.
+- **AgentLens의 게재처.** 앞선 조사에서는 TVCG 게재가 [불확실]이었고, 이번 조사는 "TVCG 2024"로 보고했다. 2026-11-01에 사용자가 IEEE Computer Society 디지털 도서관의 게재 페이지(https://www.computer.org/csdl/journal/tg/2025/08/10520238/1WDYcwmHhvO)로 **IEEE TVCG 게재를 확인**했다. 그 페이지 주소에 따르면 2025년 8호(31권)다. 두 조사 문서를 모두 고쳤다.
 - **SeaView의 참가자 수.** 앞선 조사는 10명으로, 이번 조사는 밝히지 않았다고 보고했다. 논문 인용 전에 원문을 확인한다.
 - **Claude Code 전용 도구.** 앞선 조사는 ClaudeScope와 Coding Agent Visualizer 둘만 찾았다. 이번에 더 많은 사용자를 가진 도구(agent-flow, zoetrope, claude-code-history-viewer, disler, claude-code-log, sniffly)를 찾았다. "전부 보여 주기 계열이며 사용자 평가가 없다"는 결론은 같다.
 
@@ -225,7 +225,7 @@
 - Agent ATO https://arxiv.org/abs/2609.08301
 - SeaView https://arxiv.org/abs/2504.08696
 - InconLens https://arxiv.org/abs/2603.28106
-- AgentLens https://arxiv.org/abs/2402.08995
+- AgentLens https://www.computer.org/csdl/journal/tg/2025/08/10520238/1WDYcwmHhvO (IEEE TVCG), https://arxiv.org/abs/2402.08995
 - Signals https://arxiv.org/abs/2604.00356
 
 **일반 로그·트레이스·이벤트 시각화**
