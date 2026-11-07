@@ -16,10 +16,30 @@ const STEP_LABEL = {
   text: "응답",
   user_message: "작업 중 사용자 메시지",
   notification: "알림",
-  hook_failure: "hook 전달 실패",
+  hook_failure: "실시간 신호 누락",
   compact: "대화 요약(문맥 압축)",
   subagent: "서브에이전트",
 };
+// What the transcript recovers when a hook was not delivered (WebUI.md section 3, I40): [explanation, recovered].
+const LOST_HOOK = {
+  PreToolUse: ["도구 실행 시각을 세션 기록 시각으로 추정함", true],
+  PostToolUse: ["도구 실행 시각을 세션 기록 시각으로 추정함", true],
+  PostToolUseFailure: ["실패 여부와 오류 문구를 세션 기록으로 보완함", true],
+  Stop: ["턴 끝을 세션 기록의 턴 소요 시간 기록으로 보완함", true],
+  UserPromptSubmit: ["턴 시작 지시를 세션 기록으로 보완함", true],
+  PermissionRequest: ["이 도구의 권한 요청 여부는 확인할 수 없음", false],
+  SubagentStart: ["서브에이전트의 정확한 시작·끝 시각은 확인할 수 없음", false],
+  SubagentStop: ["서브에이전트의 정확한 시작·끝 시각은 확인할 수 없음", false],
+  StopFailure: ["턴 실패의 오류 코드는 확인할 수 없음", false],
+};
+
+function lostHookText(detail) {
+  const hook = detail?.hook_event || "hook";
+  const [explanation, recovered] = LOST_HOOK[hook] || ["이 신호의 내용은 확인할 수 없음", false];
+  const cause = String(detail?.message || "").includes("ECONNREFUSED") ? "AgentVis 서버가 꺼져 있었음" : "전달 실패";
+  return { text: `실시간 신호 누락(${hook}) · ${explanation} · 원인: ${cause}`, recovered };
+}
+
 const NOTIFICATION_SOURCE = {
   "task-notification": "작업 알림",
   peer: "하위 에이전트 보고",
@@ -172,7 +192,9 @@ function renderStep(step) {
     const source = NOTIFICATION_SOURCE[step.detail?.source] || step.detail?.source || "";
     item.append(expandable("notification", `${label}(${source}): ${firstLine(step.text, 100)}`, step.text));
   } else if (step.kind === "hook_failure") {
-    item.append(el("span", null, `${label}: ${step.detail?.hook_event || ""} — 이 구간의 hook 수집이 빠졌습니다 (${step.detail?.message || ""})`));
+    const { text, recovered } = lostHookText(step.detail);
+    item.classList.add(recovered ? "recovered" : "lost");
+    item.append(expandable("hook-failure", text, step.detail?.message || ""));
   } else if (step.kind === "compact") {
     item.append(el("span", null, `${label}${step.detail?.trigger ? ` (${step.detail.trigger})` : ""}`));
   } else if (step.kind === "subagent") {

@@ -48,8 +48,10 @@
 | --- | --- |
 | `prompt_id`, `index` | 턴 ID, 세션 안의 순번(1부터) |
 | `prompt` | 사람이 입력한 지시 원문 |
-| `started_at`, `ended_at` | 시작 기록 시각, `Stop` hook 시각(없으면 마지막 단계 시각) |
-| `state` | `running`(`Stop`이 아직 없고 세션이 끝나지 않음), `ended`, `failed`(`StopFailure`) |
+| `started_at`, `ended_at` | 시작 기록 시각, `Stop` hook 시각(없으면 그 턴의 `turn_duration` 기록 시각, 그것도 없으면 마지막 단계 시각) |
+| `state` | `running`(`Stop` hook도 `turn_duration` 기록도 아직 없고 세션이 끝나지 않음), `ended`, `failed`(`StopFailure`) |
+
+**턴 끝 신호**(H6): `Stop` hook과 세션 기록의 `turn_duration` 기록([실측](../DataSource.md#38-hook-전달-실패와-턴-끝-기록))은 둘 다 턴이 끝났다는 신호다. 서버가 꺼져 있어 `Stop` hook을 받지 못해도 세션 기록을 나중에 읽으면 턴이 끝난 것으로 보정된다. `turn_duration` 기록은 단계로 만들지 않고, `promptId`가 없으므로 부모를 따라 턴을 찾는다(턴에 속하는 기록의 규칙과 같다). 둘 다 있으면 끝 시각은 `Stop` hook 시각이다.
 | `steps` | 단계 목록(4절), 시각 순 |
 
 턴은 [Turn](../../src/agentvis/analysis/session.py#Turn)으로 나타낸다. 세션 기록에 아직 사람 입력 기록이 없는 턴은 hook의 `UserPromptSubmit`(`prompt`)으로 만든다.
@@ -74,7 +76,7 @@
 - `assistant` 기록에서 나온 단계(`thinking`, `text`, `tool_call`)는 그 기록의 `message.id`를 `message_id`로 가진다. 같은 모델 응답의 블록을 묶어 병렬 호출을 알아보는 데 쓴다([작업 흐름 그래프](FlowGraph.md#33-간선)). 그 밖의 단계는 `None`이다(M4-T7).
 - 세션 기록의 `queue-operation`은 단계로 만들지 않는다. 메시지가 모델에게 실제로 전달된 시점은 `queued_command` 첨부 기록이 나타낸다.
 - `user_message`, `notification`, `hook_failure`는 첨부 기록이 저장되어야 나온다(I18, M3-T2에서 저장 대상 확장).
-- `turn_duration` 같은 나머지 `system` 기록은 단계로 만들지 않고 턴 정보에만 쓴다.
+- `turn_duration` 같은 나머지 `system` 기록은 단계로 만들지 않고 턴 정보에만 쓴다. `turn_duration`은 턴 끝 신호다(3절, H6).
 
 ## 5. 도구 호출
 

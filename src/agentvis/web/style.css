@@ -153,11 +153,14 @@ details > summary { cursor: pointer; list-style-position: outside; }
 }
 
 .step-hook_failure {
-  background: var(--warning-bg);
   border-radius: 4px;
   padding: 4px 8px;
   font-size: 12px;
 }
+
+/* Recovered lost hooks are quiet; ones whose content is gone keep the warning color (WebUI.md section 3, I40). */
+.step-hook_failure.recovered { color: var(--muted); }
+.step-hook_failure.lost { background: var(--warning-bg); }
 
 .step-compact {
   color: var(--muted);
