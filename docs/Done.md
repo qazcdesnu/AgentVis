@@ -2,6 +2,44 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## M4-T2 변경 알림 SSE 스트림과 실시간 갱신
+
+- 시작일: 2026-11-07
+- 완료일: 2026-11-07
+- 근거 문서: [웹 UI 설계의 실시간 갱신](design/WebUI.md#8-실시간-갱신), [이벤트 저장소 설계의 M4-T2 변경](design/Store.md#10-m4-t2-변경)
+
+### 계획
+- 이벤트 저장소에 `changes_since`, 서버에 `GET /api/stream`(SSE)을 설계·구현한다.
+- 화면이 알림을 받아 보고 있는 세션만 다시 받아 그리되, 고른 턴·단계·배율·스크롤을 지키고 최신 턴을 따라가게 한다.
+- 저장소 질의와 스트림 생성기를 테스트하고, 실제 서버에서 알림이 오는지 확인한다.
+- M2-T4 브랜치 위에 쌓은 `m4-t2-live-stream`에서 진행한다.
+
+### 진행 기록
+- 2026-11-07: 사용자가 진행 중인 세션을 실시간으로 보고 싶다고 했다. 세션 상세 계산은 가장 큰 세션도 약 0.12초, 세션 목록은 약 1.1초다. 사용자 지시로 H6·I40·M2-T4 뒤에 시작했다.
+- 2026-11-07: 웹 UI 설계 8절, 저장소 설계 10절, 분석기 설계의 API 표를 먼저 쓰고 `store.py`(`changes_since`), `server.py`(`stream_changes`, `GET /api/stream`), `app.js`(알림 받기, 보던 세션만 다시 받기, 목록 15초 제한, 끊긴 뒤 모두 다시 받기, 최신 턴 따라가기, 그래프 배율·스크롤 기억, 노드 선택을 해시에), `graph.js`(배율·스크롤 되살리기), `index.html`·`style.css`(연결 표시)를 고쳤다.
+- 2026-11-07: 실제 서버로 확인했다: `/api/stream`이 `text/event-stream`, `cache-control: no-cache`로 열리고, 이 세션이 도구를 부를 때마다 이 세션 ID를 담은 `change` 알림이 왔다(25초 동안 4건). 다른 `Host`로 오면 `400`이다.
+- 2026-11-07: 스트림을 연 채 Ctrl+C하면 서버가 10초가 지나도 끝나지 않는 문제를 찾았다. uvicorn이 열린 연결을 기다리기 때문이다. 종료 대기 시간 3초만 두면 끝나지만 취소 오류 흔적이 남아, 종료 신호를 받으면 앱에 종료 중 표시를 남기는 `_StoppingServer`를 더했다. 다시 재니 약 1초 만에 오류 없이 끝났다([CLI 설계](design/Cli.md#2-명령)).
+
+### 결정 사항
+- 알림은 저장소를 1초마다 이벤트 `id`로 묻는 방식이다. hook으로 들어온 이벤트와 기록 리더가 읽은 이벤트가 같은 길로 알려지고, 수집기·기록 리더에 알림 장치를 따로 달지 않아도 된다.
+- 다시 그려도 고른 턴·단계·배율·스크롤을 지킨다. 해시에 `turn`이 없으면 최신 턴을 따라가고, 마지막 턴을 고르면 `turn`을 지운다.
+- 목록은 계산이 무거워(약 1.1초) 15초에 한 번까지만 다시 받는다.
+- 알림 없이 오래 실행되는 막대를 시계로 늘이는 일은 하지 않았다(흐름 그래프 설계의 나중에 정할 것).
+
+### 변경 파일
+- `src/agentvis/store.py`, `src/agentvis/server.py`, `src/agentvis/cli.py`, `src/agentvis/web/app.js`, `src/agentvis/web/graph.js`, `src/agentvis/web/index.html`, `src/agentvis/web/style.css`
+- `tests/test_store.py`, `tests/test_api.py`, `tests/test_cli.py`
+- `docs/design/WebUI.md`, `docs/design/Store.md`, `docs/design/Analysis.md`, `docs/design/FlowGraph.md`, `docs/design/Cli.md`, `docs/Roadmap.md`, `docs/Ongoing.md`, `docs/Done.md`
+
+### 결과
+- 진행 중인 세션을 띄워 두면 도구 호출마다 화면이 바로 갱신되고, 보던 턴·단계·배율이 그대로 남으며, 새 턴이 시작되면 따라간다. 머리 줄에 실시간 연결 상태가 보인다.
+- 스트림을 연 브라우저가 있어도 Ctrl+C로 서버가 바로 끝난다.
+
+### 검증
+- `check_docs`, `check_pointers`, `check_tasks`, `check_commits`, `check_web` 통과. 단위 테스트 140개 통과(M4-T2 테스트 4개 추가).
+- 실제 서버의 알림 수신과 종료는 위 진행 기록대로 확인했다. 브라우저 화면 동작은 확인하지 않았다(사용자 확인 필요).
+
+
 ## M2-T4 서버 시작 시 놓친 세션 기록 찾아 읽기
 
 - 시작일: 2026-11-07

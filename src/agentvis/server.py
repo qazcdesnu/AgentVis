@@ -4,15 +4,18 @@
 @doc: docs/design/Collector.md#21-요청-검증
 @doc: docs/design/Analysis.md#8-조회-api
 @doc: docs/design/WebUI.md#5-파일-구성
+@doc: docs/design/WebUI.md#81-변경-알림-스트림
 """
 
+import asyncio
 import json
+from collections.abc import AsyncIterator, Awaitable, Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.trustedhost import TrustedHostMiddleware
@@ -26,6 +29,10 @@ from agentvis.transcript import TranscriptReader, paths_to_read
 
 # @doc: docs/design/Collector.md#21-요청-검증
 ALLOWED_HOSTS = ("127.0.0.1", "localhost")
+# @doc: docs/design/WebUI.md#81-변경-알림-스트림
+STREAM_POLL_SECONDS = 1.0
+# @doc: docs/design/WebUI.md#81-변경-알림-스트림
+STREAM_KEEPALIVE_SECONDS = 15.0
 _WEB_DIR = Path(__file__).parent / "web"
 
 
@@ -36,6 +43,32 @@ class _RevalidatedStaticFiles(StaticFiles):
         response = await super().get_response(path, scope)
         response.headers["Cache-Control"] = "no-cache"
         return response
+
+
+async def stream_changes(
+    store: EventStore,
+    disconnected: Callable[[], Awaitable[bool]],
+    stopping: Callable[[], bool] = lambda: False,
+    poll: float = STREAM_POLL_SECONDS,
+    keepalive: float = STREAM_KEEPALIVE_SECONDS,
+) -> AsyncIterator[str]:
+    """Yield SSE lines naming the sessions that got new events, polling the store until the client leaves or the server stops.
+
+    @doc: docs/design/WebUI.md#81-변경-알림-스트림
+    """
+    last_id, _ = await run_in_threadpool(store.changes_since, 0)
+    quiet = 0.0
+    while not stopping() and not await disconnected():
+        await asyncio.sleep(poll)
+        last_id, sessions = await run_in_threadpool(store.changes_since, last_id)
+        if sessions:
+            quiet = 0.0
+            yield f"event: change\ndata: {json.dumps({'sessions': sessions, 'last_id': last_id})}\n\n"
+            continue
+        quiet += poll
+        if quiet >= keepalive:
+            quiet = 0.0
+            yield ": keepalive\n\n"
 
 
 def _rejection(request: Request) -> JSONResponse | None:
@@ -55,6 +88,8 @@ def create_app(store: EventStore, reader: TranscriptReader | None = None) -> Fas
     @doc: docs/design/FlowGraph.md#5-조회-api
     """
     app = FastAPI(title="AgentVis")
+    # Set when the server begins to shut down, so live-update streams end on their own (Cli.md section 2).
+    app.state.stopping = False
     # Rejects DNS-rebinding requests, whose Host is the attacker's domain.
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=list(ALLOWED_HOSTS))
 
@@ -91,6 +126,13 @@ def create_app(store: EventStore, reader: TranscriptReader | None = None) -> Fas
             del summary["turns"], summary["preamble"]
             summaries.append(summary)
         return {"sessions": summaries}
+
+    @app.get("/api/stream")
+    def stream(request: Request) -> StreamingResponse:
+        # Proxies and browsers must not buffer or cache the event stream.
+        headers = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+        events = stream_changes(store, request.is_disconnected, lambda: app.state.stopping)
+        return StreamingResponse(events, media_type="text/event-stream", headers=headers)
 
     @app.get("/api/sessions/{session_id}")
     def session(session_id: str) -> dict:

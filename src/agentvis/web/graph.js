@@ -300,8 +300,11 @@ function drawBreaks(content, breaks, height) {
 // Draws the graph into `container` with zoom and time-axis controls; `onSelect(node)` runs when a node is clicked.
 // options.initialId names a node to start selected (WebUI.md section 7.5); it is ignored when no node has that id.
 // options.scale is "compress" or "real" (section 6.1) and options.onScale(scale) runs when the toggle is pressed.
+// options.view ({zoom, scrollLeft}) restores the zoom and scroll of an earlier drawing, and options.onView(view)
+// reports them on every change, so a live redraw keeps what the user was looking at (WebUI.md section 8.2).
+// onSelect(node, byUser) runs with byUser false for the initial node.
 export function renderGraph(container, graph, onSelect, options = {}) {
-  const { initialId = null, scale: mode = "compress", onScale = () => {} } = options;
+  const { initialId = null, scale: mode = "compress", onScale = () => {}, view = null, onView = () => {} } = options;
   let zoom = 1;
   let selected = null;
   const toolbar = document.createElement("div");
@@ -359,6 +362,7 @@ export function renderGraph(container, graph, onSelect, options = {}) {
     zoom = Math.min(40, Math.max(0.05, value));
     draw();
     scroller.scrollLeft = anchor * scroller.scrollWidth - scroller.clientWidth / 2;
+    onView({ zoom, scrollLeft: scroller.scrollLeft });
   }
 
   function draw() {
@@ -379,7 +383,7 @@ export function renderGraph(container, graph, onSelect, options = {}) {
     drawNodes(content, placed, height, (node) => {
       selected = node.id;
       highlight();
-      onSelect(node);
+      onSelect(node, true);
     });
     drawBarCuts(content, placed, breaks);
     labels.replaceChildren(labelSvg.node());
@@ -399,15 +403,27 @@ export function renderGraph(container, graph, onSelect, options = {}) {
     setZoom(zoom * (event.deltaY < 0 ? 1.15 : 1 / 1.15));
   }, { passive: false });
 
-  draw();
-  // Real-time proportion can be very wide, so it always starts fitted (section 6.1).
-  if (scroller.clientWidth) setZoom(mode === "real" ? fitZoom() : Math.max(fitZoom(), 0.15));
+  scroller.addEventListener("scroll", () => onView({ zoom, scrollLeft: scroller.scrollLeft }));
+
+  if (view) {
+    zoom = view.zoom;
+    draw();
+    scroller.scrollLeft = view.scrollLeft;
+  } else {
+    draw();
+    // Real-time proportion can be very wide, so it always starts fitted (section 6.1).
+    if (scroller.clientWidth) setZoom(mode === "real" ? fitZoom() : Math.max(fitZoom(), 0.15));
+  }
   const initial = initialId === null ? null : graph.nodes.find((node) => node.id === String(initialId));
   if (initial) {
     selected = initial.id;
     highlight();
-    onSelect(initial);
+    onSelect(initial, false);
+    // Keep a restored scroll position unless the chosen node is out of sight.
     const item = layout(graph, zoom, mode).placed.get(initial.id);
-    if (item) scroller.scrollLeft = LEFT_MARGIN + item.x0 - scroller.clientWidth / 2;
+    const x = item ? LEFT_MARGIN + item.x0 : null;
+    if (x !== null && (!view || x < scroller.scrollLeft || x > scroller.scrollLeft + scroller.clientWidth)) {
+      scroller.scrollLeft = x - scroller.clientWidth / 2;
+    }
   }
 }

@@ -6,15 +6,18 @@
 import io
 import json
 import os
+import signal
 import tomllib
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from unittest import mock
 
+import uvicorn
 from fastapi import FastAPI
 
 from agentvis import __version__
-from agentvis.cli import DEFAULT_PORT, main
+from agentvis.cli import DEFAULT_PORT, SHUTDOWN_GRACE_SECONDS, _run_server, main
+from agentvis.server import create_app
 from agentvis.store import EventStore
 from tests.support import RepoTestCase
 from tools.doclib import REPO_ROOT
@@ -70,16 +73,30 @@ class ServeTest(RepoTestCase):
         return code, output.getvalue()
 
     def test_serve_runs_uvicorn_on_loopback_with_default_store(self) -> None:
-        with mock.patch("agentvis.cli.uvicorn.run", self.fake_run):
+        with mock.patch("agentvis.cli._run_server", self.fake_run):
             code, output = self.run_main("serve")
         self.assertEqual(code, 0)
         self.assertEqual(self.calls, [(FastAPI, "127.0.0.1", DEFAULT_PORT, True)])
+        self.assertIn("놓친 세션 기록:", output)
         self.assertIn(f"AgentVis 서버: http://127.0.0.1:{DEFAULT_PORT}", output)
         self.assertIn(f"데이터베이스: {self.root / 'agentvis.db'}", output)
         self.assertEqual(self.closed, 1)
 
+    def test_server_marks_the_app_stopping_and_bounds_the_wait_for_open_streams(self) -> None:
+        with EventStore(self.root / "agentvis.db") as store:
+            app = create_app(store)
+            captured = {}
+            with mock.patch.object(uvicorn.Server, "run", lambda server: captured.setdefault("server", server)):
+                _run_server(app, "127.0.0.1", 9100)
+            server = captured["server"]
+            # An open live-update stream must not keep Ctrl+C from stopping the server (M4-T2).
+            self.assertEqual(server.config.timeout_graceful_shutdown, SHUTDOWN_GRACE_SECONDS)
+            self.assertFalse(app.state.stopping)
+            server.handle_exit(signal.SIGINT, None)
+            self.assertTrue(app.state.stopping)
+
     def test_serve_port_option(self) -> None:
-        with mock.patch("agentvis.cli.uvicorn.run", self.fake_run):
+        with mock.patch("agentvis.cli._run_server", self.fake_run):
             self.run_main("serve", "--port", "9100")
         self.assertEqual(self.calls[0][2], 9100)
 
@@ -90,7 +107,7 @@ class ServeTest(RepoTestCase):
             self.assertEqual(exit_info.exception.code, 2)
 
     def test_store_is_closed_when_server_fails(self) -> None:
-        with mock.patch("agentvis.cli.uvicorn.run", side_effect=SystemExit(3)):
+        with mock.patch("agentvis.cli._run_server", side_effect=SystemExit(3)):
             with self.assertRaises(SystemExit):
                 self.run_main("serve")
         self.assertEqual(self.closed, 1)

@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 import uvicorn
+from fastapi import FastAPI
 
 from agentvis import __version__
 from agentvis.hook_settings import (
@@ -29,6 +30,9 @@ from agentvis.transcript import TranscriptReader, default_projects_dir, find_unr
 # @doc: docs/design/Cli.md#21-serve
 DEFAULT_PORT = 8765
 _HOST = "127.0.0.1"
+# Open live-update streams would otherwise keep the server from stopping on Ctrl+C.
+# @doc: docs/design/Cli.md#2-명령
+SHUTDOWN_GRACE_SECONDS = 3
 
 
 def _port(value: str) -> int:
@@ -36,6 +40,26 @@ def _port(value: str) -> int:
     if not 1 <= port <= 65535:
         raise argparse.ArgumentTypeError(f"포트는 1~65535 사이여야 함: {value}")
     return port
+
+
+class _StoppingServer(uvicorn.Server):
+    """A uvicorn server that marks the app as stopping before it waits for connections to close.
+
+    @doc: docs/design/Cli.md#2-명령
+    """
+
+    def handle_exit(self, sig: int, frame: object) -> None:
+        self.config.app.state.stopping = True
+        super().handle_exit(sig, frame)
+
+
+def _run_server(app: FastAPI, host: str, port: int) -> None:
+    """Run the app until it is stopped; live-update streams end on their own when it stops.
+
+    @doc: docs/design/Cli.md#2-명령
+    """
+    config = uvicorn.Config(app, host=host, port=port, timeout_graceful_shutdown=SHUTDOWN_GRACE_SECONDS)
+    _StoppingServer(config).run()
 
 
 def _serve(args: argparse.Namespace) -> int:
@@ -51,7 +75,7 @@ def _serve(args: argparse.Namespace) -> int:
             print(f"AgentVis 서버: http://{_HOST}:{args.port}")
             print(f"놓친 세션 기록: {len(missed)}개 파일")
             print(f"데이터베이스: {path}", flush=True)
-            uvicorn.run(create_app(store, reader), host=_HOST, port=args.port)
+            _run_server(create_app(store, reader), _HOST, args.port)
         finally:
             reader.stop()
     return 0

@@ -62,7 +62,7 @@ function readHash() {
     session: params.get("session"),
     view: params.get("view") === "list" ? "list" : "graph",
     turn: Number(params.get("turn")) || null,
-    step: Number(params.get("step")) || null,
+    step: params.get("step") || null,
     width: params.get("width") === "time" ? "time" : "equal",
     scale: params.get("scale") === "real" ? "real" : "compress",
   };
@@ -246,7 +246,7 @@ function viewToggle(state) {
 }
 
 
-function focusStep(container, stepId) {
+function focusStep(container, stepId, scroll = true) {
   const item = stepId ? container.querySelector(`.steps [data-step-id="${stepId}"]`) : null;
   if (!item) return;
   item.classList.add("focused");
@@ -255,7 +255,7 @@ function focusStep(container, stepId) {
   }
   const own = item.querySelector(":scope > details");
   if (own) own.open = true;
-  item.scrollIntoView({ block: "center" });
+  if (scroll) item.scrollIntoView({ block: "center" });
 }
 
 function renderNodeDetail(container, node, turn, steps) {
@@ -300,12 +300,30 @@ function renderTurnPicker(view, turn) {
     option.selected = item === turn;
     select.append(option);
   }
-  select.addEventListener("change", () => updateHash({ turn: Number(select.value), step: null }));
+  select.addEventListener("change", () => pickTurn(view, Number(select.value), null));
   const meta = el("div", "meta", `${formatTime(turn.started_at)} · ${turn.state} · 도구 ${turn.tool_call_count}`);
   if (turn.failure_count) meta.append(" · ", el("span", "fail-count", `실패 ${turn.failure_count}`));
   picker.append(select, meta);
   if (turn.prompt && turn.prompt.includes("\n")) picker.append(expandable("prompt", "턴 시작 지시 전문", turn.prompt));
+  picker.append(followControl());
   return picker;
+}
+
+// Without a turn in the hash the last turn is shown, so a new turn is followed automatically (WebUI.md section 8.2).
+function pickTurn(view, index, step) {
+  const last = view.turns[view.turns.length - 1];
+  updateHash({ turn: last && index === last.index ? null : index, step });
+}
+
+function followControl() {
+  if (readHash().turn === null) {
+    return el("div", "meta follow", "● 최신 턴을 따라가는 중");
+  }
+  const button = el("button", "follow", "최신 턴 따라가기");
+  button.type = "button";
+  button.title = "새 턴이 시작되면 자동으로 그 턴을 보여 줍니다";
+  button.addEventListener("click", () => updateHash({ turn: null, step: null }));
+  return button;
 }
 
 // Box 4, list view: the chosen turn's steps (WebUI.md section 7.5).
@@ -330,10 +348,18 @@ async function renderTurnGraph(state, view, turn) {
     const graph = cache.graphs.get(turn.index);
     const steps = indexSteps(turn.steps);
     // The graph needs its container laid out to fit the width, so draw after it is attached.
-    requestAnimationFrame(() => renderGraph(graphBox, graph, (node) => renderNodeDetail(detail, node, turn, steps), {
+    const viewKey = `${view.session_id}:${turn.index}:${state.scale}`;
+    const onNode = (node, byUser) => {
+      renderNodeDetail(detail, node, turn, steps);
+      // A clicked node goes to the hash so a live redraw keeps its detail open (WebUI.md section 8.2).
+      if (byUser && String(readHash().step) !== node.id) updateHash({ step: node.id });
+    };
+    requestAnimationFrame(() => renderGraph(graphBox, graph, onNode, {
       initialId: state.step,
       scale: state.scale,
       onScale: (scale) => updateHash({ scale: scale === "real" ? "real" : null }),
+      view: graphViews.get(viewKey) || null,
+      onView: (saved) => graphViews.set(viewKey, saved),
     }));
   } catch (error) {
     showError(graphBox, error);
@@ -372,10 +398,13 @@ async function loadSession(state) {
     renderOverview(overview, turns, {
       selected: turn ? turn.index : null,
       width: state.width,
-      onSelect: (picked, toFailure) => updateHash({ turn: picked.index, step: toFailure ? picked.firstFailure : null }),
+      onSelect: (picked, toFailure) => pickTurn(view, picked.index, toFailure ? picked.firstFailure : null),
       onWidth: (width) => updateHash({ width: width === "time" ? "time" : null }),
     });
-    if (turn && state.view === "list") focusStep(container, state.step);
+    // Only a newly chosen step scrolls the list; a live redraw leaves the scroll where it is.
+    const focusKey = `${view.session_id}:${state.step}`;
+    if (turn && state.view === "list") focusStep(container, state.step, focusKey !== lastFocus);
+    lastFocus = focusKey;
   } catch (error) {
     showError(container, error);
   }
@@ -395,6 +424,9 @@ function box(title, content, scope, controls = null) {
 // The last session detail and its turn graphs, reused while only the selection in the hash changes (WebUI.md section 7.4).
 let cache = { view: null, turns: [], graphs: new Map() };
 let shown = { project: undefined, session: undefined };
+// Zoom and scroll of each drawn graph, by session, turn and time axis, kept across live redraws (WebUI.md section 8.2).
+const graphViews = new Map();
+let lastFocus = null;
 
 async function render(force = false) {
   const state = readHash();
@@ -452,7 +484,76 @@ function setupCollapse() {
   applyCollapsed(collapsed);
 }
 
+// Live updates: the server names the sessions that got new events (WebUI.md section 8).
+const LIST_REFRESH_MS = 15000;
+let refreshing = false;
+let refreshAgain = false;
+let lastListRefresh = 0;
+let listTimer = null;
+
+async function refreshSession() {
+  if (refreshing) {
+    refreshAgain = true;
+    return;
+  }
+  refreshing = true;
+  try {
+    do {
+      refreshAgain = false;
+      cache = { view: null, turns: [], graphs: new Map() };
+      await loadSession(readHash());
+    } while (refreshAgain);
+  } finally {
+    refreshing = false;
+  }
+}
+
+// Session and project lists are slow to compute, so they refresh at most every LIST_REFRESH_MS.
+function refreshLists() {
+  if (listTimer) return;
+  const wait = Math.max(0, lastListRefresh + LIST_REFRESH_MS - Date.now());
+  listTimer = setTimeout(async () => {
+    listTimer = null;
+    lastListRefresh = Date.now();
+    const state = readHash();
+    await Promise.all([loadProjects(state.project), loadSessions(state.project, state.session)]);
+  }, wait);
+}
+
+function setLive(connected) {
+  const badge = document.getElementById("live");
+  badge.textContent = connected ? "● 실시간" : "○ 실시간 끊김";
+  badge.className = connected ? "live on" : "live off";
+  badge.title = connected ? "진행 중인 세션이 바뀌면 화면이 바로 갱신됩니다" : "서버와의 연결을 다시 잇는 중입니다";
+}
+
+function connectStream() {
+  const source = new EventSource("/api/stream");
+  let lost = false;
+  source.addEventListener("open", () => {
+    setLive(true);
+    // Changes made while disconnected were not announced, so reload everything once.
+    if (lost) render(true);
+    lost = false;
+  });
+  source.addEventListener("error", () => {
+    lost = true;
+    setLive(false);
+  });
+  source.addEventListener("change", (event) => {
+    let sessions = [];
+    try {
+      sessions = JSON.parse(event.data).sessions || [];
+    } catch {
+      return;
+    }
+    if (sessions.includes(readHash().session)) refreshSession();
+    refreshLists();
+  });
+}
+
 setupCollapse();
 window.addEventListener("hashchange", () => render());
 document.getElementById("refresh").addEventListener("click", () => render(true));
 render();
+connectStream();
