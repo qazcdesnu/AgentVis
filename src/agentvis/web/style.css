@@ -240,7 +240,8 @@ details > summary { cursor: pointer; list-style-position: outside; }
 .g-bar-cut-gap { fill: none; stroke: var(--panel); stroke-width: 4; }
 .g-bar-cut { fill: none; stroke: var(--text); stroke-width: 1; }
 .g-node.kind-model rect { fill: var(--unfinished); }
-.g-toolbar .g-scale { margin-top: 0; margin-right: 6px; }
+.g-toolbar .g-scale { margin-top: 0; margin-right: 12px; align-items: center; }
+.g-toolbar { flex-wrap: wrap; }
 .g-break-label { fill: var(--muted); font-size: 10px; }
 .g-node { cursor: pointer; }
 .g-node rect, .g-node circle, .g-node path { stroke: var(--panel); stroke-width: 1; }

@@ -239,17 +239,27 @@ export function renderGraph(container, graph, onSelect, options = {}) {
   canvas.append(labels, scroller);
   const hint = document.createElement("span");
   hint.className = "meta";
-  hint.textContent = "확대: Ctrl·⌘+휠 또는 단추 · 이동: 가로 스크롤 · 노드를 누르면 상세";
-  const buttons = [["−", () => setZoom(zoom / 1.5)], ["+", () => setZoom(zoom * 1.5)], ["맞춤", () => setZoom(fitZoom())]].map(([label, action]) => {
+  hint.textContent = "Ctrl·⌘+휠로도 확대 · 가로 스크롤로 이동 · 노드를 누르면 상세";
+  const zoomButtons = [
+    ["축소", "가로 배율을 줄입니다", () => setZoom(zoom / 1.5)],
+    ["확대", "가로 배율을 키웁니다", () => setZoom(zoom * 1.5)],
+    ["전체 보기", "그래프 전체를 화면 폭에 맞춥니다", () => setZoom(fitZoom())],
+  ];
+  const buttons = zoomButtons.map(([label, title, action]) => {
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = label;
+    button.title = title;
     button.addEventListener("click", action);
     return button;
   });
   const scaleToggle = document.createElement("div");
   scaleToggle.className = "view-toggle g-scale";
-  for (const [value, label, title] of [["compress", "긴 구간 줄이기", "10초를 넘는 간격을 물결로 줄입니다"], ["real", "실제 시간 비례", "모든 길이가 실제 시간에 비례합니다"]]) {
+  const scaleLabel = document.createElement("span");
+  scaleLabel.className = "meta";
+  scaleLabel.textContent = "시간축:";
+  scaleToggle.append(scaleLabel);
+  for (const [value, label, title] of [["compress", "긴 대기 줄여 보기", "10초를 넘는 간격을 물결(≈)로 줄여 보여 줍니다"], ["real", "실제 시간 길이로 보기", "모든 가로 길이를 실제 걸린 시간에 비례시킵니다"]]) {
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = label;
