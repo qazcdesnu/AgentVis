@@ -203,19 +203,6 @@ function renderToolCall(call) {
   return details;
 }
 
-function renderTurn(turn, open, steps = turn.steps) {
-  const details = el("details", `turn state-${turn.state}`);
-  details.open = open;
-  const summary = el("summary");
-  summary.append(el("span", "turn-index", `#${turn.index}`), el("span", "turn-prompt", firstLine(turn.prompt, 140)));
-  const meta = el("span", "turn-meta", `${formatTime(turn.started_at)} · ${turn.state} · 도구 ${turn.tool_call_count}`);
-  if (turn.failure_count) meta.append(" · ", el("span", "fail-count", `실패 ${turn.failure_count}`));
-  summary.append(meta);
-  details.append(summary);
-  if (turn.prompt && turn.prompt.includes("\n")) details.append(el("pre", "prompt-full", turn.prompt));
-  details.append(renderSteps(steps));
-  return details;
-}
 
 function indexSteps(steps, index = new Map()) {
   for (const step of steps || []) {
@@ -226,7 +213,8 @@ function indexSteps(steps, index = new Map()) {
   return index;
 }
 
-function viewToggle(state, view) {
+// Only how the chosen turn's flow is drawn; the chosen turn, step and range stay (WebUI.md section 2).
+function viewToggle(state) {
   const toggle = el("div", "view-toggle");
   for (const [value, label] of [["graph", "흐름 그래프"], ["list", "목록"]]) {
     const button = el("button", value === state.view ? "active" : null, label);
@@ -237,26 +225,6 @@ function viewToggle(state, view) {
   return toggle;
 }
 
-// With a range, only the turns it spans and the steps between its first and last event are shown (WebUI.md section 7.5).
-function renderList(view, state, range) {
-  const turns = el("div", "turns");
-  if (range) {
-    turns.append(el("p", "meta", `고른 범위: #${range[0].turn} ~ #${range[1].turn}`));
-  } else if (view.preamble.length) {
-    turns.append(renderSteps(view.preamble));
-  }
-  const selectedTurn = state.step ? view.turns.find((turn) => turn.steps.some((step) => step.id === state.step)) : null;
-  view.turns.forEach((turn, index) => {
-    if (range && (turn.index < range[0].turn || turn.index > range[1].turn)) return;
-    const steps = range ? turn.steps.filter((step) => {
-      const at = new Date(step.at).getTime();
-      return at >= range[0].stepAt && at <= range[1].stepAt;
-    }) : turn.steps;
-    const open = turn === selectedTurn || turn.failure_count > 0 || turn.state !== "ended" || index === view.turns.length - 1;
-    turns.append(renderTurn(turn, open, steps));
-  });
-  return turns;
-}
 
 function focusStep(container, stepId) {
   const item = stepId ? container.querySelector(`.steps [data-step-id="${stepId}"]`) : null;
@@ -285,33 +253,56 @@ function renderNodeDetail(container, node, turn, steps) {
   container.querySelectorAll("details").forEach((details) => { details.open = true; });
 }
 
-async function renderGraphView(state, view) {
-  const wrapper = el("div", "graph-view");
-  if (!view.turns.length) {
-    wrapper.append(el("p", "empty", "턴이 없습니다."));
-    return wrapper;
-  }
-  const turnIndex = view.turns.some((turn) => turn.index === state.turn) ? state.turn : view.turns[view.turns.length - 1].index;
-  const turn = view.turns.find((item) => item.index === turnIndex);
+
+// The turn shown in both views: the hash's turn, else the last one (WebUI.md section 2).
+function chosenTurn(state, view) {
+  return view.turns.find((turn) => turn.index === state.turn) || view.turns[view.turns.length - 1];
+}
+
+// Box 3: which turn to look at. It is the same in both views.
+function renderTurnPicker(view, turn) {
+  const picker = el("div", "turn-picker");
   const select = el("select", "turn-select");
   for (const item of view.turns) {
     const option = el("option", null, `#${item.index} ${firstLine(item.prompt, 80)}${item.failure_count ? ` · 실패 ${item.failure_count}` : ""}`);
     option.value = String(item.index);
-    option.selected = item.index === turnIndex;
+    option.selected = item === turn;
     select.append(option);
   }
   select.addEventListener("change", () => updateHash({ turn: Number(select.value), step: null }));
   const meta = el("div", "meta", `${formatTime(turn.started_at)} · ${turn.state} · 도구 ${turn.tool_call_count}`);
   if (turn.failure_count) meta.append(" · ", el("span", "fail-count", `실패 ${turn.failure_count}`));
+  picker.append(select, meta);
+  if (turn.prompt && turn.prompt.includes("\n")) picker.append(expandable("prompt", "지시 전문", turn.prompt));
+  return picker;
+}
+
+// Box 4, list view: the chosen turn's steps; with a range, only those between its first and last event (section 7.5).
+function renderTurnSteps(view, turn, range) {
+  const wrapper = el("div", "turn-steps");
+  const inRange = (step) => {
+    const at = new Date(step.at).getTime();
+    return at >= range[0].stepAt && at <= range[1].stepAt;
+  };
+  const steps = range ? turn.steps.filter(inRange) : turn.steps;
+  if (range) wrapper.append(el("p", "meta", `고른 범위 안의 단계 ${steps.length}개 (범위: #${range[0].turn} ~ #${range[1].turn})`));
+  if (!range && turn === view.turns[0] && view.preamble.length) wrapper.append(el("div", "label", "첫 턴 앞의 단계"), renderSteps(view.preamble));
+  wrapper.append(steps.length ? renderSteps(steps) : el("p", "empty", "보여 줄 단계가 없습니다."));
+  return wrapper;
+}
+
+// Box 4, graph view: the chosen turn's flow graph and node detail.
+async function renderTurnGraph(state, view, turn) {
+  const wrapper = el("div", "graph-view");
   const graphBox = el("div", "graph-box");
   const detail = el("div", "node-detail");
   detail.append(el("p", "empty", "노드를 누르면 여기에 상세가 나옵니다."));
-  wrapper.append(select, meta, graphBox, detail);
+  wrapper.append(graphBox, detail);
   try {
-    if (!cache.graphs.has(turnIndex)) {
-      cache.graphs.set(turnIndex, await getJSON(`/api/sessions/${encodeURIComponent(view.session_id)}/turns/${turnIndex}/graph`));
+    if (!cache.graphs.has(turn.index)) {
+      cache.graphs.set(turn.index, await getJSON(`/api/sessions/${encodeURIComponent(view.session_id)}/turns/${turn.index}/graph`));
     }
-    const graph = cache.graphs.get(turnIndex);
+    const graph = cache.graphs.get(turn.index);
     const steps = indexSteps(turn.steps);
     // The graph needs its container laid out to fit the width, so draw after it is attached.
     requestAnimationFrame(() => renderGraph(graphBox, graph, (node) => renderNodeDetail(detail, node, turn, steps), {
@@ -348,23 +339,40 @@ async function loadSession(state) {
     if (view.failure_count) meta.append(" · ", el("span", "fail-count", `실패 ${view.failure_count}`));
     header.append(meta);
     const overview = el("div", "overview");
-    const toggle = viewToggle(state, view);
-    const body = state.view === "list" ? renderList(view, state, range) : await renderGraphView(state, view);
-    container.replaceChildren(header, overview, toggle, body);
+    const boxes = [box("세션 정보", header, "session"), box("세션 전체 흐름", overview, "session")];
+    const turn = view.turns.length ? chosenTurn(state, view) : null;
+    if (turn) {
+      const flow = state.view === "list" ? renderTurnSteps(view, turn, range) : await renderTurnGraph(state, view, turn);
+      boxes.push(box("턴 선택", renderTurnPicker(view, turn), "turn first"), box(`턴 #${turn.index} 작업 흐름`, flow, "turn", viewToggle(state)));
+    } else {
+      boxes.push(box("턴 선택", el("p", "empty", "턴이 없습니다."), "turn first"));
+    }
+    container.replaceChildren(...boxes);
     // The strip fits the detail width, so draw it after it is attached.
     renderOverview(overview, events, {
       selected: state.step,
       range,
       axis: state.axis,
       onSelect: (event) => updateHash({ step: event.id, turn: event.turn }),
-      onRange: (from, to) => updateHash({ from: from.id, to: to.id }),
+      onRange: (from, to) => updateHash({ from: from.id, to: to.id, turn: from.turn }),
       onClearRange: () => updateHash({ from: null, to: null }),
       onAxis: (axis) => updateHash({ axis: axis === "time" ? "time" : null }),
     });
-    if (state.view === "list") focusStep(body, state.step);
+    if (turn && state.view === "list") focusStep(container, state.step);
   } catch (error) {
     showError(container, error);
   }
+}
+
+// One titled box of the session detail; boxes of the same scope (session or turn) form a group (WebUI.md section 2).
+// `controls` sit in the title row and act on this box only.
+function box(title, content, scope, controls = null) {
+  const section = el("section", `box box-${scope.split(" ").join(" box-")}`);
+  const head = el("div", "box-head");
+  head.append(el("h3", "box-title", title));
+  if (controls) head.append(controls);
+  section.append(head, content);
+  return section;
 }
 
 // The last session detail and its turn graphs, reused while only the selection in the hash changes (WebUI.md section 7.4).
@@ -384,6 +392,50 @@ async function render(force = false) {
   await Promise.all(tasks);
 }
 
+// Side pane collapse is a per-viewer preference, so it lives in localStorage, never in the hash (WebUI.md section 2).
+const COLLAPSE_KEY = "agentvis.collapsed";
+
+function readCollapsed() {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(COLLAPSE_KEY) || "[]"));
+  } catch {
+    return new Set();
+  }
+}
+
+function applyCollapsed(collapsed) {
+  const panes = document.querySelector(".panes");
+  for (const button of document.querySelectorAll("button.collapse")) {
+    const id = button.dataset.pane;
+    const closed = collapsed.has(id);
+    panes.classList.toggle(`${id}-collapsed`, closed);
+    document.getElementById(id).classList.toggle("collapsed", closed);
+    button.setAttribute("aria-expanded", String(!closed));
+    button.textContent = closed ? "▸" : "◂";
+    const name = document.getElementById(id).querySelector("h2").textContent;
+    button.title = `${name} 목록 ${closed ? "펴기" : "접기"}`;
+  }
+}
+
+function setupCollapse() {
+  const collapsed = readCollapsed();
+  for (const button of document.querySelectorAll("button.collapse")) {
+    button.addEventListener("click", () => {
+      const id = button.dataset.pane;
+      if (collapsed.has(id)) collapsed.delete(id);
+      else collapsed.add(id);
+      try {
+        localStorage.setItem(COLLAPSE_KEY, JSON.stringify([...collapsed]));
+      } catch {
+        // Storage can be unavailable (private window); the toggle still works for this page.
+      }
+      applyCollapsed(collapsed);
+    });
+  }
+  applyCollapsed(collapsed);
+}
+
+setupCollapse();
 window.addEventListener("hashchange", () => render());
 document.getElementById("refresh").addEventListener("click", () => render(true));
 render();

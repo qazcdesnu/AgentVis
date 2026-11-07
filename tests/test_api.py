@@ -104,3 +104,12 @@ class WebScreenTest(RepoTestCase):
             self.assertEqual(client.get("/health").json(), {"status": "ok"})
             self.assertEqual(client.get("/nope.js").status_code, 404)
 
+    def test_screen_files_must_be_revalidated(self) -> None:
+        with EventStore(self.root / "agentvis.db") as store:
+            client = TestClient(create_app(store), base_url="http://127.0.0.1:8765")
+            for path in ("/", "/graph.js", "/vendor/d3-7.9.0.min.js"):
+                first = client.get(path)
+                self.assertEqual(first.headers["cache-control"], "no-cache", path)
+                again = client.get(path, headers={"If-None-Match": first.headers["etag"]})
+                self.assertEqual(again.status_code, 304, path)
+

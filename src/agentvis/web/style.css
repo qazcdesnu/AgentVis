@@ -116,25 +116,11 @@ button {
 .error { color: var(--error); padding: 8px 16px; }
 .fail-count { color: var(--error); font-weight: 600; }
 
-.session-header { padding: 4px 0 12px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+.session-header { padding: 0; }
 .session-header .name { font-size: 16px; font-weight: 600; }
 
 details > summary { cursor: pointer; list-style-position: outside; }
 
-.turn {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  margin: 8px 0;
-  padding: 6px 10px;
-}
-
-.turn > summary { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
-.turn-index { color: var(--muted); font-variant-numeric: tabular-nums; }
-.turn-prompt { font-weight: 600; flex: 1 1 300px; overflow-wrap: anywhere; }
-.turn-meta { color: var(--muted); font-size: 12px; }
-.turn.state-failed { border-color: var(--error); }
-.turn.state-running { border-color: var(--running); }
 .prompt-full { white-space: pre-wrap; color: var(--muted); margin: 6px 0; }
 
 .steps {
@@ -263,14 +249,38 @@ details > summary { cursor: pointer; list-style-position: outside; }
 .g-bar-label { fill: #ffffff; pointer-events: none; }
 .node-detail { border-top: 1px solid var(--line); padding-top: 8px; }
 
+/* Collapsible side panes: docs/design/WebUI.md section 2 (I35). */
+.pane-head { display: flex; align-items: center; justify-content: space-between; margin-right: 8px; }
+.pane-head h2 { margin-bottom: 4px; }
+.collapse { padding: 0 6px; font-size: 12px; line-height: 20px; color: var(--muted); }
+.panes.projects-pane-collapsed { grid-template-columns: 32px 300px minmax(0, 1fr); }
+.panes.sessions-pane-collapsed { grid-template-columns: 240px 32px minmax(0, 1fr); }
+.panes.projects-pane-collapsed.sessions-pane-collapsed { grid-template-columns: 32px 32px minmax(0, 1fr); }
+.pane.collapsed { overflow: hidden; }
+.pane.collapsed .list { display: none; }
+.pane.collapsed .pane-head { flex-direction: column-reverse; align-items: center; justify-content: flex-end; gap: 8px; margin: 0; }
+.pane.collapsed .pane-head h2 { writing-mode: vertical-rl; margin: 0; text-transform: none; }
+
 @media (max-width: 900px) {
-  .panes { grid-template-columns: 1fr; height: auto; }
+  .panes, .panes.projects-pane-collapsed, .panes.sessions-pane-collapsed,
+  .panes.projects-pane-collapsed.sessions-pane-collapsed { grid-template-columns: 1fr; height: auto; }
+  .pane.collapsed .pane-head { flex-direction: row; justify-content: space-between; margin-right: 8px; }
+  .pane.collapsed .pane-head h2 { writing-mode: horizontal-tb; margin: 4px 16px 4px; }
   .pane { border-right: none; border-bottom: 1px solid var(--line); max-height: 40vh; }
   .detail { max-height: none; }
 }
 
 /* Session overview strip and jump badges: docs/design/WebUI.md section 7. */
-.overview { margin: 8px 0; }
+.overview { margin: 0; }
+
+/* Titled boxes of the session detail: docs/design/WebUI.md section 2 (I36). */
+.box { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px 10px; margin: 0 0 10px; }
+.box-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 6px; }
+.box-title { font-size: 11px; font-weight: 600; color: var(--muted); margin: 0; letter-spacing: 0.02em; }
+.turn-picker .turn-select { width: 100%; }
+.box-turn.box-first { margin-top: 22px; }
+.box .view-toggle { margin-top: 0; }
+.box .graph-box { margin-bottom: 0; }
 .ov-badges { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-bottom: 4px; }
 .ov-badge { display: inline-flex; align-items: center; gap: 2px; font-size: 12px; }
 .ov-badge-label { margin-right: 4px; color: var(--muted); }

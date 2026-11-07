@@ -14,12 +14,19 @@
     <button id="refresh" type="button">새로고침</button>
   </header>
   <main class="panes">
-    <section class="pane" aria-labelledby="projects-title">
-      <h2 id="projects-title">프로젝트</h2>
+    <!-- Collapsible side panes: docs/design/WebUI.md section 2 (I35). -->
+    <section class="pane side" id="projects-pane" aria-labelledby="projects-title">
+      <div class="pane-head">
+        <h2 id="projects-title">프로젝트</h2>
+        <button type="button" class="collapse" data-pane="projects-pane" aria-controls="projects" aria-expanded="true" title="프로젝트 목록 접기">◂</button>
+      </div>
       <ul id="projects" class="list"></ul>
     </section>
-    <section class="pane" aria-labelledby="sessions-title">
-      <h2 id="sessions-title">세션</h2>
+    <section class="pane side" id="sessions-pane" aria-labelledby="sessions-title">
+      <div class="pane-head">
+        <h2 id="sessions-title">세션</h2>
+        <button type="button" class="collapse" data-pane="sessions-pane" aria-controls="sessions" aria-expanded="true" title="세션 목록 접기">◂</button>
+      </div>
       <ul id="sessions" class="list"></ul>
     </section>
     <section class="pane detail" aria-labelledby="detail-title">
