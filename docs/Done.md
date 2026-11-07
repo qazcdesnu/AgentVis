@@ -2,12 +2,39 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## I54 문서의 물결표가 취소선으로 보이는 문제
+
+- 시작일: 2026-11-07
+- 완료일: 2026-11-07
+- 근거 문서: [문서 작업 규칙의 형식](DocumentationRule.md#2-형식), [검증 도구의 문서 링크 검사기](VerificationTools.md#3-문서-링크-검사기)
+
+### 계획
+- 코드 밖의 물결표를 `\~`로 쓰는 규칙을 정하고, `check_docs`에 검사를 더하고, 문서 전체를 고친다.
+- 릴리스 PR #42 브랜치에서 시작했으나 #42가 먼저 병합되어 `i54-tilde-strikethrough`로 옮겼다.
+
+### 진행 기록
+- 2026-11-07: 릴리스 PR이 열린 동안 사용자가 README의 `Q1~Q6 … Q3~Q5`가 취소선으로 보인다고 알렸다(I54). GitHub 마크다운은 물결표 하나로 감싼 글자도 취소선으로 처리한다. 코드 밖의 물결표 101개 중 지금 취소선이 생기는 문단·표 줄이 8곳이었다. 문서 작업 규칙에 "물결표는 `\~`로 쓴다"(코드·링크 주소·URL 안은 그대로)를 정하고, `check_docs`에 `check_tildes`를 더하고, 문서 19개의 물결표를 고쳤다. 제목과 URL은 바뀌지 않았다. 
+- 2026-11-07: 커밋을 올리기 전에 사용자가 #42를 병합했다. 그래서 v1.0.2에는 이 수정이 없다. 커밋을 이 브랜치로 옮기고, 다시 만들어진 원격 `i53-release-1-0-2`를 지웠다. 다음 릴리스에 들어간다.
+
+### 결정 사항
+- 범위 물결표는 `\~`로 쓴다. 대시(–)로 바꾸지 않은 이유는 한국어 글의 범위 표기를 그대로 두고 화면에서도 `~`로 보이게 하기 위해서다.
+- 코드, 링크 주소, URL 안의 물결표는 그대로 둔다(예: `https://www.cs.umd.edu/~ben/…`).
+
+### 변경 파일
+- `tools/check_docs.py`, `tests/test_check_docs.py`
+- `docs/DocumentationRule.md`, `docs/VerificationTools.md`, 물결표를 고친 문서 19개, `docs/Issue.md`, `docs/Done.md`
+
+### 결과
+- 문서의 범위 물결표가 취소선으로 보이지 않고, 새로 쓴 맨 물결표는 검사기가 잡는다.
+
+### 검증
+- `check_docs`, `check_pointers`, `check_tasks`, `check_commits`, `check_web` 통과. 단위 테스트 145개 통과(검사기 테스트 추가).
+
 ## I53 v1.0.2 릴리스
 
 - 시작일: 2026-11-07
 - 완료일: 2026-11-07
 - 근거 문서: [PR 규칙의 릴리스](PullRequestRule.md#6-릴리스)
-- 관련 이슈: I54
 
 ### 계획
 - v1.0.1 뒤의 변경(I51·I52, 문서만)을 반영해 수 버전을 올린다. `pyproject.toml`·`uv.lock`과 README의 현재 상태를 고친다.
@@ -16,22 +43,19 @@
 
 ### 진행 기록
 - 2026-11-07: 사용자가 v1.0.2 릴리스를 지시했다. 바뀐 것이 문서뿐이라 수 버전을 올렸다.
-- 2026-11-07: 릴리스 PR이 열린 동안 사용자가 README의 `Q1~Q6 … Q3~Q5`가 취소선으로 보인다고 알렸다(I54). GitHub 마크다운은 물결표 하나로 감싼 글자도 취소선으로 처리한다. 코드 밖의 물결표 101개 중 지금 취소선이 생기는 문단·표 줄이 8곳이었다. 문서 작업 규칙에 "물결표는 `\~`로 쓴다"(코드·링크 주소·URL 안은 그대로)를 정하고, `check_docs`에 `check_tildes`를 더하고, 문서 19개의 물결표를 고쳤다. 제목과 URL은 바뀌지 않았다. v1.0.2에 함께 넣는다.
 
 ### 결정 사항
 - 기능과 저장소 스키마는 v1.0.1과 같다.
-- 물결표 수정은 문서와 검사기만 바꾸므로 같은 수 버전에 넣는다(I54).
 
 ### 변경 파일
-- `pyproject.toml`, `uv.lock`, `README.md`, `tools/check_docs.py`, `tests/test_check_docs.py`
-- `docs/DocumentationRule.md`, `docs/VerificationTools.md`, 물결표를 고친 문서 19개, `docs/Issue.md`, `docs/Done.md`
+- `pyproject.toml`, `uv.lock`, `README.md`
+- `docs/Issue.md`, `docs/Done.md`
 
 ### 결과
-- 문서의 범위 물결표가 취소선으로 보이지 않고, 새로 쓴 맨 물결표는 검사기가 잡는다(I54).
 - `main`의 릴리스 병합 커밋에 태그 `v1.0.2`가 있고, GitHub 릴리스 https://github.com/qazcdesnu/AgentVis/releases/tag/v1.0.2 에 노트가 있다.
 
 ### 검증
-- `check_docs`, `check_pointers`, `check_tasks`, `check_commits`, `check_web` 통과. 단위 테스트 145개 통과(I54 검사기 테스트 추가).
+- `check_docs`, `check_pointers`, `check_tasks`, `check_commits`, `check_web` 통과. 단위 테스트 144개 통과.
 
 ## I51 Q6에 지시·설정 자체가 틀린 경우를 더하고 README 정리
 
