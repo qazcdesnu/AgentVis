@@ -46,6 +46,7 @@ function readHash() {
     from: Number(params.get("from")) || null,
     to: Number(params.get("to")) || null,
     axis: params.get("axis") === "time" ? "time" : "order",
+    scale: params.get("scale") === "real" ? "real" : "compress",
   };
 }
 
@@ -313,7 +314,11 @@ async function renderGraphView(state, view) {
     const graph = cache.graphs.get(turnIndex);
     const steps = indexSteps(turn.steps);
     // The graph needs its container laid out to fit the width, so draw after it is attached.
-    requestAnimationFrame(() => renderGraph(graphBox, graph, (node) => renderNodeDetail(detail, node, turn, steps), state.step));
+    requestAnimationFrame(() => renderGraph(graphBox, graph, (node) => renderNodeDetail(detail, node, turn, steps), {
+      initialId: state.step,
+      scale: state.scale,
+      onScale: (scale) => updateHash({ scale: scale === "real" ? "real" : null }),
+    }));
   } catch (error) {
     showError(graphBox, error);
   }

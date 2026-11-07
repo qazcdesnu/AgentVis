@@ -71,7 +71,11 @@ class ParallelTest(unittest.TestCase):
         _say(s, "a3", "a2", "m1", _tool("Read", "t1", file_path="a.py"))
         _say(s, "a4", "a3", "m2", {"type": "thinking", "thinking": ""})
         graph = _graph(s)
-        self.assertEqual((_node(graph, "model").label, _node(graph, "model", 1).label), ("생각 4.2초", "생각"))
+        timed, bare = _node(graph, "model"), _node(graph, "model", 1)
+        self.assertEqual((timed.label, bare.label), ("생각 4.2초", "생각"))
+        # The thinking record is written when thinking ends, so the span reaches back by its duration (I34).
+        self.assertEqual(((timed.ended_at - timed.started_at).total_seconds(), timed.approximate), (4.2, True))
+        self.assertEqual((bare.started_at == bare.ended_at, bare.approximate), (True, False))
 
     def test_response_without_thinking_or_text_has_no_model_node(self) -> None:
         s = _Session()
