@@ -298,6 +298,21 @@ class EventStore:
             ).fetchall()
         return [row[0] for row in rows]
 
+    def changes_since(self, after_id: int) -> tuple[int, list[str]]:
+        """Return the newest event id after after_id and the sessions those new events belong to.
+
+        @doc: docs/design/Store.md#10-m4-t2-변경
+        """
+        with self._lock:
+            last = self._connection.execute("SELECT MAX(id) FROM raw_events WHERE id > ?", (after_id,)).fetchone()[0]
+            if last is None:
+                return after_id, []
+            rows = self._connection.execute(
+                "SELECT DISTINCT session_id FROM raw_events WHERE id > ? AND id <= ? AND session_id IS NOT NULL ORDER BY session_id",
+                (after_id, last),
+            ).fetchall()
+        return last, [row[0] for row in rows]
+
     def events(self, session_id: str | None = None, after_id: int = 0) -> list[RawEvent]:
         """Return events with id greater than after_id in id order, optionally for one session.
 

@@ -178,6 +178,37 @@ def read_subagent_meta(store: EventStore, path: Path, projects_dir: Path) -> boo
     return store.append_batch([event]) == 1
 
 
+def find_unread_transcripts(store: EventStore, projects_dir: Path) -> list[Path]:
+    """Return the transcripts that grew or appeared while the server was not reading them.
+
+    @doc: docs/design/Transcript.md#42-서버가-시작될-때-m2-t4
+    """
+    started = store.first_received_at()
+    if started is None:
+        return []
+    root = projects_dir.resolve()
+    found: list[Path] = []
+    for path in sorted([*root.glob("*/*.jsonl"), *root.glob("*/*/subagents/agent-*.jsonl")]):
+        try:
+            resolved = _inside(path, projects_dir)
+            status = resolved.stat()
+        except (OSError, ValueError):
+            continue
+        cursor = store.cursor(str(resolved))
+        if cursor is not None:
+            moved = (cursor.device, cursor.inode) != (str(status.st_dev), str(status.st_ino))
+            unread = moved or status.st_size != cursor.offset
+        else:
+            unread = datetime.fromtimestamp(status.st_mtime, UTC) >= started
+        if not unread:
+            continue
+        found.append(resolved)
+        meta = resolved.with_name(resolved.name.removesuffix(".jsonl") + ".meta.json")
+        if resolved.parent.name == "subagents" and meta.exists():
+            found.append(meta)
+    return found
+
+
 def paths_to_read(hook_event: dict) -> list[Path]:
     """Return the transcript files a hook event says may have new content.
 

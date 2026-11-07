@@ -3,6 +3,8 @@
 @doc: docs/design/Analysis.md#9-테스트
 """
 
+import asyncio
+import json
 import os
 from pathlib import Path
 from dataclasses import replace
@@ -10,7 +12,7 @@ from unittest import mock
 
 from fastapi.testclient import TestClient
 
-from agentvis.server import create_app
+from agentvis.server import create_app, stream_changes
 from agentvis.store import EventStore
 from tests.support import RepoTestCase
 from tests.test_analysis import _Session
@@ -112,4 +114,48 @@ class WebScreenTest(RepoTestCase):
                 self.assertEqual(first.headers["cache-control"], "no-cache", path)
                 again = client.get(path, headers={"If-None-Match": first.headers["etag"]})
                 self.assertEqual(again.status_code, 304, path)
+
+
+class StreamTest(RepoTestCase):
+    """@doc: docs/design/WebUI.md#83-테스트"""
+
+    def test_stream_sends_changed_sessions_keepalives_and_stops_when_the_client_leaves(self) -> None:
+        with EventStore(self.root / "agentvis.db") as store:
+            s = _Session()
+            s.prompt("u1", "p1", "시작")
+            for event in s.events:
+                store.append(event)
+            gone = False
+
+            async def disconnected() -> bool:
+                return gone
+
+            async def run() -> list[str]:
+                nonlocal gone
+                stream = stream_changes(store, disconnected, poll=0.01, keepalive=0.03)
+                # Events already stored when the client connected are not announced.
+                lines = [await anext(stream)]
+                store.append(replace(s.events[0], session_id="s2", dedup_key="new"))
+                lines.append(await anext(stream))
+                gone = True
+                lines.extend([line async for line in stream])
+                return lines
+
+            keepalive, change, *rest = asyncio.run(run())
+            self.assertEqual(keepalive, ": keepalive\n\n")
+            head, data = change.strip().split("\n")
+            self.assertEqual(head, "event: change")
+            self.assertEqual(json.loads(data.removeprefix("data: "))["sessions"], ["s2"])
+            self.assertEqual(rest, [])
+
+    def test_stream_ends_when_the_server_starts_stopping(self) -> None:
+        with EventStore(self.root / "agentvis.db") as store:
+
+            async def connected() -> bool:
+                return False
+
+            async def run() -> list[str]:
+                return [line async for line in stream_changes(store, connected, lambda: True, poll=0.01)]
+
+            self.assertEqual(asyncio.run(run()), [])
 

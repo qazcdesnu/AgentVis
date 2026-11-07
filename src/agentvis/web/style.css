@@ -64,7 +64,11 @@ body {
 
 .top h1 { font-size: 18px; margin: 0; }
 .top .subtitle { color: var(--muted); }
-.top button { margin-left: auto; }
+.top .live { margin-left: auto; font-size: 12px; }
+.live.on { color: var(--success); }
+.live.off { color: var(--muted); }
+.turn-picker .follow { margin-top: 6px; }
+.turn-picker .meta.follow { color: var(--success); }
 
 button {
   font: inherit;

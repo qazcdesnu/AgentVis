@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 import uvicorn
+from fastapi import FastAPI
 
 from agentvis import __version__
 from agentvis.hook_settings import (
@@ -24,11 +25,14 @@ from agentvis.hook_settings import (
 )
 from agentvis.server import create_app
 from agentvis.store import EventStore, data_dir, default_db_path
-from agentvis.transcript import TranscriptReader, default_projects_dir
+from agentvis.transcript import TranscriptReader, default_projects_dir, find_unread_transcripts
 
 # @doc: docs/design/Cli.md#21-serve
 DEFAULT_PORT = 8765
 _HOST = "127.0.0.1"
+# Open live-update streams would otherwise keep the server from stopping on Ctrl+C.
+# @doc: docs/design/Cli.md#2-명령
+SHUTDOWN_GRACE_SECONDS = 3
 
 
 def _port(value: str) -> int:
@@ -38,15 +42,40 @@ def _port(value: str) -> int:
     return port
 
 
+class _StoppingServer(uvicorn.Server):
+    """A uvicorn server that marks the app as stopping before it waits for connections to close.
+
+    @doc: docs/design/Cli.md#2-명령
+    """
+
+    def handle_exit(self, sig: int, frame: object) -> None:
+        self.config.app.state.stopping = True
+        super().handle_exit(sig, frame)
+
+
+def _run_server(app: FastAPI, host: str, port: int) -> None:
+    """Run the app until it is stopped; live-update streams end on their own when it stops.
+
+    @doc: docs/design/Cli.md#2-명령
+    """
+    config = uvicorn.Config(app, host=host, port=port, timeout_graceful_shutdown=SHUTDOWN_GRACE_SECONDS)
+    _StoppingServer(config).run()
+
+
 def _serve(args: argparse.Namespace) -> int:
     path = default_db_path()
     with EventStore(path) as store:
         reader = TranscriptReader(store, default_projects_dir())
         reader.start()
         try:
+            # Sessions that ran while the server was down send no more hooks, so look for them now (M2-T4).
+            missed = find_unread_transcripts(store, default_projects_dir())
+            for missed_path in missed:
+                reader.request(missed_path)
             print(f"AgentVis 서버: http://{_HOST}:{args.port}")
+            print(f"놓친 세션 기록: {len(missed)}개 파일")
             print(f"데이터베이스: {path}", flush=True)
-            uvicorn.run(create_app(store, reader), host=_HOST, port=args.port)
+            _run_server(create_app(store, reader), _HOST, args.port)
         finally:
             reader.stop()
     return 0

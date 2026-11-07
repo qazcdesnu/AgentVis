@@ -215,6 +215,22 @@ class StoreM2Test(RepoTestCase):
             self.assertIsNone(store.cursor("/p/s.jsonl"))
 
 
+class StoreM4Test(RepoTestCase):
+    """@doc: docs/design/Store.md#10-m4-t2-변경"""
+
+    def test_changes_since_names_the_sessions_of_new_events(self) -> None:
+        with EventStore(self.root / "agentvis.db") as store:
+            self.assertEqual(store.changes_since(0), (0, []))
+            store.append(_EVENT)
+            store.append(replace(_EVENT, session_id="s2", tool_use_id="toolu_2"))
+            store.append(replace(_EVENT, session_id="s1", tool_use_id="toolu_3"))
+            store.append(replace(_EVENT, session_id=None, tool_use_id="toolu_4"))
+            last, sessions = store.changes_since(0)
+            self.assertEqual((last, sessions), (4, ["s1", "s2"]))
+            self.assertEqual(store.changes_since(last), (last, []))
+            self.assertEqual(store.changes_since(2), (4, ["s1"]))
+
+
 class DataDirTest(RepoTestCase):
     """@doc: docs/design/Store.md#5-테스트"""
 

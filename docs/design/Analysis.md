@@ -140,6 +140,7 @@
 | `GET /api/projects` | `{"projects": [...]}`. 프로젝트 목록(2절 필드) | M3-T5 |
 | `GET /api/sessions?project=<프로젝트 경로>` | `{"sessions": [...]}`. 세션 목록(7절 필드, `turns`·`preamble` 제외). 마지막 활동이 늦은 것부터. `project`를 생략하면 모든 세션 | M3-T4 |
 | `GET /api/sessions/{session_id}` | 세션 상세(7절 필드와 `turns`, `preamble`) | M3-T4 |
+| `GET /api/stream` | 변경 알림 SSE 스트림([웹 UI 설계의 실시간 갱신](WebUI.md#8-실시간-갱신)) | M4-T2 |
 
 - 응답은 JSON이며 필드 이름은 이 문서의 이름(`snake_case`)을 쓴다. 시각은 ISO 8601(UTC)이다. 모델 객체는 FastAPI의 `jsonable_encoder`로 바꾼다.
 - [catalog 모듈](../../src/agentvis/analysis/catalog.py)이 이벤트 저장소에서 원시 이벤트를 읽어 분석기를 부른다.

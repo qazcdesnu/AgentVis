@@ -2,6 +2,75 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## M4-T2 변경 알림 SSE 스트림과 실시간 갱신
+
+- 시작일: 2026-11-07
+- 완료일: 2026-11-07
+- 근거 문서: [웹 UI 설계의 실시간 갱신](design/WebUI.md#8-실시간-갱신), [이벤트 저장소 설계의 M4-T2 변경](design/Store.md#10-m4-t2-변경)
+
+### 계획
+- 이벤트 저장소에 `changes_since`, 서버에 `GET /api/stream`(SSE)을 설계·구현한다.
+- 화면이 알림을 받아 보고 있는 세션만 다시 받아 그리되, 고른 턴·단계·배율·스크롤을 지키고 최신 턴을 따라가게 한다.
+- 저장소 질의와 스트림 생성기를 테스트하고, 실제 서버에서 알림이 오는지 확인한다.
+- M2-T4 브랜치 위에 쌓은 `m4-t2-live-stream`에서 진행한다.
+
+### 진행 기록
+- 2026-11-07: 사용자가 진행 중인 세션을 실시간으로 보고 싶다고 했다. 세션 상세 계산은 가장 큰 세션도 약 0.12초, 세션 목록은 약 1.1초다. 사용자 지시로 H6·I40·M2-T4 뒤에 시작했다.
+- 2026-11-07: 웹 UI 설계 8절, 저장소 설계 10절, 분석기 설계의 API 표를 먼저 쓰고 `store.py`(`changes_since`), `server.py`(`stream_changes`, `GET /api/stream`), `app.js`(알림 받기, 보던 세션만 다시 받기, 목록 15초 제한, 끊긴 뒤 모두 다시 받기, 최신 턴 따라가기, 그래프 배율·스크롤 기억, 노드 선택을 해시에), `graph.js`(배율·스크롤 되살리기), `index.html`·`style.css`(연결 표시)를 고쳤다.
+- 2026-11-07: 실제 서버로 확인했다: `/api/stream`이 `text/event-stream`, `cache-control: no-cache`로 열리고, 이 세션이 도구를 부를 때마다 이 세션 ID를 담은 `change` 알림이 왔다(25초 동안 4건). 다른 `Host`로 오면 `400`이다.
+- 2026-11-07: 스트림을 연 채 Ctrl+C하면 서버가 10초가 지나도 끝나지 않는 문제를 찾았다. uvicorn이 열린 연결을 기다리기 때문이다. 종료 대기 시간 3초만 두면 끝나지만 취소 오류 흔적이 남아, 종료 신호를 받으면 앱에 종료 중 표시를 남기는 `_StoppingServer`를 더했다. 다시 재니 약 1초 만에 오류 없이 끝났다([CLI 설계](design/Cli.md#2-명령)).
+
+### 결정 사항
+- 알림은 저장소를 1초마다 이벤트 `id`로 묻는 방식이다. hook으로 들어온 이벤트와 기록 리더가 읽은 이벤트가 같은 길로 알려지고, 수집기·기록 리더에 알림 장치를 따로 달지 않아도 된다.
+- 다시 그려도 고른 턴·단계·배율·스크롤을 지킨다. 해시에 `turn`이 없으면 최신 턴을 따라가고, 마지막 턴을 고르면 `turn`을 지운다.
+- 목록은 계산이 무거워(약 1.1초) 15초에 한 번까지만 다시 받는다.
+- 알림 없이 오래 실행되는 막대를 시계로 늘이는 일은 하지 않았다(흐름 그래프 설계의 나중에 정할 것).
+
+### 변경 파일
+- `src/agentvis/store.py`, `src/agentvis/server.py`, `src/agentvis/cli.py`, `src/agentvis/web/app.js`, `src/agentvis/web/graph.js`, `src/agentvis/web/index.html`, `src/agentvis/web/style.css`
+- `tests/test_store.py`, `tests/test_api.py`, `tests/test_cli.py`
+- `docs/design/WebUI.md`, `docs/design/Store.md`, `docs/design/Analysis.md`, `docs/design/FlowGraph.md`, `docs/design/Cli.md`, `docs/Roadmap.md`, `docs/Ongoing.md`, `docs/Done.md`
+
+### 결과
+- 진행 중인 세션을 띄워 두면 도구 호출마다 화면이 바로 갱신되고, 보던 턴·단계·배율이 그대로 남으며, 새 턴이 시작되면 따라간다. 머리 줄에 실시간 연결 상태가 보인다.
+- 스트림을 연 브라우저가 있어도 Ctrl+C로 서버가 바로 끝난다.
+
+### 검증
+- `check_docs`, `check_pointers`, `check_tasks`, `check_commits`, `check_web` 통과. 단위 테스트 140개 통과(M4-T2 테스트 4개 추가).
+- 실제 서버의 알림 수신과 종료는 위 진행 기록대로 확인했다. 브라우저 화면 동작은 확인하지 않았다(사용자 확인 필요).
+
+
+## M2-T4 서버 시작 시 놓친 세션 기록 찾아 읽기
+
+- 시작일: 2026-11-07
+- 완료일: 2026-11-07
+- 근거 문서: [기록 리더 설계의 서버가 시작될 때](design/Transcript.md#42-서버가-시작될-때-m2-t4)
+
+### 계획
+- 기록 리더 설계 4.2절의 심볼을 코드 포인터로 바꾸고, 찾는 파일 모양·메타 파일·호출 시점을 적는다.
+- `find_unread_transcripts`를 구현하고 `agentvis serve`가 기록 리더를 시작한 뒤 찾은 파일을 읽기 요청으로 넘기게 한다.
+- 커서보다 커진 파일, 식별자가 바뀐 파일, 수집 시작 이후의 새 파일만 고르는지 테스트한다.
+- H6 브랜치 위에 쌓은 `m2-t4-catch-up-on-start`에서 진행한다.
+
+### 진행 기록
+- 2026-11-07: 사용자 지시로 실시간 갱신(M4-T2) 전에 시작했다. 서버가 꺼진 동안 시작하고 끝난 세션은 그 세션의 hook이 다시 오지 않아 지금은 읽히지 않는다.
+- 2026-11-07: 기록 리더 설계 4.2절과 CLI 설계를 고친 뒤 `find_unread_transcripts`를 구현하고 `agentvis serve`에 붙였다. 실제 저장소로 확인했다: 서버를 다시 띄우기 전 142개 파일(한 번도 읽지 않은 파일 16개: 세션 2개, 서브에이전트 기록 14개)을 찾았고, 다시 띄운 뒤 한 번도 읽지 않은 파일은 0개, 세션은 10개에서 11개가 되었다. 남은 2개는 마지막 줄이 아직 쓰이는 중인 파일이다.
+
+### 결정 사항
+- 수집 시작 전의 지난 세션은 자동으로 읽지 않는다(설계 그대로). 지난 세션은 M2-T5의 가져오기 명령으로만 읽는다.
+- 서브에이전트 메타 파일은 고른 서브에이전트 기록 옆에 있을 때만 함께 넘긴다. 내용이 같으면 다시 저장되지 않으므로 해가 없다.
+
+### 변경 파일
+- `src/agentvis/transcript.py`, `src/agentvis/cli.py`, `tests/test_transcript.py`
+- `docs/design/Transcript.md`, `docs/design/Cli.md`, `docs/Roadmap.md`, `docs/Ongoing.md`, `docs/Done.md`
+
+### 결과
+- 서버가 꺼진 동안 시작하고 끝난 세션도 서버를 켜면 읽혀 화면에 나타난다.
+
+### 검증
+- `check_docs`, `check_pointers`, `check_tasks`, `check_commits`, `check_web` 통과. 단위 테스트 136개 통과(M2-T4 테스트 1개 추가).
+
+
 ## H6 빠진 hook의 보정과 안내
 
 - 시작일: 2026-11-07

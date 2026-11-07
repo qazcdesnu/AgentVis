@@ -33,7 +33,11 @@ M1-T4에서 만든다.
 - 기본 포트는 [DEFAULT_PORT](../../src/agentvis/cli.py#DEFAULT_PORT)(`8765`)다. `hooks install`의 기본 포트도 같은 상수를 쓴다.
 - `--port`는 1~65535 정수만 받는다. 그 밖의 값은 `argparse` 오류(종료 코드 2)로 끝난다.
 - 이벤트 저장소는 [이벤트 저장소 설계의 기본 경로](Store.md#1-데이터-디렉터리)(`default_db_path()`)로 연다. 시작할 때 `AgentVis 서버: http://127.0.0.1:<포트>` 와 `데이터베이스: <경로>` 두 줄을 출력한다. uvicorn 로그보다 먼저 보이도록 바로 내보낸다(`flush`).
-- 서버는 `uvicorn.run(app, host="127.0.0.1", port=<포트>)`로 실행한다. M2-T3부터는 [기록 리더](Transcript.md#41-hook-이벤트를-받을-때-m2-t3)를 함께 시작해 앱에 넘긴다. 서버가 끝나면(Ctrl+C 포함) 기록 리더를 멈추고 이벤트 저장소를 닫은 뒤 종료 코드 0을 돌려준다.
+- 서버는 `uvicorn.run(app, host="127.0.0.1", port=<포트>)`로 실행한다. M2-T3부터는 [기록 리더](Transcript.md#41-hook-이벤트를-받을-때-m2-t3)를 함께 시작해 앱에 넘긴다. M2-T4부터는 기록 리더를 시작한 뒤 [서버가 꺼진 동안 쌓인 세션 기록](Transcript.md#42-서버가-시작될-때-m2-t4)을 찾아 읽기 요청으로 넘기고 `놓친 세션 기록: N개 파일`을 출력한다. 서버가 끝나면(Ctrl+C 포함) 기록 리더를 멈추고 이벤트 저장소를 닫은 뒤 종료 코드 0을 돌려준다. 실시간 갱신 스트림([웹 UI 설계 8절](WebUI.md#8-실시간-갱신))은 브라우저가 닫을 때까지 열려 있다. uvicorn은 종료할 때 열린 연결이 닫히기를 기다리므로, 다음 두 가지로 Ctrl+C 뒤 바로 끝나게 한다(M4-T2).
+  - 서버는 uvicorn의 `Server`를 이어받은 [_StoppingServer](../../src/agentvis/cli.py#_StoppingServer)로 실행한다. 종료 신호를 받으면(`handle_exit`) 앱의 `state.stopping`을 참으로 바꾼 뒤 원래 처리를 한다. 스트림은 이 표시를 보고 1초 안에 스스로 끝나 연결이 정상으로 닫힌다.
+  - 그래도 남은 연결이 있으면 [SHUTDOWN_GRACE_SECONDS](../../src/agentvis/cli.py#SHUTDOWN_GRACE_SECONDS)(3초) 뒤 끊는다(`timeout_graceful_shutdown`).
+  - 2026-11-07 실측: 둘 다 없으면 스트림을 연 브라우저가 있을 때 Ctrl+C 뒤 10초가 지나도 끝나지 않았다. 대기 시간만 두면 3초 뒤 끝나지만 취소된 작업의 오류 흔적이 로그에 남았다.
+  - 서버 실행은 [_run_server](../../src/agentvis/cli.py#_run_server)`(app, host, port)`가 맡는다. 테스트는 이 함수를 바꿔 끼운다.
 - 포트를 이미 다른 프로세스가 쓰고 있으면 uvicorn이 `address already in use` 오류를 출력하고 시작 실패 종료 코드 3(`uvicorn.config.STARTUP_FAILURE`)으로 끝난다. 이 경우에도 이벤트 저장소를 닫는다. (M1-T4 실측으로 확인)
 
 ## 3. hook 설정 편집
