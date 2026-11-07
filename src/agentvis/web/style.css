@@ -121,20 +121,6 @@ button {
 
 details > summary { cursor: pointer; list-style-position: outside; }
 
-.turn {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  margin: 8px 0;
-  padding: 6px 10px;
-}
-
-.turn > summary { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
-.turn-index { color: var(--muted); font-variant-numeric: tabular-nums; }
-.turn-prompt { font-weight: 600; flex: 1 1 300px; overflow-wrap: anywhere; }
-.turn-meta { color: var(--muted); font-size: 12px; }
-.turn.state-failed { border-color: var(--error); }
-.turn.state-running { border-color: var(--running); }
 .prompt-full { white-space: pre-wrap; color: var(--muted); margin: 6px 0; }
 
 .steps {
@@ -289,7 +275,9 @@ details > summary { cursor: pointer; list-style-position: outside; }
 
 /* Titled boxes of the session detail: docs/design/WebUI.md section 2 (I36). */
 .box { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px 10px; margin: 0 0 10px; }
-.box-title { font-size: 11px; font-weight: 600; color: var(--muted); margin: 0 0 6px; letter-spacing: 0.02em; }
+.box-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 6px; }
+.box-title { font-size: 11px; font-weight: 600; color: var(--muted); margin: 0; letter-spacing: 0.02em; }
+.turn-picker .turn-select { width: 100%; }
 .box-turn.box-first { margin-top: 22px; }
 .box .view-toggle { margin-top: 0; }
 .box .graph-box { margin-bottom: 0; }
