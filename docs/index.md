@@ -22,6 +22,7 @@ AgentVis가 무엇을 만드는지 이해할 때 읽는다. 제품 기능에 관
 
 | 문서 | 설명 |
 | --- | --- |
+| [수업 이후 학회 제출 계획](research/SubmissionPlan.md) | IEEE VIS·TVCG 심사 지침(심사 기준, 응용 영역, 보충 자료, IRB·동의, 맹검, 분량), 우리 연구에 주는 의미, 수업 실험(파일럿)과 제출용 실험(IRB 승인 뒤) 계획, 제출 전 점검 목록 |
 | [목표 학회 비교](research/TargetVenues.md) | 연구의 성격(설계 연구), 시각화·HCI·소프트웨어 공학 학회 비교, 기준으로 삼는 학회(IEEE TVCG)와 논문 구성, 제출 후보 |
 | [좋은 시각화 원칙 조사](research/VisualizationPrinciples.md) | 시각화가 필요한 이유, 시각화 원칙, 같은 분야 시스템·연구, AgentVis 설계 지침, 시각화·HCI 논문의 유저 스터디 설계 |
 | [Claude Code 바이브 코딩 실무 고충 조사](research/ClaudeCodePainPoints.md) | 커뮤니티·연구가 보고한 고충 분류, 작업 기록으로 관찰 가능한지, 시각화·유저 스터디 우선순위 |
