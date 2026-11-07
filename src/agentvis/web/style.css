@@ -243,7 +243,7 @@ details > summary { cursor: pointer; list-style-position: outside; }
 .g-node.status-unfinished rect { fill: var(--unfinished); }
 .g-node.approximate rect { stroke: var(--text); stroke-dasharray: 2 2; }
 .g-node.open rect { stroke: var(--text); stroke-dasharray: 6 3; }
-.g-node.kind-prompt circle { fill: var(--text); }
+.g-node.kind-prompt circle { fill: var(--user-message-line); stroke: var(--text); }
 .g-node.kind-model circle { fill: var(--muted); }
 .g-node.kind-notification circle { fill: var(--panel); stroke: var(--muted); stroke-width: 1.5; }
 .g-node.kind-compact rect { fill: var(--muted); }

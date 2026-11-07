@@ -10,7 +10,7 @@ const MIN_LABEL_WIDTH = 28;
 const FAILURE = new Set(["error", "interrupted"]);
 const BADGES = [
   { key: "failure", label: "실패한 턴", match: (turn) => turn.failed },
-  { key: "user", label: "사용자 메시지가 있는 턴", match: (turn) => turn.userMessages > 0 },
+  { key: "user", label: "작업 중 사용자 메시지가 있는 턴", match: (turn) => turn.userMessages > 0 },
   { key: "compact", label: "압축이 있는 턴", match: (turn) => turn.compacts > 0 },
 ];
 
@@ -57,7 +57,7 @@ function turnText(turn) {
   const parts = [`#${turn.index}`, turn.prompt.length > 60 ? `${turn.prompt.slice(0, 60)}…` : turn.prompt, `도구 ${turn.tools}`];
   if (turn.failures) parts.push(`실패 ${turn.failures}`);
   parts.push(formatDuration(turn.duration));
-  if (turn.userMessages) parts.push(`사용자 메시지 ${turn.userMessages}`);
+  if (turn.userMessages) parts.push(`작업 중 사용자 메시지 ${turn.userMessages}`);
   if (turn.state === "running") parts.push("실행 중");
   return parts.join(" · ");
 }
@@ -105,7 +105,7 @@ function drawStrip(box, turns, options, info) {
         .attr("y", SYMBOL_ROW + CELL_HEIGHT / 2).attr("dy", "0.35em").text(label.slice(0, fits));
     }
     if (turn.userMessages) {
-      svg.append("text").attr("class", "ov-symbol ov-symbol-user").attr("x", x + w / 2).attr("y", SYMBOL_ROW - 3).attr("text-anchor", "middle").text("▲");
+      svg.append("text").attr("class", "ov-symbol ov-symbol-user").attr("x", x + w / 2).attr("y", SYMBOL_ROW - 3).attr("text-anchor", "middle").text("◆");
     }
     if (turn.compacts) {
       svg.append("line").attr("class", "ov-compact").attr("x1", x - CELL_GAP / 2).attr("x2", x - CELL_GAP / 2).attr("y1", 0).attr("y2", height);

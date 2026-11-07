@@ -123,7 +123,8 @@ function nodeTitle(node) {
   const start = time(node.started_at);
   const finish = time(node.ended_at);
   const generation = time(node.generation_started_at);
-  const parts = [node.label || node.kind];
+  const kindName = { prompt: "턴 시작 지시", user_message: "작업 중 사용자 메시지", notification: "알림" }[node.kind];
+  const parts = [kindName ? `${kindName}: ${node.label || ""}` : node.label || node.kind];
   if (node.status) parts.push(`상태: ${node.status}`);
   if (generation !== null) {
     if (generation > start) parts.push(`생각: ${formatDuration(generation - start)}`);
@@ -233,8 +234,8 @@ const LEGEND = [
   ["writing", "작성(응답·도구 입력 생성)"],
   ["approximate", "시각 근사(점선 테두리)"],
   ["wave", "≈ 줄인 대기"],
-  ["user", "사용자 메시지(세로 점선이 모든 줄을 가로지름)"],
-  ["prompt", "지시"],
+  ["prompt", "턴 시작 지시"],
+  ["user", "작업 중 사용자 메시지(세로 점선이 모든 줄을 가로지름)"],
   ["notification", "알림"],
 ];
 

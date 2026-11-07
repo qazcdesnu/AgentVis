@@ -14,7 +14,7 @@ const STATUS = {
 const STEP_LABEL = {
   thinking: "생각",
   text: "응답",
-  user_message: "사용자 메시지",
+  user_message: "작업 중 사용자 메시지",
   notification: "알림",
   hook_failure: "hook 전달 실패",
   compact: "문맥 압축",
@@ -239,7 +239,7 @@ function focusStep(container, stepId) {
 function renderNodeDetail(container, node, turn, steps) {
   container.replaceChildren();
   if (node.kind === "prompt") {
-    container.append(el("div", "label", "지시"), el("pre", "prompt-full", turn.prompt));
+    container.append(el("div", "label", "턴 시작 지시"), el("pre", "prompt-full", turn.prompt));
     return;
   }
   if (node.kind === "model" && node.generation_started_at) {
@@ -282,7 +282,7 @@ function renderTurnPicker(view, turn) {
   const meta = el("div", "meta", `${formatTime(turn.started_at)} · ${turn.state} · 도구 ${turn.tool_call_count}`);
   if (turn.failure_count) meta.append(" · ", el("span", "fail-count", `실패 ${turn.failure_count}`));
   picker.append(select, meta);
-  if (turn.prompt && turn.prompt.includes("\n")) picker.append(expandable("prompt", "지시 전문", turn.prompt));
+  if (turn.prompt && turn.prompt.includes("\n")) picker.append(expandable("prompt", "턴 시작 지시 전문", turn.prompt));
   return picker;
 }
 
