@@ -2,6 +2,31 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## I41 과업별 기능 대응 정리
+
+- 시작일: 2026-11-07
+- 완료일: 2026-11-07
+- 근거 문서: [과업과 데이터 추상화](design/TaskAbstraction.md), [시각화 인코딩 설계](design/VisualEncoding.md), [Claude Code 실무 고충 조사](research/ClaudeCodePainPoints.md)
+
+### 계획
+- 여섯 과업마다 문제, 사용자가 답할 질문, 필요한 판단을 적고, 그 판단을 돕는 기능과 이유를 구현됨·계획으로 나눠 정리한다.
+- 최신 `main`에서 만든 `i41-task-feature-map`에서 진행한다.
+
+### 진행 기록
+- 2026-11-07: 사용자가 실시간 시각화를 보며 이 작업을 하라고 지시했다. PR #31까지 병합된 화면 기능을 기준으로 [과업별 기능 대응](design/TaskCoverage.md)을 썼다.
+
+### 결정 사항
+- 상태를 정직하게 적는다. 지금 화면은 T3·T5·T6를 직접 돕고, T1·T2의 핵심 판단은 기준 사건 보기(M8-T2)가 있어야 한다. 다음 순서는 로드맵대로 M8-T2 → M8-T3다.
+
+### 변경 파일
+- `docs/design/TaskCoverage.md`(새 문서), `docs/design/VisualEncoding.md`, `docs/index.md`, `docs/Issue.md`, `docs/Done.md`
+
+### 결과
+- 과업마다 어떤 기능이 문제를 풀거나 덜어 주는지, 왜 그 기능인지, 무엇이 남았는지 한 문서에서 본다. 논문의 설계 절과 유저 스터디 과업 선택에 쓴다.
+
+### 검증
+- `check_docs`, `check_pointers`, `check_tasks`, `check_commits`, `check_web` 통과. 단위 테스트 140개 통과(문서만 바꿈).
+
 ## M4-T2 변경 알림 SSE 스트림과 실시간 갱신
 
 - 시작일: 2026-11-07
