@@ -2,6 +2,39 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## I44 잘린 도구 결과의 전체 보기
+
+- 시작일: 2026-11-07
+- 완료일: 2026-11-07
+- 근거 문서: [분석기 설계의 도구 호출](design/Analysis.md#5-도구-호출), [웹 UI 설계의 단계 표시](design/WebUI.md#3-턴과-단계-표시)
+
+### 계획
+- 분석기 설계에 결과 미리보기 길이의 이유와 실측, `result_chars`·`error_chars`, 전체 결과 조회 API를 적는다.
+- 웹 UI 설계에 "전체 보기" 단추와 예·아니오 확인 대화상자 규칙을 적는다.
+- `session.py`, `catalog.py`, `server.py`, `app.js`, `style.css`를 고치고 테스트를 더한다.
+- I43 브랜치 위에 쌓은 `i44-full-result`에서 진행한다.
+
+### 진행 기록
+- 2026-11-07: 사용자가 2,000자 제한의 이유를 물었다. 저장소는 원본을 모두 보관하고, 분석기가 응답을 만들 때 자른다. 이유는 문서에 없었다. 가장 큰 세션으로 재니 제한이 있으면 응답 4.5MB, 없으면 5.2MB(+16%)였고 계산 시간은 둘 다 0.16초였다. 결과 871개 중 2,000자를 넘는 것은 73개(최장 16,381자, 중앙값 225자)였다. 사용자가 미리보기는 두고 확인을 거쳐 전체를 보게 하라고 지시했다.
+- 2026-11-07: 분석기 설계(미리보기 길이의 이유와 실측, `result_chars`·`error_chars`, 전체 결과 API)와 웹 UI 설계(전체 보기와 예·아니오 대화상자)를 먼저 고친 뒤 `session.py`(빌더마다 자르는 길이, 오류도 2,000자로 자름), `catalog.py`(`get_tool_output`), `server.py`(경로), `app.js`·`index.html`·`style.css`(전체 길이 표시, `전체 보기`, `<dialog>` 확인)를 고쳤다. 실제 서버로 확인했다: 이 세션의 잘린 결과 75개 중 가장 긴 16,381자 결과를 0.09초에 전체로 받았고 앞부분이 미리보기와 같았다.
+
+### 결정 사항
+- 미리보기 2,000자는 그대로 둔다. 세션 상세는 실시간 갱신 때마다 다시 받으므로 작게 유지하고, 전체는 사용자가 확인한 칸만 받는다.
+- 확인 창은 `<dialog>`로 만든다. 브라우저 기본 창은 단추가 "확인·취소"로 나와 사용자가 정한 "예·아니오"를 쓸 수 없다. 처음 초점은 아니오에 둔다.
+- 대화상자가 열린 동안 실시간 갱신으로 칸이 바뀌었으면, 예를 누른 뒤 화면 전체를 다시 그린다.
+
+### 변경 파일
+- `src/agentvis/analysis/session.py`, `src/agentvis/analysis/catalog.py`, `src/agentvis/server.py`, `src/agentvis/web/app.js`, `src/agentvis/web/index.html`, `src/agentvis/web/style.css`, `tests/test_api.py`
+- `docs/design/Analysis.md`, `docs/design/WebUI.md`, `docs/Issue.md`, `docs/Ongoing.md`, `docs/Done.md`
+
+### 결과
+- 잘린 결과·오류 칸에 전체 길이와 `전체 보기`가 있고, 예·아니오 확인을 거쳐 예일 때만 전체를 받아 보여 준다. 아니오면 화면은 그대로다.
+
+### 검증
+- `check_docs`, `check_pointers`, `check_tasks`, `check_commits`, `check_web` 통과. 단위 테스트 141개 통과(I44 테스트 1개 추가).
+- 브라우저의 대화상자 동작은 확인하지 않았다(사용자 확인 필요).
+
+
 ## I43 JSON 원문·정리 보기 전환
 
 - 시작일: 2026-11-07

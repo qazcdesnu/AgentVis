@@ -22,7 +22,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.responses import Response
 from starlette.types import Scope
 
-from agentvis.analysis.catalog import get_session, get_turn_graph, list_projects, list_sessions
+from agentvis.analysis.catalog import get_session, get_tool_output, get_turn_graph, list_projects, list_sessions
 from agentvis.collector import InvalidHookEvent, hook_event_to_raw
 from agentvis.store import EventStore
 from agentvis.transcript import TranscriptReader, paths_to_read
@@ -140,6 +140,13 @@ def create_app(store: EventStore, reader: TranscriptReader | None = None) -> Fas
         if view is None:
             raise HTTPException(status_code=404, detail="세션 없음")
         return jsonable_encoder(view)
+
+    @app.get("/api/sessions/{session_id}/tool-calls/{tool_use_id}")
+    def tool_output(session_id: str, tool_use_id: str) -> dict:
+        output = get_tool_output(store, session_id, tool_use_id)
+        if output is None:
+            raise HTTPException(status_code=404, detail="세션 또는 도구 호출 없음")
+        return output
 
     @app.get("/api/sessions/{session_id}/turns/{index}/graph")
     def turn_graph(session_id: str, index: int) -> dict:

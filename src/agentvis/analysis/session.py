@@ -32,6 +32,8 @@ class ToolCall:
     status: str = "running"
     result: str | None = None
     error: str | None = None
+    result_chars: int | None = None
+    error_chars: int | None = None
     duration_ms: int | None = None
     permission_requested: bool = False
     subagent: list["Step"] | None = None
@@ -116,8 +118,14 @@ def _content_text(content: object) -> str:
     return ""
 
 
-def _preview(text: str | None) -> str | None:
-    return None if text is None else text[:RESULT_PREVIEW_CHARS]
+def _set_result(call: "ToolCall", text: str, limit: int | None) -> None:
+    call.result = text if limit is None else text[:limit]
+    call.result_chars = len(text)
+
+
+def _set_error(call: "ToolCall", text: str, limit: int | None) -> None:
+    call.error = text if limit is None else text[:limit]
+    call.error_chars = len(text)
 
 
 def _block(record: dict) -> dict:
@@ -148,7 +156,9 @@ def _is_human_prompt(record: dict) -> bool:
 class _Builder:
     """Accumulates turns and tool calls for one session or one subagent."""
 
-    def __init__(self) -> None:
+    def __init__(self, preview_chars: int | None = RESULT_PREVIEW_CHARS) -> None:
+        # How much of a tool result or error to keep; None keeps all of it (Analysis.md section 5, I44).
+        self.preview_chars = preview_chars
         self.turns: dict[str, Turn] = {}
         self.preamble: list[Step] = []
         self.tool_calls: dict[str, ToolCall] = {}
@@ -236,7 +246,8 @@ class _Builder:
             call = self.tool_calls.get(block.get("tool_use_id"))
             if call is not None:
                 result = record.get("toolUseResult")
-                call.result = _preview(_content_text(block.get("content")))
+                full_result = _content_text(block.get("content"))
+                _set_result(call, full_result, self.preview_chars)
                 call.is_error = bool(block.get("is_error"))
                 call.interrupted = call.interrupted or (isinstance(result, dict) and bool(result.get("interrupted")))
                 call.ended_at = event.occurred_at
@@ -249,7 +260,7 @@ class _Builder:
                     call.background = call.background or _background("shell")
                     call.background["task_id"] = result["backgroundTaskId"]
                 if call.is_error and call.error is None:
-                    call.error = call.result
+                    _set_error(call, full_result, self.preview_chars)
             return None
         if _is_human_prompt(record):
             return None
@@ -337,13 +348,14 @@ def _apply_tool_hook(
             call.duration_ms = payload["duration_ms"]
         if kind == "PostToolUseFailure":
             call.interrupted = call.interrupted or bool(payload.get("is_interrupt"))
-            call.error = call.error or payload.get("error")
+            if call.error is None and isinstance(payload.get("error"), str):
+                _set_error(call, payload["error"], target.preview_chars)
             if call.is_error is None:
                 call.is_error = True
         elif call.is_error is None:
             call.is_error = False
             response = payload.get("tool_response")
-            call.result = _preview(response if isinstance(response, str) else json.dumps(response, ensure_ascii=False))
+            _set_result(call, response if isinstance(response, str) else json.dumps(response, ensure_ascii=False), target.preview_chars)
     elif kind == "PermissionRequest":
         for step in reversed(steps):
             call = step.tool_call
@@ -383,9 +395,9 @@ def _status(call: ToolCall, turn_state: str) -> str:
     return "running" if turn_state == "running" else "unfinished"
 
 
-def _subagent_builder(records: list[tuple[RawEvent, dict]]) -> _Builder:
+def _subagent_builder(records: list[tuple[RawEvent, dict]], preview_chars: int | None) -> _Builder:
     # A subagent has no turns of its own, so its steps collect in the builder's preamble.
-    builder = _Builder()
+    builder = _Builder(preview_chars)
     # The first record is the instruction the parent delegated; the spawning tool call already shows it.
     if records and records[0][1].get("type") == "user":
         records = records[1:]
@@ -417,8 +429,8 @@ def _link_background(calls: dict[str, ToolCall], steps: list[Step]) -> None:
             call.background.update(status=step.detail.get("status"), ended_at=step.at, notification_step_id=step.id)
 
 
-def build_session(events: list[RawEvent]) -> SessionView:
-    """Compute the session view of one session's raw events.
+def build_session(events: list[RawEvent], preview_chars: int | None = RESULT_PREVIEW_CHARS) -> SessionView:
+    """Compute the session view of one session's raw events; preview_chars=None keeps whole tool results.
 
     @doc: docs/design/Analysis.md#1-계산-방식
     """
@@ -438,10 +450,10 @@ def build_session(events: list[RawEvent]) -> SessionView:
             sidechains.setdefault(payload["agentId"], []).append((event, payload))
         else:
             main.append((event, payload))
-    builder = _Builder()
+    builder = _Builder(preview_chars)
     for event, record in main:
         builder.add_record(event, record)
-    subagents = {agent_id: _subagent_builder(records) for agent_id, records in sidechains.items()}
+    subagents = {agent_id: _subagent_builder(records, preview_chars) for agent_id, records in sidechains.items()}
     hooked: set[tuple[str, str]] = set()
     ended, stopped, failed = _apply_hooks(builder, sorted(hooks, key=lambda item: (item[0].occurred_at, item[0].id)), subagents, hooked)
     calls = dict(builder.tool_calls)
