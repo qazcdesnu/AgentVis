@@ -24,7 +24,7 @@ from agentvis.hook_settings import (
 )
 from agentvis.server import create_app
 from agentvis.store import EventStore, data_dir, default_db_path
-from agentvis.transcript import TranscriptReader, default_projects_dir
+from agentvis.transcript import TranscriptReader, default_projects_dir, find_unread_transcripts
 
 # @doc: docs/design/Cli.md#21-serve
 DEFAULT_PORT = 8765
@@ -44,7 +44,12 @@ def _serve(args: argparse.Namespace) -> int:
         reader = TranscriptReader(store, default_projects_dir())
         reader.start()
         try:
+            # Sessions that ran while the server was down send no more hooks, so look for them now (M2-T4).
+            missed = find_unread_transcripts(store, default_projects_dir())
+            for missed_path in missed:
+                reader.request(missed_path)
             print(f"AgentVis 서버: http://{_HOST}:{args.port}")
+            print(f"놓친 세션 기록: {len(missed)}개 파일")
             print(f"데이터베이스: {path}", flush=True)
             uvicorn.run(create_app(store, reader), host=_HOST, port=args.port)
         finally:

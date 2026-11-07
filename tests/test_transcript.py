@@ -4,6 +4,7 @@
 """
 
 import json
+import os
 import shutil
 import threading
 from pathlib import Path
@@ -17,6 +18,7 @@ from agentvis.server import create_app
 from agentvis.transcript import (
     ReadResult,
     TranscriptReader,
+    find_unread_transcripts,
     paths_to_read,
     read_new_records,
     read_subagent_meta,
@@ -153,6 +155,28 @@ class ReadNewRecordsTest(RepoTestCase):
             read_new_records(self.store, self.projects / ".." / "secret.jsonl", self.projects)
         self.assertEqual(read_new_records(self.store, self.projects / "x" / "absent.jsonl", self.projects), ReadResult(0, 0, 0))
         self.assertEqual(self.store.events(), [])
+
+
+    def test_find_unread_picks_grown_files_and_files_new_since_collection_started(self) -> None:
+        self.assertEqual(find_unread_transcripts(self.store, self.projects), [])
+        self.append(_PROMPT)
+        self.read()
+        self.assertEqual(find_unread_transcripts(self.store, self.projects), [])
+        self.append(_THINKING)
+        new = self.projects / "-Users-me-app" / "s2.jsonl"
+        new.write_bytes(_PROMPT)
+        # A file last written before collection started is a past session; it is only read by an import.
+        old = self.projects / "-Users-me-app" / "s0.jsonl"
+        old.write_bytes(_PROMPT)
+        os.utime(old, (946684800, 946684800))
+        agent = self.projects / "-Users-me-app" / "s2" / "subagents" / "agent-aa.jsonl"
+        agent.parent.mkdir(parents=True)
+        agent.write_bytes(_PROMPT)
+        meta = agent.with_name("agent-aa.meta.json")
+        meta.write_text("{}", encoding="utf-8")
+        found = find_unread_transcripts(self.store, self.projects)
+        self.assertCountEqual(found, [self.path.resolve(), new.resolve(), agent.resolve(), meta.resolve()])
+        self.assertEqual(found.index(meta.resolve()), found.index(agent.resolve()) + 1)
 
 
 class SubagentTest(RepoTestCase):
