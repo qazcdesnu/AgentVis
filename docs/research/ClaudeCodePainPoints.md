@@ -91,6 +91,16 @@ J(권한 피로)와 L(비용)은 고충은 크지만 시각화보다 설정·요
 - [r/ClaudeAI "Claude keeps adding code" (미러)](https://reddit.sentinel-team.org/posts/1qz6cax/snapshots/2026-02-08T16%3A00%3A56.564909Z)
 - [r/ClaudeAI "Claude Code not respecting CLAUDE.md" (미러)](https://reddit.sentinel-team.org/posts/1sk4qh2/snapshots/2026-04-18T01%3A10%3A06.838236Z)
 
+**사용자 쪽 오류 추가 조사**(6절, 2026-11-07)
+- GitHub 본문 확인: [#69112](https://github.com/anthropics/claude-code/issues/69112), [#92270](https://github.com/anthropics/claude-code/issues/92270), [#27295](https://github.com/anthropics/claude-code/issues/27295). #3382는 반응 수를 다시 확인(1,374)
+- [Claude Code 문서, How Claude remembers your project](https://code.claude.com/docs/en/memory) (검색 요약으로 확인)
+- [Xia et al., Agentless, arXiv:2407.01489](https://arxiv.org/abs/2407.01489) (6절 문제 분류를 원문으로 확인)
+- [Vijayvargiya et al., Ambig-SWE, arXiv:2502.13069](https://arxiv.org/abs/2502.13069) (초록과 본문 일부 확인)
+- [Ask or Assume? Uncertainty-Aware Clarification-Seeking in Coding Agents, arXiv:2603.26233](https://arxiv.org/abs/2603.26233) (초록만)
+- [OpenAI, Introducing SWE-bench Verified](https://openai.com/index/introducing-swe-bench-verified/) (페이지 열람 실패, 검색 요약만)
+- [Non-programmers Assessing AI-Generated Code, arXiv:2508.06484](https://arxiv.org/abs/2508.06484) (초록 수준)
+- [ITPro, Sonar 설문 기사](https://www.itpro.com/software/development/software-developers-not-checking-ai-generated-code-verification-debt) (기사만)
+
 **설문·연구**
 - [Stack Overflow Developer Survey 2025, AI](https://survey.stackoverflow.co/2025/ai)
 - [METR, Measuring the Impact of Early-2025 AI on Experienced Open-Source Developer Productivity (2025-07-10)](https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/)
@@ -98,3 +108,42 @@ J(권한 피로)와 L(비용)은 고충은 크지만 시각화보다 설정·요
 - [Huang et al., Professional Software Developers Don't Vibe, They Control, arXiv:2512.14012](https://arxiv.org/abs/2512.14012)
 - [Kumar et al., ASE 2025, arXiv:2506.12347](https://arxiv.org/abs/2506.12347)
 - [Watanabe et al., arXiv:2509.14745](https://arxiv.org/abs/2509.14745)
+
+## 6. 사용자 쪽 오류에서 시작하는 고충
+
+2026-11-07에 추가로 조사했다(I49). 질문은 "사용자가 잘못된 지시나 환경 설정을 주었을 때, 에이전트가 그것을 지적하지 않고 따르고 사용자도 알아차리지 못하는 일이 실제 고충으로 보고되었는가"다. 유저 스터디에서 SWE-bench 과제의 첫 지시나 환경 설정을 일부러 틀리게 만들고, 참가자가 얼마나 찾아내는지 재려는 계획의 근거를 확인하기 위해서다.
+
+### 6.1 기존 분류와의 관계
+
+2절의 분류(A~M)는 모두 에이전트 쪽 실패에서 출발한다. 사용자 쪽 오류를 따로 다룬 분류는 없다. 가장 가까운 것은 두 가지다.
+
+- **I 아첨**: 사용자가 무엇을 말하든 동의한다(#3382, 반응 1,374). 틀린 지시에도 동의하고 따를 수 있다는 뜻이지만, 보고의 초점은 말투와 동의 자체다.
+- **M 리뷰 부담·신뢰 보정 실패**: 사용자가 결과의 오류를 잘 찾지 못한다. 오류의 출처를 가리지 않는다.
+
+### 6.2 찾은 근거
+
+| 갈래 | 근거 | 강도 |
+| --- | --- | --- |
+| 커뮤니티: 모호한 지시를 묻지 않고 짐작함 | [#92270](https://github.com/anthropics/claude-code/issues/92270)(2026-09-05, 반응 0): "어떤 것은 분명히 그렇게 짐작했어야 하거나 내게 알려 줬어야 하는데 그러지 않는다." 하이쿠와 로컬 모델을 빼라고 했더니 말하지 않은 codex까지 뺐다. [#27295](https://github.com/anthropics/claude-code/issues/27295)(2026-02-21, 댓글 2): 파일을 다 읽지 않고 짐작해 제안하며, 사용자가 따질 때만 반박한다. 같은 갈래의 이슈가 여럿 있으나 대부분 재현 정보가 없어 닫혔다. | 약함. 반응이 거의 없다. |
+| 커뮤니티: 환경 설정 오류를 에이전트도 사용자도 못 알아챔 | [#69112](https://github.com/anthropics/claude-code/issues/69112)(2026-06-17): 이틀 동안 에이전트가 고친 코드를 커밋하고 "push했다", "배포 중"이라고 보고했지만 GitHub 인증 정보가 없어 원격에 한 번도 가지 않았다. 사용자가 보여 준 빌드 오류도 별개 문제로 진단했다. 사용자가 "Render CLI나 MCP를 쓰고 있는지 확인해 보라"고 직접 물은 뒤에야 드러났다. | 사례 하나. 오류 출처가 사용자의 설정이고, 양쪽 모두 이틀 동안 놓쳤다는 점에서 계획한 실험과 가장 가깝다. |
+| 공식 문서: 낡거나 충돌하는 CLAUDE.md | Claude Code 문서는 CLAUDE.md를 강제 설정이 아닌 문맥으로 다루며, 두 지시가 충돌하면 Claude가 하나를 임의로 고를 수 있다고 적는다. 지침을 주기적으로 검토해 낡거나 충돌하는 지시를 지우라고 권한다([memory 문서](https://code.claude.com/docs/en/memory)). 커뮤니티 안내 글은 구조가 바뀌었는데 CLAUDE.md가 그대로면 없는 경로로 import하거나 엉뚱한 폴더에 파일을 만든다고 보고한다(검색 요약으로만 확인). | 중간. 문제 자체는 공식적으로 인정되었지만 빈도 자료는 없다. |
+| 연구: 벤치마크 과제 글 자체가 틀린 경우 | Agentless([arXiv:2407.01489](https://arxiv.org/abs/2407.01489)): SWE-bench Lite 문제를 직접 분류해 보니 이슈 글에 실제 정답 패치와 다른 **잘못된 해결책이 적힌 문제가 5.0%**, 풀기에 **정보가 부족한 문제가 10.0%**, 정답 패치가 그대로 적힌 문제가 4.3%였다(원문 확인). 저자들은 에이전트가 정보를 거르지 못하고 잘못된 정보를 그대로 받아들이는 한계를 지적한다. OpenAI는 SWE-bench Verified를 만들며 문제 글이 덜 정해진 표본을 걸러 냈다([발표](https://openai.com/index/introducing-swe-bench-verified/), 수치는 열람하지 못함). | 강함. 자연적으로 틀린 지시가 벤치마크 안에 있다. |
+| 연구: 에이전트는 덜 정해진 지시를 묻지 않는다 | Ambig-SWE(Vijayvargiya et al., ICLR 2026, [arXiv:2502.13069](https://arxiv.org/abs/2502.13069)): SWE-bench Verified의 이슈 글에서 코드 조각과 오류 문구를 지운 덜 정해진 변형을 만들었다. 모델은 잘 정해진 지시와 덜 정해진 지시를 잘 구분하지 못하고, **묻도록 시키지 않으면 거의 묻지 않는다.** 질문을 허용하면 Claude Sonnet 3.5가 완전한 지시 성능의 최대 80%를 되찾는다(원문 확인). 후속 연구로 [Ask or Assume?](https://arxiv.org/abs/2603.26233)(2026)이 있다(초록만 확인). | 강함. |
+| 연구: 사람은 AI가 만든 결과의 오류를 잘 못 찾는다 | 데이터 분석 코드를 설명으로 검토한 비전문가는 오류 가능성을 경고받고도 결정적 결함을 자주 놓쳤다([arXiv:2508.06484](https://arxiv.org/abs/2508.06484), 초록 수준). Sonar 설문은 개발자 96%가 AI 코드를 완전히 믿지 않는다면서 커밋 전 검토는 절반이 안 된다고 보고했다(기사로만 확인). | 중간. 오류의 출처가 사용자 지시인 경우를 따로 잰 연구는 찾지 못했다. |
+
+### 6.3 결론
+
+- **"사용자가 틀리게 지시하거나 설정했는데 에이전트가 따르고 사용자도 못 알아챈다"를 이름 붙여 많이 보고한 고충은 찾지 못했다.** 커뮤니티 보고는 대부분 에이전트가 지시를 어기는 쪽(A)이다. 사용자 쪽 오류를 다룬 이슈는 반응이 적고 흩어져 있다.
+- **그러나 그 고충을 이루는 세 부분은 각각 근거가 있다.**
+  1. 사용자 쪽 지시·설정이 틀리는 일은 흔하다. 실제 이슈 글의 5%에 잘못된 해결책이 있고, 10%는 정보가 모자란다. CLAUDE.md가 낡거나 충돌하는 문제는 공식 문서가 인정한다.
+  2. 에이전트는 묻지 않고 따른다. 시키지 않으면 거의 묻지 않고(Ambig-SWE), 아첨 성향이 있다(I).
+  3. 사람은 결과의 오류를 잘 못 찾는다(M, 6.2의 마지막 줄).
+- 따라서 계획한 과업은 **"보고된 대표 고충"이 아니라 "연구 근거로 뒷받침되는, 아직 이름 붙지 않은 위험"**으로 논문에 써야 정직하다. 가장 가까운 실제 사례로 #69112를 들 수 있다.
+
+### 6.4 유저 스터디에 주는 함의
+
+- **오류를 직접 만들지 않고 자연적인 것을 고를 수 있다.** Agentless가 찾은 "잘못된 해결책이 적힌" SWE-bench Lite 문제(5.0%)를 쓰면 생태적 타당성이 높다. 덜 정해진 지시는 Ambig-SWE의 만드는 방법(코드 조각·오류 문구 지우기)을 그대로 따를 수 있다.
+- **오류의 종류를 나눈다.** (가) 지시 안의 틀린 해결책이나 틀린 전제, (나) 빠진 정보, (다) 환경 설정 오류(틀린 테스트 명령, 낡은 CLAUDE.md 경로, 권한 없음). (다)는 #69112처럼 실행 결과(종료 코드, 오류 출력)에 흔적이 남아 AgentVis가 보여 줄 수 있는 정보와 바로 이어진다.
+- **AgentVis가 도울 지점**: 지시와 행동의 대조(T6, [기준 사건 보기](../design/VisualEncoding.md#34-e4-기준-사건-보기)), 실패와 그 뒤 행동(T2·T5), 근거 없는 성공 보고(T1. #69112의 "push했다"는 실행 근거가 없는 주장이다). 새 과업을 더하기보다 T6를 "지시가 틀린 경우"까지 넓히는 편이 4주 일정에 맞는다. 결정은 유저 스터디 설계(I26)에서 한다.
+- **연구 윤리**: 참가자에게 일부러 틀린 지시를 주는 것은 속임이 들어가는 설계다. 끝난 뒤 사후 설명(debriefing)을 하고, IRB 신청서에 그 사실과 이유를 적어야 한다.
+- **확인할 것**: 세션 기록에 CLAUDE.md 내용이나 그것을 읽은 사실이 남는지 확인해야 한다. 남지 않으면 환경 설정 오류는 실행 결과로만 드러난다.
