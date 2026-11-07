@@ -17,7 +17,7 @@ const STEP_LABEL = {
   user_message: "작업 중 사용자 메시지",
   notification: "알림",
   hook_failure: "hook 전달 실패",
-  compact: "문맥 압축",
+  compact: "대화 요약(문맥 압축)",
   subagent: "서브에이전트",
 };
 const NOTIFICATION_SOURCE = {

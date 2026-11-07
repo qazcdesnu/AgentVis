@@ -11,7 +11,7 @@ const FAILURE = new Set(["error", "interrupted"]);
 const BADGES = [
   { key: "failure", label: "실패한 턴", match: (turn) => turn.failed },
   { key: "user", label: "작업 중 사용자 메시지가 있는 턴", match: (turn) => turn.userMessages > 0 },
-  { key: "compact", label: "압축이 있는 턴", match: (turn) => turn.compacts > 0 },
+  { key: "compact", label: "대화 요약이 일어난 턴", title: "대화가 길어져 Claude Code가 앞 대화를 요약문으로 바꾼 턴입니다. 이 뒤로 에이전트는 앞의 세부 내용을 요약으로만 기억합니다.", match: (turn) => turn.compacts > 0 },
 ];
 
 let keyHandler = null;
@@ -109,7 +109,8 @@ function drawStrip(box, turns, options, info) {
     }
     if (turn.compacts) {
       svg.append("line").attr("class", "ov-compact").attr("x1", x - CELL_GAP / 2).attr("x2", x - CELL_GAP / 2).attr("y1", 0).attr("y2", height);
-      svg.append("text").attr("class", "ov-compact-label").attr("x", x + 2).attr("y", 10).text("압축");
+      svg.append("text").attr("class", "ov-compact-label").attr("x", x + 2).attr("y", 10).text("대화 요약")
+        .append("title").text(BADGES[2].title);
     }
     group.on("click", () => options.onSelect(turn, false));
     group.on("mouseenter", () => { info.textContent = turnText(turn); });
@@ -128,7 +129,9 @@ function renderBadges(turns, options) {
     const previous = () => (current ? shown.filter((turn) => turn.index < current.index).pop() : shown[shown.length - 1]);
     jumps[badge.key] = { next, previous };
     const group = el("span", `ov-badge ov-badge-${badge.key}`);
-    group.append(el("span", "ov-badge-label", `${badge.label} ${shown.length}`));
+    const label = el("span", "ov-badge-label", `${badge.label} ${shown.length}`);
+    if (badge.title) label.title = badge.title;
+    group.append(label);
     for (const [symbol, pick, title] of [["◀", previous, "이전"], ["▶", next, "다음"]]) {
       const button = el("button", null, symbol);
       button.type = "button";

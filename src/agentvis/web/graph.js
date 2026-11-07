@@ -228,15 +228,16 @@ function addHatch(svg) {
 const USER_MESSAGE_SIZE = 140;
 const LEGEND_WIDTH = 26;
 const LEGEND_HEIGHT = 24;
+// [kind, text, hover explanation]. The text names the meaning only; the swatch already shows the look (I39).
 const LEGEND = [
-  ["run", "도구 실행(색 = 상태: ✓ 성공 · ✕ 오류 · ⏸ 중단)"],
-  ["thinking", "생각"],
-  ["writing", "작성(응답·도구 입력 생성)"],
-  ["approximate", "시각 근사(점선 테두리)"],
-  ["wave", "≈ 줄인 대기"],
-  ["prompt", "턴 시작 지시"],
-  ["user", "작업 중 사용자 메시지(세로 점선이 모든 줄을 가로지름)"],
-  ["notification", "알림"],
+  ["run", "도구 실행(색 = 상태: ✓ 성공 · ✕ 오류 · ⏸ 중단)", "도구가 실행된 구간입니다. 막대 색이 실행 결과를 나타냅니다."],
+  ["thinking", "생각", "모델이 생각한 구간입니다."],
+  ["writing", "응답·도구 입력 작성", "모델이 응답 글이나 도구 입력(파일 내용, 명령 등)을 작성한 구간입니다."],
+  ["approximate", "추정 시각", "시작이나 끝 시각을 기록에서 추정한 막대입니다. 점선 테두리로 그립니다."],
+  ["wave", "줄여 그린 긴 대기", "10초가 넘는 간격을 줄여 그렸습니다. 실제 길이는 물결 옆 글자로 적습니다."],
+  ["prompt", "턴 시작 지시", "에이전트가 쉬고 있을 때 사람이 보내 이 턴을 시작한 메시지입니다."],
+  ["user", "작업 중 사용자 메시지", "에이전트가 일하는 도중에 사람이 보낸 메시지입니다. 세로 점선은 그 순간 각 줄(에이전트)이 무엇을 하고 있었는지 보여 줍니다."],
+  ["notification", "알림", "작업 알림, 하위 에이전트 보고 같은 시스템 메시지입니다."],
 ];
 
 // One-line legend above the graph (FlowGraph.md section 6.3, I38). Swatches reuse the graph's own sizes and classes,
@@ -245,9 +246,10 @@ function renderLegend() {
   const legend = document.createElement("div");
   legend.className = "g-legend";
   const mid = LEGEND_HEIGHT / 2;
-  for (const [kind, text] of LEGEND) {
+  for (const [kind, text, title] of LEGEND) {
     const item = document.createElement("span");
     item.className = "g-legend-item";
+    item.title = title;
     const svg = d3.create("svg").attr("class", "g-svg").attr("width", LEGEND_WIDTH).attr("height", LEGEND_HEIGHT);
     if (kind === "writing") addHatch(svg);
     const bar = (classes, rectClass = null) => svg.append("g").attr("class", classes).append("rect").attr("class", rectClass)
