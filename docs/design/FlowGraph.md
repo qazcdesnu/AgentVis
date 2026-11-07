@@ -78,7 +78,7 @@
 | `background_task` | 백그라운드 셸 명령의 실행. 그 줄의 유일한 노드다. | 실행 구간 막대 |
 | `user_message` | `user_message` 단계 | 강조 표시 |
 | `notification` | `notification` 단계 | 점 |
-| `compact`, `hook_failure` | 같은 이름의 단계 | 점 |
+| `compact`, `hook_failure` | 같은 이름의 단계. `hook_failure`의 이름은 `실시간 신호 누락(Stop)`처럼 빠진 hook을 적는다(I40) | 점 |
 
 노드는 [Node](../../src/agentvis/analysis/graph.py#Node)로 나타내며, 필드는 다음과 같다.
 

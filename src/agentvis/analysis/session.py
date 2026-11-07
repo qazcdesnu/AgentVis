@@ -154,6 +154,7 @@ class _Builder:
         self.tool_calls: dict[str, ToolCall] = {}
         self.uuid_turn: dict[str, str] = {}
         self.thinking_messages: set[str] = set()
+        self.turn_ends: dict[str, datetime] = {}
 
     def turn_of(self, record: dict, at: datetime) -> str | None:
         prompt_id = record.get("promptId")
@@ -176,6 +177,9 @@ class _Builder:
         turn_id = self.turn_of(record, event.occurred_at)
         if isinstance(record.get("uuid"), str) and turn_id is not None:
             self.uuid_turn[record["uuid"]] = turn_id
+        # The transcript's turn_duration record marks the turn's end even when the Stop hook was lost (H6).
+        if record.get("type") == "system" and record.get("subtype") == "turn_duration" and turn_id is not None:
+            self.turn_ends[turn_id] = max(event.occurred_at, self.turn_ends.get(turn_id, event.occurred_at))
         step = self._record_step(event, record)
         if step is not None:
             self.add_step(turn_id, step)
@@ -353,9 +357,11 @@ def _finish_turns(builder: _Builder, ended: bool, stopped: set[str], failed: set
     for index, turn in enumerate(turns, start=1):
         turn.index = index
         turn.steps.sort(key=lambda step: (step.at, step.id))
+        if turn.ended_at is None and turn.prompt_id in builder.turn_ends:
+            turn.ended_at = builder.turn_ends[turn.prompt_id]
         if turn.prompt_id in failed:
             turn.state = "failed"
-        elif turn.prompt_id in stopped or ended or index < len(turns):
+        elif turn.prompt_id in stopped or turn.prompt_id in builder.turn_ends or ended or index < len(turns):
             turn.state = "ended"
         if turn.ended_at is None and turn.state != "running" and turn.steps:
             turn.ended_at = turn.steps[-1].at

@@ -2,6 +2,39 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## H6 빠진 hook의 보정과 안내
+
+- 시작일: 2026-11-07
+- 완료일: 2026-11-07
+- 근거 문서: [분석기 설계의 턴](design/Analysis.md#3-턴), [데이터 소스의 두 소스 비교](DataSource.md#4-두-소스-비교), [웹 UI 설계의 단계 표시](design/WebUI.md#3-턴과-단계-표시)
+- 관련 이슈: I40
+
+### 계획
+- 데이터 소스에 hook 전달 실패와 `turn_duration` 실측을 적는다.
+- 분석기 설계에 `turn_duration`을 턴 끝 신호로 쓰는 규칙을 적고 구현한다(H6).
+- 웹 UI 설계에 빠진 hook 종류별 안내(보완함·확인할 수 없음, 원인)를 적고 화면·그래프 이름을 고친다(I40).
+- 최신 `main`에서 만든 `h6-stop-from-transcript`에서 진행한다.
+
+### 진행 기록
+- 2026-11-07: 사용자가 hook 전달 실패를 사후에 보정할 수 있는지 물었다. 이 프로젝트 세션의 실패 224건(`PostToolUse` 97, `PreToolUse` 95, `UserPromptSubmit` 20, `Stop` 10, `PostToolUseFailure` 2)이 모두 `ECONNREFUSED`였다. 세션 기록에서 `turn_duration`이 턴 109개 중 102개에 하나씩 있었다(한 턴에 둘 이상인 경우 없음). 사용자가 보정 세 가지(`Stop` 대체, M2-T4, 메시지)를 먼저 하고 M4-T2로 가라고 지시했다.
+- 2026-11-07: 데이터 소스 3.8절, 분석기 설계의 턴 끝 신호, 웹 UI 설계의 빠진 hook 안내 표를 먼저 쓰고 `session.py`(`turn_ends`), `graph.py`(노드 이름), `app.js`·`style.css`(안내 문구와 보완·잃음 표시)를 고쳤다. 실제 서버를 다시 띄워 세션 10개를 확인했다: 실행 중으로 남은 턴은 2개였고, 둘 다 지금 실제로 진행 중인 턴(이 세션, 12초 전까지 활동한 다른 프로젝트 세션)이었다.
+
+### 결정 사항
+- 턴 끝 신호는 `Stop` hook과 `turn_duration` 기록 둘 다로 본다. 둘 다 있으면 끝 시각은 `Stop` hook 시각이다.
+- 빠진 hook 안내는 보완된 것(흐림)과 내용을 잃은 것(경고 색)을 나눈다. 원인은 오류 문구로 판단한다(`ECONNREFUSED`면 서버가 꺼져 있었음).
+
+### 변경 파일
+- `src/agentvis/analysis/session.py`, `src/agentvis/analysis/graph.py`, `src/agentvis/web/app.js`, `src/agentvis/web/style.css`, `tests/test_analysis.py`
+- `docs/DataSource.md`, `docs/design/Analysis.md`, `docs/design/FlowGraph.md`, `docs/design/WebUI.md`, `docs/Issue.md`, `docs/Ongoing.md`, `docs/Done.md`
+
+### 결과
+- 서버가 꺼져 `Stop` hook을 받지 못한 턴도 세션 기록을 읽으면 끝난 것으로 보인다(H6).
+- 빠진 hook마다 "무엇을 세션 기록으로 보완했고 무엇을 확인할 수 없는지"와 원인이 한 줄로 보인다(I40).
+
+### 검증
+- `check_docs`, `check_pointers`, `check_tasks`, `check_commits`, `check_web` 통과. 단위 테스트 135개 통과(H6 테스트 1개 추가).
+
+
 ## I39 사람이 보낸 메시지의 이름과 모양
 
 - 시작일: 2026-11-07

@@ -92,6 +92,20 @@ class TurnTest(unittest.TestCase):
         self.assertEqual(bare.detail, {})
         self.assertEqual(len(view_steps), 3)
 
+    def test_turn_duration_record_ends_a_turn_whose_stop_hook_was_lost(self) -> None:
+        s = _Session()
+        s.prompt("u1", "p1", "끝까지 해")
+        s.assistant("a1", "u1", {"type": "text", "text": "다 했다"})
+        # The Stop hook never arrived (server down); the transcript still says the turn ended (H6).
+        s.record(type="system", uuid="d1", parentUuid="a1", subtype="turn_duration", durationMs=2000)
+        s.record(type="attachment", uuid="h1", parentUuid="d1",
+                 attachment={"type": "hook_non_blocking_error", "hookEvent": "Stop", "stderr": "connect ECONNREFUSED 127.0.0.1:8765"})
+        turn = s.build().turns[0]
+        self.assertEqual(turn.state, "ended")
+        self.assertEqual(turn.ended_at, _START + timedelta(seconds=3))
+        self.assertEqual([step.kind for step in turn.steps], ["text", "hook_failure"])
+        self.assertEqual(turn.steps[1].detail["hook_event"], "Stop")
+
     def test_hook_only_turn_and_stop_failure(self) -> None:
         s = _Session()
         s.hook("UserPromptSubmit", prompt_id="p1", prompt="hook으로만 온 지시")

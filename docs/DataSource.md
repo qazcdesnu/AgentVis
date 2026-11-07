@@ -166,6 +166,15 @@ M4-T6에서 이 세션의 세션 기록(기록 4,295개)과 실제 이벤트 저
   - 도구 → 도구 42건은 모두 생각·글 블록 없이 도구 호출만 담은 응답이었다.
 - 따라서 응답 하나의 **작성 구간**은 `생각이 끝난 시각`(생각이 없으면 직전 노드가 끝난 시각) ~ `그 응답의 마지막 기록 시각`으로 근사한다. 마지막 기록은 도구 호출이면 `tool_use` 기록, 글이면 `text` 기록이다. 직전 노드가 끝난 시각에서 시작하면 API 요청 왕복과 첫 응답 대기도 들어간다.
 
+### 3.8 hook 전달 실패와 턴 끝 기록
+
+2026-11-07에 이 프로젝트의 세션 기록 전체에서 관찰했다(H6, I40).
+
+- **hook 전달 실패**: Claude Code가 hook을 보내지 못하면 `attachment` 기록(`attachment.type` = `hook_non_blocking_error`)을 남긴다. `hookEvent`에 빠진 hook 이름, `stderr`에 오류 문구가 있다. Claude Code는 실패한 hook을 다시 보내지 않으므로 그 hook 이벤트는 사라진다.
+- 관찰한 224건이 모두 `connect ECONNREFUSED 127.0.0.1:8765`였다. AgentVis 서버가 꺼져 있던(다시 띄우던) 동안이다. 종류는 `PostToolUse` 97, `PreToolUse` 95, `UserPromptSubmit` 20, `Stop` 10, `PostToolUseFailure` 2였다.
+- **턴 끝 기록**: `system` 기록 `subtype` = `turn_duration`이 턴이 끝날 때 남는다. 필드는 `durationMs`(턴 소요 시간), `messageCount`다. 이 세션의 턴 109개 중 102개에 하나씩 있었고, 한 턴에 둘 이상인 경우는 없었다. 없는 7개 턴이 무엇인지(사용자 중단 등)는 확인하지 않았다.
+- 같은 때 `stop_hook_summary`(`Stop` hook 실행 요약)도 남지만, `Stop` hook이 설정된 경우에만 남으므로 턴 끝 신호로는 `turn_duration`을 쓴다.
+
 ## 4. 두 소스 비교
 
 2026-10-31에 로컬 세션 기록(세션 5개, 서브에이전트 기록 3개)과 hook 실측(M0-T4, M1-T6, H2)으로 확인했다. 이 비교에 따라 세션 기록을 주 내용 출처로, hook을 신호로 쓴다(I17).
