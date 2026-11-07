@@ -83,7 +83,7 @@ function isBar(node) {
 
 function layout(graph, zoom, mode) {
   const end = d3.max(graph.nodes.flatMap((node) => [time(node.started_at), time(node.ended_at)]).concat([time(graph.ended_at)]).filter(Boolean));
-  const times = graph.nodes.flatMap((node) => [time(node.started_at), time(node.ended_at) ?? end]);
+  const times = graph.nodes.flatMap((node) => [time(node.started_at), time(node.ended_at) ?? end, time(node.generation_started_at)]).filter((value) => value !== null);
   const { scale, width, breaks } = buildScale(times, zoom, mode);
   const lanes = orderLanes(graph.lanes);
   const placed = new Map();
@@ -97,14 +97,17 @@ function layout(graph, zoom, mode) {
       const start = scale(time(node.started_at));
       const finish = bar ? Math.max(scale(time(node.ended_at) ?? end), start + MIN_BAR) : start + POINT_RADIUS;
       const left = bar ? start : start - POINT_RADIUS;
-      let row = rows.findIndex((right) => right + OVERLAP_MARGIN <= left);
+      // A bar may touch the bar before it (writing runs straight into the tool run); points keep a margin.
+      let row = rows.findIndex((last) => (last.bar && bar ? last.right <= left + 0.5 : last.right + OVERLAP_MARGIN <= left));
       if (row === -1) {
         row = rows.length;
-        rows.push(finish);
+        rows.push({ right: finish, bar });
       } else {
-        rows[row] = finish;
+        rows[row] = { right: finish, bar };
       }
-      placed.set(node.id, { node, isBar: bar, x0: start, x1: finish, row, open: bar && !node.ended_at });
+      const generation = time(node.generation_started_at);
+      const xg = bar && generation !== null ? Math.min(finish, Math.max(start, scale(generation))) : null;
+      placed.set(node.id, { node, isBar: bar, x0: start, x1: finish, xg, row, open: bar && !node.ended_at });
     }
     const height = Math.max(1, rows.length) * ROW_HEIGHT + LANE_PADDING * 2;
     laneBoxes.push({ lane, y, height });
@@ -119,8 +122,13 @@ function layout(graph, zoom, mode) {
 function nodeTitle(node) {
   const start = time(node.started_at);
   const finish = time(node.ended_at);
+  const generation = time(node.generation_started_at);
   const parts = [node.label || node.kind];
   if (node.status) parts.push(`상태: ${node.status}`);
+  if (generation !== null) {
+    if (generation > start) parts.push(`생각: ${formatDuration(generation - start)}`);
+    parts.push(`작성: ${formatDuration(finish - generation)}${node.output_chars ? ` (${node.output_chars.toLocaleString()}자)` : ""}`);
+  }
   parts.push(`시각: ${formatClock(start)}${finish && finish !== start ? ` ~ ${formatClock(finish)}` : ""}`);
   if (finish && finish !== start) parts.push(`실행 시간: ${formatDuration(finish - start)} (${finish - start}ms)`);
   if (node.approximate) parts.push(node.kind === "model" ? "시작 시각 근사(생각이 끝난 시각 − 걸린 시간)" : "시각 근사(hook 없음)");
@@ -179,7 +187,14 @@ function drawNodes(content, placed, height, onSelect) {
     if (node.kind === "user_message") {
       content.insert("line", ".g-edges").attr("class", "g-guide").attr("x1", item.x0).attr("x2", item.x0).attr("y1", TOP_MARGIN).attr("y2", height);
     }
-    if (item.isBar) {
+    if (item.isBar && item.xg !== null) {
+      // Model bar: thinking part, then the writing part hatched (FlowGraph.md section 6.3, I38).
+      if (item.xg > item.x0) element.append("rect").attr("class", "g-thinking").attr("x", item.x0).attr("y", item.y - BAR_HEIGHT / 2).attr("width", item.xg - item.x0).attr("height", BAR_HEIGHT).attr("rx", 3);
+      element.append("rect").attr("class", "g-writing").attr("x", item.xg).attr("y", item.y - BAR_HEIGHT / 2).attr("width", Math.max(MIN_BAR, item.x1 - item.xg)).attr("height", BAR_HEIGHT).attr("rx", 3);
+      if (item.x1 - item.x0 > 40) {
+        element.append("text").attr("class", "g-bar-label model").attr("x", item.x0 + 4).attr("y", item.y).attr("dy", "0.35em").text(node.label.slice(0, Math.floor((item.x1 - item.x0 - 8) / 7)));
+      }
+    } else if (item.isBar) {
       element.append("rect").attr("x", item.x0).attr("y", item.y - BAR_HEIGHT / 2).attr("width", item.x1 - item.x0).attr("height", BAR_HEIGHT).attr("rx", 3);
       const symbol = STATUS_SYMBOL[node.status] || "";
       const text = `${symbol} ${node.label}`;
@@ -187,7 +202,7 @@ function drawNodes(content, placed, height, onSelect) {
         element.append("text").attr("class", "g-bar-label").attr("x", item.x0 + 4).attr("y", item.y).attr("dy", "0.35em").text(text.slice(0, Math.floor((item.x1 - item.x0 - 8) / 7)));
       }
     } else if (node.kind === "user_message") {
-      element.append("path").attr("d", d3.symbol(d3.symbolDiamond, 140)()).attr("transform", `translate(${item.x0},${item.y})`);
+      element.append("path").attr("d", d3.symbol(d3.symbolDiamond, USER_MESSAGE_SIZE)()).attr("transform", `translate(${item.x0},${item.y})`);
     } else if (node.kind === "compact" || node.kind === "hook_failure") {
       element.append("rect").attr("x", item.x0 - 4).attr("y", item.y - 4).attr("width", 8).attr("height", 8);
     } else {
@@ -196,6 +211,65 @@ function drawNodes(content, placed, height, onSelect) {
     element.append("title").text(nodeTitle(node));
     element.on("click", () => onSelect(node));
   }
+}
+
+// Diagonal hatch for the writing part of a model bar, shared by the graph and the legend swatch.
+function addHatch(svg) {
+  const pattern = svg.select("defs").empty() ? svg.append("defs") : svg.select("defs");
+  pattern.append("pattern").attr("id", "g-hatch").attr("width", 5).attr("height", 5).attr("patternUnits", "userSpaceOnUse")
+    .attr("patternTransform", "rotate(45)")
+    .call((p) => {
+      p.append("rect").attr("class", "g-hatch-bg").attr("width", 5).attr("height", 5);
+      p.append("line").attr("class", "g-hatch-line").attr("x1", 0).attr("y1", 0).attr("x2", 0).attr("y2", 5);
+    });
+}
+
+const USER_MESSAGE_SIZE = 140;
+const LEGEND_WIDTH = 26;
+const LEGEND_HEIGHT = 24;
+const LEGEND = [
+  ["run", "도구 실행(색 = 상태: ✓ 성공 · ✕ 오류 · ⏸ 중단)"],
+  ["thinking", "생각"],
+  ["writing", "작성(응답·도구 입력 생성)"],
+  ["approximate", "시각 근사(점선 테두리)"],
+  ["wave", "≈ 줄인 대기"],
+  ["user", "사용자 메시지(세로 점선이 모든 줄을 가로지름)"],
+  ["prompt", "지시"],
+  ["notification", "알림"],
+];
+
+// One-line legend above the graph (FlowGraph.md section 6.3, I38). Swatches reuse the graph's own sizes and classes,
+// so a symbol looks the same in the legend and in the graph.
+function renderLegend() {
+  const legend = document.createElement("div");
+  legend.className = "g-legend";
+  const mid = LEGEND_HEIGHT / 2;
+  for (const [kind, text] of LEGEND) {
+    const item = document.createElement("span");
+    item.className = "g-legend-item";
+    const svg = d3.create("svg").attr("class", "g-svg").attr("width", LEGEND_WIDTH).attr("height", LEGEND_HEIGHT);
+    if (kind === "writing") addHatch(svg);
+    const bar = (classes, rectClass = null) => svg.append("g").attr("class", classes).append("rect").attr("class", rectClass)
+      .attr("x", 1).attr("y", mid - BAR_HEIGHT / 2).attr("width", LEGEND_WIDTH - 2).attr("height", BAR_HEIGHT).attr("rx", 3);
+    if (kind === "run") bar("g-node status-success");
+    else if (kind === "thinking") bar("g-node kind-model", "g-thinking");
+    else if (kind === "writing") bar("g-node kind-model", "g-writing");
+    else if (kind === "approximate") bar("g-node kind-model approximate", "g-thinking");
+    else if (kind === "wave") svg.append("path").attr("class", "g-break").attr("d", wavePath(LEGEND_WIDTH / 2, 0, LEGEND_HEIGHT));
+    else if (kind === "user") {
+      svg.append("line").attr("class", "g-guide").attr("x1", LEGEND_WIDTH / 2).attr("x2", LEGEND_WIDTH / 2).attr("y1", 0).attr("y2", LEGEND_HEIGHT);
+      svg.append("g").attr("class", "g-node kind-user_message").append("path")
+        .attr("d", d3.symbol(d3.symbolDiamond, USER_MESSAGE_SIZE)()).attr("transform", `translate(${LEGEND_WIDTH / 2},${mid})`);
+    } else {
+      svg.append("g").attr("class", `g-node kind-${kind}`).append("circle").attr("cx", LEGEND_WIDTH / 2).attr("cy", mid)
+        .attr("r", kind === "prompt" ? POINT_RADIUS + 2 : POINT_RADIUS);
+    }
+    const label = document.createElement("span");
+    label.textContent = text;
+    item.append(svg.node(), label);
+    legend.append(item);
+  }
+  return legend;
 }
 
 function wavePath(x, y0, y1) {
@@ -269,7 +343,7 @@ export function renderGraph(container, graph, onSelect, options = {}) {
     scaleToggle.append(button);
   }
   toolbar.append(scaleToggle, ...buttons, hint);
-  container.replaceChildren(toolbar, canvas);
+  container.replaceChildren(toolbar, renderLegend(), canvas);
 
   function fitZoom() {
     const natural = layout(graph, 1, mode).width;
@@ -294,6 +368,7 @@ export function renderGraph(container, graph, onSelect, options = {}) {
     svg.append("defs").append("marker").attr("id", "g-arrow").attr("viewBox", "0 0 10 10").attr("refX", 9).attr("refY", 5)
       .attr("markerWidth", 6).attr("markerHeight", 6).attr("orient", "auto-start-reverse")
       .append("path").attr("d", "M 0 0 L 10 5 L 0 10 z").attr("class", "g-arrow");
+    addHatch(svg);
     drawBands(svg, laneBoxes, totalWidth);
     const content = svg.append("g").attr("transform", `translate(${LEFT_MARGIN},0)`);
     drawBreaks(content, breaks, height);

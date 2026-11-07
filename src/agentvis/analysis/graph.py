@@ -3,6 +3,7 @@
 @doc: docs/design/FlowGraph.md
 """
 
+import json
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
@@ -11,6 +12,8 @@ from agentvis.analysis.session import SessionView, Step, ToolCall, Turn
 _LABEL_CHARS = 80
 _BACKGROUND_STATUS = {"completed": "success", "failed": "error", "killed": "interrupted"}
 _MODEL_KINDS = ("thinking", "text")
+# A tool-only response gets its own model node only when writing it took at least this long (FlowGraph.md 3.2).
+GENERATION_NODE_MIN_MS = 5000
 
 
 @dataclass
@@ -46,6 +49,8 @@ class Node:
     status: str | None = None
     approximate: bool = False
     step_ids: list[int] = field(default_factory=list)
+    generation_started_at: datetime | None = None
+    output_chars: int | None = None
 
 
 @dataclass
@@ -92,9 +97,25 @@ def _thinking_ms(steps: list[Step]) -> int | None:
     return sum(durations) if durations else None
 
 
-def _thinking_label(steps: list[Step]) -> str:
-    thinking = _thinking_ms(steps)
-    return f"생각 {thinking / 1000:.1f}초" if thinking is not None else "생각"
+def _duration_text(ms: float) -> str:
+    seconds = round(ms / 1000)
+    if seconds < 60:
+        return f"{seconds}초"
+    minutes, rest = divmod(seconds, 60)
+    return f"{minutes}분 {rest}초" if rest else f"{minutes}분"
+
+
+def _model_label(thinking: int | None, generation_ms: float) -> str:
+    parts = [f"생각 {thinking / 1000:.1f}초"] if thinking is not None else []
+    if generation_ms >= GENERATION_NODE_MIN_MS:
+        parts.append(f"작성 {_duration_text(generation_ms)}")
+    return " · ".join(parts) or "생각"
+
+
+def _output_chars(steps: list[Step]) -> int:
+    texts = [step.text or "" for step in steps if step.kind == "text"]
+    inputs = [json.dumps(step.tool_call.input, ensure_ascii=False) for step in steps if step.tool_call is not None]
+    return sum(len(value) for value in texts + inputs)
 
 
 class _GraphBuilder:
@@ -102,10 +123,16 @@ class _GraphBuilder:
         self.graph = graph
         self.turn = turn
         self.session_ended = session_ended
+        self.by_id: dict[str, Node] = {}
 
     def node(self, node: Node) -> Node:
         self.graph.nodes.append(node)
+        self.by_id[node.id] = node
         return node
+
+    def frontier_end(self, frontier: list[str]) -> datetime | None:
+        ends = [node.ended_at or node.started_at for node in (self.by_id.get(item) for item in frontier) if node is not None]
+        return max(ends) if ends else None
 
     def link(self, sources: list[str], target: str, kind: str = "next") -> None:
         for source in sources:
@@ -125,7 +152,7 @@ class _GraphBuilder:
         """Add a lane's nodes and next edges; return its entry nodes and final frontier."""
         entry: list[str] = []
         for stage in self.stages(steps):
-            heads, tails = self.stage(lane, stage)
+            heads, tails = self.stage(lane, stage, self.frontier_end(frontier))
             if not heads:
                 continue
             for head in heads:
@@ -135,23 +162,33 @@ class _GraphBuilder:
             frontier = tails
         return entry, frontier
 
-    def stage(self, lane: Lane, stage: list[Step]) -> tuple[list[str], list[str]]:
+    def stage(self, lane: Lane, stage: list[Step], previous_end: datetime | None) -> tuple[list[str], list[str]]:
         model_steps = [step for step in stage if step.kind in _MODEL_KINDS]
         tool_steps = [step for step in stage if step.kind == "tool_call" and step.tool_call is not None]
         if not model_steps and not tool_steps:
             point = self.point(lane, stage[0])
             return ([point.id], [point.id]) if point else ([], [])
         tools = [self.tool(lane, step) for step in tool_steps]
-        if not model_steps:
+        # Writing the response runs from the end of thinking (a thinking record is written when thinking ends), or
+        # from the end of the previous nodes, to the response's last record (FlowGraph.md 3.2, I38).
+        thought = bool(model_steps) and model_steps[0].kind == "thinking"
+        generation_start = model_steps[0].at if thought else previous_end
+        end = max(step.at for step in stage)
+        generating = generation_start is not None and end > generation_start
+        generation_ms = (end - generation_start).total_seconds() * 1000 if generating else 0.0
+        if not model_steps and generation_ms < GENERATION_NODE_MIN_MS:
             return tools, tools
-        text = next((step.text for step in model_steps if step.kind == "text"), None)
-        label = _first_line(text) if text is not None else _thinking_label(model_steps)
-        # A thinking record is written when the thinking ends, so its span ends at the first step (FlowGraph.md 3.2).
         thinking = _thinking_ms(model_steps)
-        end = model_steps[0].at
-        start = end - timedelta(milliseconds=thinking) if thinking else end
-        model = self.node(Node(str(model_steps[0].id), lane.id, "model", start, end, label, approximate=bool(thinking),
-                               step_ids=[step.id for step in model_steps]))
+        anchor = generation_start if generation_start is not None else model_steps[0].at
+        start = anchor - timedelta(milliseconds=thinking) if thinking else anchor
+        text = next((step.text for step in model_steps if step.kind == "text"), None)
+        label = _first_line(text) if text is not None else _model_label(thinking, generation_ms)
+        first = model_steps[0] if model_steps else tool_steps[0]
+        node_id = str(first.id) if model_steps else f"gen:{first.id}"
+        step_ids = [step.id for step in (model_steps or tool_steps)]
+        model = self.node(Node(node_id, lane.id, "model", start, end if generating else anchor, label,
+                               approximate=bool(thinking) or (generating and not thought), step_ids=step_ids,
+                               generation_started_at=generation_start if generating else None, output_chars=_output_chars(stage)))
         for tool in tools:
             self.link([model.id], tool)
         return [model.id], tools or [model.id]
