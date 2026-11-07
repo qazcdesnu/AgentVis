@@ -86,8 +86,9 @@
 | --- | --- |
 | `tool_use_id`, `tool_name`, `input` | `tool_use` 블록(없으면 `PreToolUse`) |
 | `status` | 아래 표 |
-| `result` | 도구 결과 내용. 앞 [RESULT_PREVIEW_CHARS](../../src/agentvis/analysis/session.py#RESULT_PREVIEW_CHARS)(2,000)자만 담는다. |
-| `error` | 실패 메시지(도구 결과 또는 `PostToolUseFailure.error`) |
+| `result` | 도구 결과 내용. 앞 [RESULT_PREVIEW_CHARS](../../src/agentvis/analysis/session.py#RESULT_PREVIEW_CHARS)(2,000)자만 담는다(아래 미리보기 길이). |
+| `error` | 실패 메시지(도구 결과 또는 `PostToolUseFailure.error`). 결과와 같이 앞 2,000자만 담는다. |
+| `result_chars`, `error_chars` | 자르기 전 결과·오류의 글자 수. 없으면 `None`이다. 화면이 잘렸는지와 전체 길이를 안다(I44). |
 | `duration_ms` | `PostToolUse`·`PostToolUseFailure`의 `duration_ms` |
 | `permission_requested` | 같은 턴에서 직전 `PermissionRequest`(같은 `tool_name`, `tool_input`)가 있었는지 |
 | `subagent` | 이 호출이 서브에이전트를 띄웠으면 그 서브에이전트의 단계 목록(6절) |
@@ -96,6 +97,8 @@
 | `started_at`, `ended_at` | 실행 구간(M4-T7). 시작은 `PreToolUse` 시각, 없으면 `tool_use` 기록 시각. 끝은 `PostToolUse`·`PostToolUseFailure` 시각, 없으면 도구 결과 기록 시각, 둘 다 없으면 `None`. `tool_use` 기록 시각은 생성 시각이다([실측](../DataSource.md#35-병렬-실행과-백그라운드-작업의-연결)). |
 | `approximate` | 시작이나 끝을 hook이 아닌 세션 기록 시각으로 정했는지(M4-T7) |
 | `background` | 백그라운드 실행(`input.run_in_background`가 참)이면 사전, 아니면 `None`(M4-T7). `kind`(`shell`·`agent`), `task_id`(`toolUseResult.backgroundTaskId`, 서브에이전트는 `agentId`), 그리고 `tool_use_id`가 이 호출인 작업 알림 단계에서 가져온 `status`, `ended_at`(알림 시각), `notification_step_id`. 알림이 아직 없으면 뒤의 셋은 `None`이다. |
+
+**결과 미리보기 길이**(I44): 세션 상세는 세션의 모든 단계를 한 응답으로 보내고, 실시간 갱신 때마다 다시 받는다([웹 UI 설계의 실시간 갱신](WebUI.md#8-실시간-갱신)). 그래서 결과·오류는 앞 2,000자만 담고, 전체는 필요할 때 따로 받는다(조회 API의 전체 결과). 2026-11-07 실측(가장 큰 세션): 자르면 응답이 4.5MB, 자르지 않으면 5.2MB였고 계산 시간은 둘 다 0.16초였다. 결과 871개 중 2,000자를 넘는 것은 73개(최장 16,381자, 중앙값 225자)였다. 저장소의 원시 이벤트는 자르지 않는다.
 
 **상태**는 확인된 사실만으로 정한다. 의미 해석이 필요한 판정(권한 거부 확정, 반복 실패, fallback)은 신호 설계(M3-T3, M5, I16)에서 한다.
 
@@ -140,12 +143,14 @@
 | `GET /api/projects` | `{"projects": [...]}`. 프로젝트 목록(2절 필드) | M3-T5 |
 | `GET /api/sessions?project=<프로젝트 경로>` | `{"sessions": [...]}`. 세션 목록(7절 필드, `turns`·`preamble` 제외). 마지막 활동이 늦은 것부터. `project`를 생략하면 모든 세션 | M3-T4 |
 | `GET /api/sessions/{session_id}` | 세션 상세(7절 필드와 `turns`, `preamble`) | M3-T4 |
+| `GET /api/sessions/{session_id}/tool-calls/{tool_use_id}` | 도구 호출 하나의 자르지 않은 결과: `{"tool_use_id", "result", "error", "result_chars", "error_chars"}`. 세션이나 도구 호출이 없으면 `404`(I44) | I44 |
 | `GET /api/stream` | 변경 알림 SSE 스트림([웹 UI 설계의 실시간 갱신](WebUI.md#8-실시간-갱신)) | M4-T2 |
 
 - 응답은 JSON이며 필드 이름은 이 문서의 이름(`snake_case`)을 쓴다. 시각은 ISO 8601(UTC)이다. 모델 객체는 FastAPI의 `jsonable_encoder`로 바꾼다.
 - [catalog 모듈](../../src/agentvis/analysis/catalog.py)이 이벤트 저장소에서 원시 이벤트를 읽어 분석기를 부른다.
   - [list_sessions](../../src/agentvis/analysis/catalog.py#list_sessions)`(store, project: str | None = None) -> list[SessionView]`: 이벤트 저장소의 모든 세션([이벤트 저장소의 세션 ID 조회](Store.md#8-조회-보조))마다 `build_session`을 계산하고, `project`가 있으면 그 프로젝트 경로의 세션만 남긴다. 목록 응답에서는 `turns`, `preamble`을 뺀다. 세션이 많아져 느려지면 세션 단위 캐시를 설계한다.
   - [get_session](../../src/agentvis/analysis/catalog.py#get_session)`(store, session_id) -> SessionView | None`: 원시 이벤트가 없는 세션이면 `None`이다.
+  - [get_tool_output](../../src/agentvis/analysis/catalog.py#get_tool_output)`(store, session_id, tool_use_id) -> dict | None`: 세션을 결과를 자르지 않고([build_session](../../src/agentvis/analysis/session.py#build_session)의 `preview_chars=None`) 다시 계산해, 서브에이전트 안까지 그 도구 호출을 찾아 결과·오류 전체를 돌려준다. 없으면 `None`이다. 누를 때만 부르므로 세션 하나를 다시 계산하는 비용(가장 큰 세션 약 0.16초)을 받아들인다.
 - 경로는 [서버 앱](../../src/agentvis/server.py#create_app)에 있다. 경로 처리 함수는 동기 함수(`def`)로 작성해 FastAPI 스레드 풀에서 실행한다. SQLite 조회와 분석 계산이 이벤트 루프를 막지 않게 하기 위해서다.
 - FastAPI가 자동으로 만드는 API 문서 화면(`/docs`)과 명세(`/openapi.json`)로 브라우저에서 조회 API를 직접 시험할 수 있다. 문서 화면은 화면 구성 파일을 외부 CDN에서 받지만 세션 데이터는 보내지 않는다.
 - 모든 경로는 [요청 검증](Collector.md#21-요청-검증)의 `Host` 검사를 받는다.

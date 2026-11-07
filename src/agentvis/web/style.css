@@ -203,6 +203,15 @@ details > summary { cursor: pointer; list-style-position: outside; }
 .json-toggle button:first-child { border-radius: 6px 0 0 6px; }
 .json-toggle button:last-child { border-radius: 0 6px 6px 0; border-left: none; }
 .json-toggle button.active { background: var(--selected); border-color: var(--running); }
+.block-head .full-view { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
+.block-head .full-view button { padding: 1px 8px; font-size: 11px; }
+
+/* Yes/No confirmation before a whole result: docs/design/WebUI.md section 3 (I44). */
+#confirm-full { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--text); padding: 16px 20px; max-width: 420px; }
+#confirm-full::backdrop { background: rgba(0, 0, 0, 0.35); }
+#confirm-full p { margin: 0 0 14px; line-height: 1.5; }
+.dialog-buttons { display: flex; justify-content: flex-end; gap: 8px; }
+.dialog-buttons button[value="yes"] { border-color: var(--running); }
 .label { color: var(--muted); font-size: 11px; margin-top: 6px; }
 
 .body {

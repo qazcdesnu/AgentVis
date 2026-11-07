@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from agentvis.analysis.graph import FlowGraph, build_turn_graph
-from agentvis.analysis.session import SessionView, build_session
+from agentvis.analysis.session import SessionView, Step, ToolCall, build_session
 from agentvis.store import EventStore
 
 
@@ -53,6 +53,33 @@ def get_session(store: EventStore, session_id: str) -> SessionView | None:
     """
     events = store.events(session_id=session_id)
     return build_session(events) if events else None
+
+
+def _tool_calls(steps: list[Step] | None) -> list[ToolCall]:
+    calls: list[ToolCall] = []
+    for step in steps or []:
+        if step.tool_call is not None:
+            calls.append(step.tool_call)
+            calls.extend(_tool_calls(step.tool_call.subagent))
+        calls.extend(_tool_calls(step.substeps))
+    return calls
+
+
+def get_tool_output(store: EventStore, session_id: str, tool_use_id: str) -> dict | None:
+    """Return the whole result and error of one tool call, or None if the session or call does not exist.
+
+    @doc: docs/design/Analysis.md#8-조회-api
+    """
+    events = store.events(session_id=session_id)
+    if not events:
+        return None
+    view = build_session(events, preview_chars=None)
+    steps = [*view.preamble, *(step for turn in view.turns for step in turn.steps)]
+    call = next((call for call in _tool_calls(steps) if call.tool_use_id == tool_use_id), None)
+    if call is None:
+        return None
+    return {"tool_use_id": call.tool_use_id, "result": call.result, "error": call.error,
+            "result_chars": call.result_chars, "error_chars": call.error_chars}
 
 
 def get_turn_graph(store: EventStore, session_id: str, index: int) -> FlowGraph | None:

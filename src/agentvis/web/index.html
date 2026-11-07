@@ -35,6 +35,16 @@
       <div id="detail"><p class="empty">세션을 고르세요.</p></div>
     </section>
   </main>
+  <!-- Confirmation before fetching a whole tool result: docs/design/WebUI.md section 3 (I44). -->
+  <dialog id="confirm-full" aria-labelledby="confirm-full-text">
+    <form method="dialog">
+      <p id="confirm-full-text"></p>
+      <div class="dialog-buttons">
+        <button type="submit" value="yes">예</button>
+        <button type="submit" value="no" autofocus>아니오</button>
+      </div>
+    </form>
+  </dialog>
   <!-- Vendored library, see docs/design/WebUI.md section 1.1. Defines the global d3. -->
   <script src="vendor/d3-7.9.0.min.js"></script>
   <script type="module" src="app.js"></script>

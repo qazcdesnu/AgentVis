@@ -207,7 +207,8 @@ function renderStep(step) {
 }
 
 // JSON raw/formatted view (WebUI.md section 3, I43). The chosen view of each block survives live redraws.
-const RESULT_PREVIEW_CHARS = 2000;
+// Four spaces: two were too dense to read (I45).
+const JSON_INDENT = 4;
 const jsonViews = new Map();
 
 function parseJSON(text) {
@@ -233,8 +234,8 @@ function expandJSONStrings(value) {
   return value;
 }
 
-// A labelled text block; `views` is null (plain text) or {raw, formatted, initial}.
-function textBlock(label, key, text, className, views, note = null) {
+// A labelled text block; `views` is null (plain text) or {raw, formatted, initial}; `extra` goes in the title row.
+function textBlock(label, key, text, className, views, note = null, extra = null) {
   const block = el("div", "text-block");
   const head = el("div", "block-head");
   head.append(el("div", "label", label));
@@ -246,7 +247,7 @@ function textBlock(label, key, text, className, views, note = null) {
       for (const button of toggle.children) button.classList.toggle("active", button.dataset.mode === mode);
       jsonViews.set(key, mode);
     };
-    for (const [mode, name, title] of [["raw", "원문", "기록에 남은 그대로 봅니다"], ["formatted", "JSON 정리", "JSON을 들여쓰기 2칸으로 정리해 봅니다"]]) {
+    for (const [mode, name, title] of [["raw", "원문", "기록에 남은 그대로 봅니다"], ["formatted", "JSON 정리", "JSON을 들여쓰기 4칸으로 정리해 봅니다"]]) {
       const button = el("button", null, name);
       button.type = "button";
       button.title = title;
@@ -259,16 +260,66 @@ function textBlock(label, key, text, className, views, note = null) {
   } else if (note) {
     head.append(el("span", "meta", note));
   }
+  if (extra) head.append(extra);
   block.append(head, body);
   return block;
 }
 
-function outputBlock(label, key, text, className) {
+// Whole results fetched after the user said yes, by tool use id; kept across live redraws (I44).
+const fullOutputs = new Map();
+
+// Asks with Yes/No buttons; Esc, a click outside or No all mean no (WebUI.md section 3, I44).
+function askConfirm(message) {
+  const dialog = document.getElementById("confirm-full");
+  document.getElementById("confirm-full-text").textContent = message;
+  dialog.returnValue = "";
+  return new Promise((resolve) => {
+    dialog.addEventListener("close", () => resolve(dialog.returnValue === "yes"), { once: true });
+    dialog.showModal();
+    dialog.querySelector('button[value="no"]').focus();
+  });
+}
+
+function fullViewControl(call, field, shown, total, rerender) {
+  const wrap = el("span", "full-view");
+  wrap.append(el("span", "meta", `전체 ${total.toLocaleString()}자 중 앞 ${shown.toLocaleString()}자`));
+  const button = el("button", null, "전체 보기");
+  button.type = "button";
+  button.addEventListener("click", async () => {
+    if (!(await askConfirm(`전체 길이는 ${total.toLocaleString()}자입니다. 정말 전체 내용을 보시겠습니까?`))) return;
+    button.disabled = true;
+    button.textContent = "받는 중…";
+    try {
+      const session = encodeURIComponent(readHash().session);
+      fullOutputs.set(call.tool_use_id, await getJSON(`/api/sessions/${session}/tool-calls/${encodeURIComponent(call.tool_use_id)}`));
+      rerender();
+    } catch (error) {
+      button.disabled = false;
+      button.textContent = "전체 보기";
+      wrap.append(el("span", "error-text", ` 받지 못했습니다: ${error.message}`));
+    }
+  });
+  wrap.append(button);
+  return wrap;
+}
+
+// A result or error block. A cut block shows its whole length and offers the whole text after a confirmation.
+function outputBlock(call, field, label, className) {
+  const key = `${call.tool_use_id}:${field}`;
+  const full = fullOutputs.get(call.tool_use_id);
+  const text = String((full ? full[field] : call[field]) ?? "");
+  const total = call[`${field}_chars`];
+  const cut = !full && typeof total === "number" && total > text.length;
+  // A live redraw may have replaced this block while the dialog was open; then redraw the whole screen.
+  const rerender = () => (block.isConnected ? block.replaceWith(outputBlock(call, field, label, className)) : render());
+  const extra = cut ? fullViewControl(call, field, text.length, total, rerender) : null;
   const trimmed = text.trim();
-  const parsed = trimmed[0] === "{" || trimmed[0] === "[" ? parseJSON(trimmed) : { ok: false };
-  if (parsed.ok) return textBlock(label, key, text, className, { raw: text, formatted: JSON.stringify(parsed.value, null, 2), initial: "raw" });
-  const cut = text.length >= RESULT_PREVIEW_CHARS && (trimmed[0] === "{" || trimmed[0] === "[");
-  return textBlock(label, key, text, className, null, cut ? `앞 ${RESULT_PREVIEW_CHARS.toLocaleString()}자만 보관되어 잘린 JSON이라 정리할 수 없음` : null);
+  const looksJSON = trimmed[0] === "{" || trimmed[0] === "[";
+  const parsed = looksJSON ? parseJSON(trimmed) : { ok: false };
+  const block = parsed.ok
+    ? textBlock(label, key, text, className, { raw: text, formatted: JSON.stringify(parsed.value, null, JSON_INDENT), initial: "raw" }, null, extra)
+    : textBlock(label, key, text, className, null, cut && looksJSON ? "잘린 JSON이라 정리할 수 없음 · 전체 보기로 받으면 정리할 수 있음" : null, extra);
+  return block;
 }
 
 function renderToolCall(call) {
@@ -283,10 +334,10 @@ function renderToolCall(call) {
   if (call.duration_ms !== null && call.duration_ms !== undefined) facts.push(`실행 시간: ${call.duration_ms}ms`);
   details.append(el("div", "facts", facts.join(" · ")));
   const id = call.tool_use_id;
-  const formattedInput = JSON.stringify(expandJSONStrings(call.input), null, 2);
+  const formattedInput = JSON.stringify(expandJSONStrings(call.input), null, JSON_INDENT);
   details.append(textBlock("입력", `${id}:input`, formattedInput, "body", { raw: JSON.stringify(call.input), formatted: formattedInput, initial: "formatted" }));
-  if (call.error) details.append(outputBlock("오류", `${id}:error`, call.error, "body error-text"));
-  else if (call.result) details.append(outputBlock("결과", `${id}:result`, call.result, "body"));
+  if (call.error) details.append(outputBlock(call, "error", "오류", "body error-text"));
+  else if (call.result) details.append(outputBlock(call, "result", "결과", "body"));
   if (call.subagent) details.append(el("div", "label", "서브에이전트 단계"), renderSteps(call.subagent));
   return details;
 }
@@ -551,6 +602,11 @@ function applyCollapsed(collapsed) {
     button.title = `${name} 목록 ${closed ? "펴기" : "접기"}`;
   }
 }
+
+// A click on the backdrop outside the dialog box counts as No.
+document.getElementById("confirm-full").addEventListener("click", (event) => {
+  if (event.target === event.currentTarget) event.currentTarget.close("no");
+});
 
 function setupCollapse() {
   const collapsed = readCollapsed();

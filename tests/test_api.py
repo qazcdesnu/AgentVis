@@ -68,6 +68,22 @@ class SessionApiTest(RepoTestCase):
         self.assertEqual(self.client.get("/api/sessions/s-new/turns/2/graph").status_code, 404)
         self.assertEqual(self.client.get("/api/sessions/nope/turns/1/graph").status_code, 404)
 
+    def test_long_result_is_previewed_and_whole_output_is_fetched_on_demand(self) -> None:
+        long = _Session()
+        long.prompt("w1", "z1", "긴 출력")
+        long.assistant("w2", "w1", {"type": "tool_use", "id": "toolu_long", "name": "Bash", "input": {"command": "pytest"}})
+        long.result("w3", "w2", "z1", "toolu_long", "x" * 2500 + " 3 passed")
+        self.store.append_batch([replace(event, session_id="s-long", id=None) for event in long.events])
+        call = self.client.get("/api/sessions/s-long").json()["turns"][0]["steps"][0]["tool_call"]
+        # The detail keeps the first 2,000 characters and says how long the whole result is (I44).
+        self.assertEqual((len(call["result"]), call["result_chars"]), (2000, 2509))
+        whole = self.client.get("/api/sessions/s-long/tool-calls/toolu_long").json()
+        self.assertEqual((whole["result"][-8:], whole["result_chars"], whole["error"]), ("3 passed", 2509, None))
+        failed = self.client.get("/api/sessions/s-new/tool-calls/toolu_1").json()
+        self.assertEqual((failed["error"], failed["error_chars"]), ("Exit code 1", 11))
+        self.assertEqual(self.client.get("/api/sessions/s-long/tool-calls/nope").status_code, 404)
+        self.assertEqual(self.client.get("/api/sessions/nope/tool-calls/toolu_long").status_code, 404)
+
     def test_project_list_groups_sessions(self) -> None:
         real = self.root / "home" / "work" / "real-app"
         real.mkdir(parents=True)
