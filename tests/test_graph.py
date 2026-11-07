@@ -73,9 +73,33 @@ class ParallelTest(unittest.TestCase):
         graph = _graph(s)
         timed, bare = _node(graph, "model"), _node(graph, "model", 1)
         self.assertEqual((timed.label, bare.label), ("생각 4.2초", "생각"))
-        # The thinking record is written when thinking ends, so the span reaches back by its duration (I34).
-        self.assertEqual(((timed.ended_at - timed.started_at).total_seconds(), timed.approximate), (4.2, True))
-        self.assertEqual((bare.started_at == bare.ended_at, bare.approximate), (True, False))
+        # The thinking record is written when thinking ends, so the span reaches back by its duration (I34);
+        # writing then runs to the response's last record, the tool use one second later (I38).
+        self.assertEqual(((timed.generation_started_at - timed.started_at).total_seconds(), timed.approximate), (4.2, True))
+        self.assertEqual((timed.ended_at - timed.generation_started_at).total_seconds(), 2)
+        self.assertEqual((bare.started_at == bare.ended_at, bare.generation_started_at, bare.approximate), (True, None, False))
+
+    def test_long_writing_shows_on_the_model_node_and_a_tool_only_response_gets_one(self) -> None:
+        s = _Session()
+        s.prompt("u1", "p1", "써")
+        _say(s, "a1", "u1", "m1", {"type": "thinking", "thinking": ""}, thinkingDurationMs=2000)
+        s.clock += 60
+        _say(s, "a2", "a1", "m1", _tool("Write", "t1", file_path="a.py", content="x" * 100))
+        s.result("r1", "a2", "p1", "t1", "ok")
+        s.clock += 30
+        _say(s, "a3", "r1", "m2", _tool("Bash", "t2", command="pytest"))
+        graph = _graph(s)
+        thought, written = _node(graph, "model"), _node(graph, "model", 1)
+        self.assertEqual(thought.label, "생각 2.0초 · 작성 1분 1초")
+        self.assertEqual((thought.ended_at - thought.generation_started_at).total_seconds(), 61)
+        self.assertGreater(thought.output_chars, 100)
+        # A response with only a tool call gets a node when writing it took 5 seconds or more, starting where the
+        # previous node ended; that start includes the API round trip, so it is approximate.
+        self.assertEqual((written.id, written.label, written.approximate), (f"gen:{written.step_ids[0]}", "작성 31초", True))
+        write, bash = _node(graph, "tool_call"), _node(graph, "tool_call", 1)
+        self.assertEqual(written.generation_started_at, write.ended_at)
+        self.assertIn((written.id, bash.id), _edges(graph))
+        self.assertIn((write.id, written.id), _edges(graph))
 
     def test_response_without_thinking_or_text_has_no_model_node(self) -> None:
         s = _Session()
@@ -192,7 +216,8 @@ class LaneTest(unittest.TestCase):
         s.hook("Stop", prompt_id="p1")
         _say(s, "a2", "a1", "m2", {"type": "text", "text": "알림을 받아 이어서"})
         graph = _graph(s)
-        self.assertEqual(graph.ended_at, graph.nodes[-1].started_at)
+        # The second answer is written from the end of the first one, so the lane ends with that writing (I38).
+        self.assertEqual(graph.ended_at, graph.nodes[-1].ended_at)
         self.assertEqual(graph.lanes[0].ended_at, graph.ended_at)
 
 

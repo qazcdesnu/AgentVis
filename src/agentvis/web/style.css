@@ -226,6 +226,11 @@ details > summary { cursor: pointer; list-style-position: outside; }
 .g-bar-cut-gap { fill: none; stroke: var(--panel); stroke-width: 4; }
 .g-bar-cut { fill: none; stroke: var(--text); stroke-width: 1; }
 .g-node.kind-model rect { fill: var(--unfinished); }
+.g-node.kind-model rect.g-writing { fill: url(#g-hatch); }
+.g-hatch-bg { fill: var(--band-odd); }
+.g-hatch-line { stroke: var(--unfinished); stroke-width: 2; }
+.g-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 2px 0 6px; font-size: 11px; color: var(--muted); }
+.g-legend-item { display: inline-flex; align-items: center; gap: 4px; }
 .g-toolbar .g-scale { margin-top: 0; margin-right: 12px; align-items: center; }
 .g-toolbar { flex-wrap: wrap; }
 .g-break-label { fill: var(--muted); font-size: 10px; }
@@ -247,6 +252,7 @@ details > summary { cursor: pointer; list-style-position: outside; }
 .g-node:hover rect, .g-node:hover circle, .g-node:hover path { stroke: var(--text); stroke-width: 2; }
 .g-node.selected rect, .g-node.selected circle, .g-node.selected path { stroke: var(--running); stroke-width: 3; }
 .g-bar-label { fill: #ffffff; pointer-events: none; }
+.g-bar-label.model { fill: var(--text); font-weight: 600; paint-order: stroke; stroke: var(--panel); stroke-width: 3px; }
 .node-detail { border-top: 1px solid var(--line); padding-top: 8px; }
 
 /* Collapsible side panes: docs/design/WebUI.md section 2 (I35). */

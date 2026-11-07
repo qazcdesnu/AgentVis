@@ -242,6 +242,17 @@ function renderNodeDetail(container, node, turn, steps) {
     container.append(el("div", "label", "지시"), el("pre", "prompt-full", turn.prompt));
     return;
   }
+  if (node.kind === "model" && node.generation_started_at) {
+    const start = new Date(node.started_at).getTime();
+    const generation = new Date(node.generation_started_at).getTime();
+    const seconds = (ms) => (ms >= 60000 ? `${Math.floor(ms / 60000)}분 ${Math.round((ms % 60000) / 1000)}초` : `${(ms / 1000).toFixed(1)}초`);
+    const facts = [];
+    if (generation > start) facts.push(`생각 ${seconds(generation - start)}`);
+    facts.push(`작성 ${seconds(new Date(node.ended_at).getTime() - generation)}`);
+    if (node.output_chars) facts.push(`응답·도구 입력 ${node.output_chars.toLocaleString()}자 작성`);
+    if (node.approximate) facts.push("시각 근사");
+    container.append(el("div", "facts", facts.join(" · ")));
+  }
   const found = node.step_ids.map((id) => steps.get(id)).filter(Boolean);
   if (!found.length) {
     container.append(el("p", "empty", "이 노드의 단계를 찾지 못했습니다. 새로고침해 보세요."));
