@@ -194,6 +194,15 @@ details > summary { cursor: pointer; list-style-position: outside; }
 }
 
 .facts { color: var(--muted); font-size: 12px; margin: 4px 0; }
+
+/* JSON raw/formatted toggle beside a block label: docs/design/WebUI.md section 3 (I43). */
+.block-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; }
+.block-head .label { margin-top: 0; }
+.json-toggle { margin-top: 0; gap: 0; }
+.json-toggle button { padding: 1px 8px; font-size: 11px; border-radius: 0; }
+.json-toggle button:first-child { border-radius: 6px 0 0 6px; }
+.json-toggle button:last-child { border-radius: 0 6px 6px 0; border-left: none; }
+.json-toggle button.active { background: var(--selected); border-color: var(--running); }
 .label { color: var(--muted); font-size: 11px; margin-top: 6px; }
 
 .body {

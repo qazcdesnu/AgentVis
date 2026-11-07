@@ -206,6 +206,71 @@ function renderStep(step) {
   return item;
 }
 
+// JSON raw/formatted view (WebUI.md section 3, I43). The chosen view of each block survives live redraws.
+const RESULT_PREVIEW_CHARS = 2000;
+const jsonViews = new Map();
+
+function parseJSON(text) {
+  try {
+    return { ok: true, value: JSON.parse(text) };
+  } catch {
+    return { ok: false };
+  }
+}
+
+// String values that are JSON themselves are opened up in the formatted input view.
+function expandJSONStrings(value) {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (trimmed[0] === "{" || trimmed[0] === "[") {
+      const parsed = parseJSON(trimmed);
+      if (parsed.ok) return expandJSONStrings(parsed.value);
+    }
+    return value;
+  }
+  if (Array.isArray(value)) return value.map(expandJSONStrings);
+  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, expandJSONStrings(item)]));
+  return value;
+}
+
+// A labelled text block; `views` is null (plain text) or {raw, formatted, initial}.
+function textBlock(label, key, text, className, views, note = null) {
+  const block = el("div", "text-block");
+  const head = el("div", "block-head");
+  head.append(el("div", "label", label));
+  const body = el("pre", className, text);
+  if (views) {
+    const toggle = el("div", "view-toggle json-toggle");
+    const show = (mode) => {
+      body.textContent = mode === "formatted" ? views.formatted : views.raw;
+      for (const button of toggle.children) button.classList.toggle("active", button.dataset.mode === mode);
+      jsonViews.set(key, mode);
+    };
+    for (const [mode, name, title] of [["raw", "원문", "기록에 남은 그대로 봅니다"], ["formatted", "JSON 정리", "JSON을 들여쓰기 2칸으로 정리해 봅니다"]]) {
+      const button = el("button", null, name);
+      button.type = "button";
+      button.title = title;
+      button.dataset.mode = mode;
+      button.addEventListener("click", () => show(mode));
+      toggle.append(button);
+    }
+    head.append(toggle);
+    show(jsonViews.get(key) || views.initial);
+  } else if (note) {
+    head.append(el("span", "meta", note));
+  }
+  block.append(head, body);
+  return block;
+}
+
+function outputBlock(label, key, text, className) {
+  const trimmed = text.trim();
+  const parsed = trimmed[0] === "{" || trimmed[0] === "[" ? parseJSON(trimmed) : { ok: false };
+  if (parsed.ok) return textBlock(label, key, text, className, { raw: text, formatted: JSON.stringify(parsed.value, null, 2), initial: "raw" });
+  const cut = text.length >= RESULT_PREVIEW_CHARS && (trimmed[0] === "{" || trimmed[0] === "[");
+  return textBlock(label, key, text, className, null, cut ? `앞 ${RESULT_PREVIEW_CHARS.toLocaleString()}자만 보관되어 잘린 JSON이라 정리할 수 없음` : null);
+}
+
 function renderToolCall(call) {
   const [symbol, statusText] = STATUS[call.status] || ["·", call.status];
   const details = el("details", `tool status-${call.status}`);
@@ -217,9 +282,11 @@ function renderToolCall(call) {
   const facts = [`상태: ${statusText}`];
   if (call.duration_ms !== null && call.duration_ms !== undefined) facts.push(`실행 시간: ${call.duration_ms}ms`);
   details.append(el("div", "facts", facts.join(" · ")));
-  details.append(el("div", "label", "입력"), el("pre", "body", JSON.stringify(call.input, null, 2)));
-  if (call.error) details.append(el("div", "label", "오류"), el("pre", "body error-text", call.error));
-  else if (call.result) details.append(el("div", "label", "결과"), el("pre", "body", call.result));
+  const id = call.tool_use_id;
+  const formattedInput = JSON.stringify(expandJSONStrings(call.input), null, 2);
+  details.append(textBlock("입력", `${id}:input`, formattedInput, "body", { raw: JSON.stringify(call.input), formatted: formattedInput, initial: "formatted" }));
+  if (call.error) details.append(outputBlock("오류", `${id}:error`, call.error, "body error-text"));
+  else if (call.result) details.append(outputBlock("결과", `${id}:result`, call.result, "body"));
   if (call.subagent) details.append(el("div", "label", "서브에이전트 단계"), renderSteps(call.subagent));
   return details;
 }
