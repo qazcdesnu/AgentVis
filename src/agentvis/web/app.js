@@ -209,7 +209,30 @@ function renderStep(step) {
 // JSON raw/formatted view (WebUI.md section 3, I43). The chosen view of each block survives live redraws.
 // Four spaces: two were too dense to read (I45).
 const JSON_INDENT = 4;
-const jsonViews = new Map();
+// One chosen view per block kind ("input", "output"), for every node and kept across reloads (I46).
+const JSON_VIEW_KEY = "agentvis.jsonView";
+const jsonViewPrefs = (() => {
+  try {
+    return JSON.parse(localStorage.getItem(JSON_VIEW_KEY) || "{}");
+  } catch {
+    return {};
+  }
+})();
+// Every drawn toggle by kind, so choosing in one block updates the others on screen.
+const jsonViewShows = { input: new Set(), output: new Set() };
+
+function chooseJSONView(kind, mode) {
+  jsonViewPrefs[kind] = mode;
+  try {
+    localStorage.setItem(JSON_VIEW_KEY, JSON.stringify(jsonViewPrefs));
+  } catch {
+    // Storage can be unavailable (private window); the choice still holds for this page.
+  }
+  for (const entry of [...jsonViewShows[kind]]) {
+    if (entry.block.isConnected) entry.show(mode);
+    else jsonViewShows[kind].delete(entry);
+  }
+}
 
 function parseJSON(text) {
   try {
@@ -234,8 +257,9 @@ function expandJSONStrings(value) {
   return value;
 }
 
-// A labelled text block; `views` is null (plain text) or {raw, formatted, initial}; `extra` goes in the title row.
-function textBlock(label, key, text, className, views, note = null, extra = null) {
+// A labelled text block of a kind ("input" or "output"); `views` is null (plain text) or {raw, formatted, initial};
+// `extra` goes in the title row.
+function textBlock(label, kind, text, className, views, note = null, extra = null) {
   const block = el("div", "text-block");
   const head = el("div", "block-head");
   head.append(el("div", "label", label));
@@ -245,18 +269,18 @@ function textBlock(label, key, text, className, views, note = null, extra = null
     const show = (mode) => {
       body.textContent = mode === "formatted" ? views.formatted : views.raw;
       for (const button of toggle.children) button.classList.toggle("active", button.dataset.mode === mode);
-      jsonViews.set(key, mode);
     };
     for (const [mode, name, title] of [["raw", "원문", "기록에 남은 그대로 봅니다"], ["formatted", "JSON 정리", "JSON을 들여쓰기 4칸으로 정리해 봅니다"]]) {
       const button = el("button", null, name);
       button.type = "button";
       button.title = title;
       button.dataset.mode = mode;
-      button.addEventListener("click", () => show(mode));
+      button.addEventListener("click", () => chooseJSONView(kind, mode));
       toggle.append(button);
     }
     head.append(toggle);
-    show(jsonViews.get(key) || views.initial);
+    jsonViewShows[kind].add({ block, show });
+    show(jsonViewPrefs[kind] || views.initial);
   } else if (note) {
     head.append(el("span", "meta", note));
   }
@@ -305,7 +329,6 @@ function fullViewControl(call, field, shown, total, rerender) {
 
 // A result or error block. A cut block shows its whole length and offers the whole text after a confirmation.
 function outputBlock(call, field, label, className) {
-  const key = `${call.tool_use_id}:${field}`;
   const full = fullOutputs.get(call.tool_use_id);
   const text = String((full ? full[field] : call[field]) ?? "");
   const total = call[`${field}_chars`];
@@ -317,8 +340,8 @@ function outputBlock(call, field, label, className) {
   const looksJSON = trimmed[0] === "{" || trimmed[0] === "[";
   const parsed = looksJSON ? parseJSON(trimmed) : { ok: false };
   const block = parsed.ok
-    ? textBlock(label, key, text, className, { raw: text, formatted: JSON.stringify(parsed.value, null, JSON_INDENT), initial: "raw" }, null, extra)
-    : textBlock(label, key, text, className, null, cut && looksJSON ? "잘린 JSON이라 정리할 수 없음 · 전체 보기로 받으면 정리할 수 있음" : null, extra);
+    ? textBlock(label, "output", text, className, { raw: text, formatted: JSON.stringify(parsed.value, null, JSON_INDENT), initial: "raw" }, null, extra)
+    : textBlock(label, "output", text, className, null, cut && looksJSON ? "잘린 JSON이라 정리할 수 없음 · 전체 보기로 받으면 정리할 수 있음" : null, extra);
   return block;
 }
 
@@ -333,9 +356,8 @@ function renderToolCall(call) {
   const facts = [`상태: ${statusText}`];
   if (call.duration_ms !== null && call.duration_ms !== undefined) facts.push(`실행 시간: ${call.duration_ms}ms`);
   details.append(el("div", "facts", facts.join(" · ")));
-  const id = call.tool_use_id;
   const formattedInput = JSON.stringify(expandJSONStrings(call.input), null, JSON_INDENT);
-  details.append(textBlock("입력", `${id}:input`, formattedInput, "body", { raw: JSON.stringify(call.input), formatted: formattedInput, initial: "formatted" }));
+  details.append(textBlock("입력", "input", formattedInput, "body", { raw: JSON.stringify(call.input), formatted: formattedInput, initial: "formatted" }));
   if (call.error) details.append(outputBlock(call, "error", "오류", "body error-text"));
   else if (call.result) details.append(outputBlock(call, "result", "결과", "body"));
   if (call.subagent) details.append(el("div", "label", "서브에이전트 단계"), renderSteps(call.subagent));
