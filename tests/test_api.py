@@ -98,6 +98,7 @@ class WebScreenTest(RepoTestCase):
             self.assertIn("text/css", client.get("/style.css").headers["content-type"])
             self.assertIn('<script src="vendor/d3-7.9.0.min.js">', index.text)
             self.assertIn("javascript", client.get("/graph.js").headers["content-type"])
+            self.assertIn("javascript", client.get("/overview.js").headers["content-type"])
             self.assertIn("d3js.org v7.9.0", client.get("/vendor/d3-7.9.0.min.js").text[:80])
             self.assertEqual(client.get("/api/projects").json(), {"projects": []})
             self.assertEqual(client.get("/health").json(), {"status": "ok"})

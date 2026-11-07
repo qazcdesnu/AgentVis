@@ -1,7 +1,8 @@
-// AgentVis screen: projects → sessions → turns as a flow graph or a list.
+// AgentVis screen: projects → sessions → overview strip, then turns as a flow graph or a list.
 // Spec: docs/design/WebUI.md, docs/design/FlowGraph.md. All session text is untrusted: only ever use textContent.
 
 import { renderGraph } from "./graph.js";
+import { collectEvents, renderOverview } from "./overview.js";
 
 const STATUS = {
   success: ["✓", "성공"],
@@ -41,15 +42,28 @@ function readHash() {
     session: params.get("session"),
     view: params.get("view") === "list" ? "list" : "graph",
     turn: Number(params.get("turn")) || null,
+    step: Number(params.get("step")) || null,
+    from: Number(params.get("from")) || null,
+    to: Number(params.get("to")) || null,
+    axis: params.get("axis") === "time" ? "time" : "order",
   };
 }
 
-function writeHash(project, session, options = {}) {
+// Changes some hash fields and keeps the rest; null removes a field (WebUI.md section 7.4).
+function updateHash(changes) {
+  const params = new URLSearchParams(location.hash.slice(1));
+  for (const [key, value] of Object.entries(changes)) {
+    if (value === null || value === undefined) params.delete(key);
+    else params.set(key, String(value));
+  }
+  location.hash = params.toString();
+}
+
+// Starts a fresh hash for a newly chosen project or session.
+function writeHash(project, session) {
   const params = new URLSearchParams();
   if (project) params.set("project", project);
   if (session) params.set("session", session);
-  if (options.view) params.set("view", options.view);
-  if (options.turn) params.set("turn", String(options.turn));
   location.hash = params.toString();
 }
 
@@ -139,6 +153,7 @@ function expandable(className, summaryText, bodyText, open = false) {
 
 function renderStep(step) {
   const item = el("li", `step step-${step.kind}`);
+  item.dataset.stepId = String(step.id);
   const label = STEP_LABEL[step.kind];
   if (step.kind === "tool_call" && step.tool_call) {
     item.append(renderToolCall(step.tool_call));
@@ -182,7 +197,7 @@ function renderToolCall(call) {
   return details;
 }
 
-function renderTurn(turn, open) {
+function renderTurn(turn, open, steps = turn.steps) {
   const details = el("details", `turn state-${turn.state}`);
   details.open = open;
   const summary = el("summary");
@@ -192,7 +207,7 @@ function renderTurn(turn, open) {
   summary.append(meta);
   details.append(summary);
   if (turn.prompt && turn.prompt.includes("\n")) details.append(el("pre", "prompt-full", turn.prompt));
-  details.append(renderSteps(turn.steps));
+  details.append(renderSteps(steps));
   return details;
 }
 
@@ -210,20 +225,43 @@ function viewToggle(state, view) {
   for (const [value, label] of [["graph", "흐름 그래프"], ["list", "목록"]]) {
     const button = el("button", value === state.view ? "active" : null, label);
     button.type = "button";
-    button.addEventListener("click", () => writeHash(state.project, view.session_id, { view: value, turn: state.turn }));
+    button.addEventListener("click", () => updateHash({ view: value }));
     toggle.append(button);
   }
   return toggle;
 }
 
-function renderList(view) {
+// With a range, only the turns it spans and the steps between its first and last event are shown (WebUI.md section 7.5).
+function renderList(view, state, range) {
   const turns = el("div", "turns");
-  if (view.preamble.length) turns.append(renderSteps(view.preamble));
+  if (range) {
+    turns.append(el("p", "meta", `고른 범위: #${range[0].turn} ~ #${range[1].turn}`));
+  } else if (view.preamble.length) {
+    turns.append(renderSteps(view.preamble));
+  }
+  const selectedTurn = state.step ? view.turns.find((turn) => turn.steps.some((step) => step.id === state.step)) : null;
   view.turns.forEach((turn, index) => {
-    const open = turn.failure_count > 0 || turn.state !== "ended" || index === view.turns.length - 1;
-    turns.append(renderTurn(turn, open));
+    if (range && (turn.index < range[0].turn || turn.index > range[1].turn)) return;
+    const steps = range ? turn.steps.filter((step) => {
+      const at = new Date(step.at).getTime();
+      return at >= range[0].stepAt && at <= range[1].stepAt;
+    }) : turn.steps;
+    const open = turn === selectedTurn || turn.failure_count > 0 || turn.state !== "ended" || index === view.turns.length - 1;
+    turns.append(renderTurn(turn, open, steps));
   });
   return turns;
+}
+
+function focusStep(container, stepId) {
+  const item = stepId ? container.querySelector(`.steps [data-step-id="${stepId}"]`) : null;
+  if (!item) return;
+  item.classList.add("focused");
+  for (let node = item; node && node !== container; node = node.parentElement) {
+    if (node.tagName === "DETAILS") node.open = true;
+  }
+  const own = item.querySelector(":scope > details");
+  if (own) own.open = true;
+  item.scrollIntoView({ block: "center" });
 }
 
 function renderNodeDetail(container, node, turn, steps) {
@@ -256,7 +294,7 @@ async function renderGraphView(state, view) {
     option.selected = item.index === turnIndex;
     select.append(option);
   }
-  select.addEventListener("change", () => writeHash(state.project, view.session_id, { view: "graph", turn: Number(select.value) }));
+  select.addEventListener("change", () => updateHash({ turn: Number(select.value), step: null }));
   const meta = el("div", "meta", `${formatTime(turn.started_at)} · ${turn.state} · 도구 ${turn.tool_call_count}`);
   if (turn.failure_count) meta.append(" · ", el("span", "fail-count", `실패 ${turn.failure_count}`));
   const graphBox = el("div", "graph-box");
@@ -264,10 +302,13 @@ async function renderGraphView(state, view) {
   detail.append(el("p", "empty", "노드를 누르면 여기에 상세가 나옵니다."));
   wrapper.append(select, meta, graphBox, detail);
   try {
-    const graph = await getJSON(`/api/sessions/${encodeURIComponent(view.session_id)}/turns/${turnIndex}/graph`);
+    if (!cache.graphs.has(turnIndex)) {
+      cache.graphs.set(turnIndex, await getJSON(`/api/sessions/${encodeURIComponent(view.session_id)}/turns/${turnIndex}/graph`));
+    }
+    const graph = cache.graphs.get(turnIndex);
     const steps = indexSteps(turn.steps);
     // The graph needs its container laid out to fit the width, so draw after it is attached.
-    requestAnimationFrame(() => renderGraph(graphBox, graph, (node) => renderNodeDetail(detail, node, turn, steps)));
+    requestAnimationFrame(() => renderGraph(graphBox, graph, (node) => renderNodeDetail(detail, node, turn, steps), state.step));
   } catch (error) {
     showError(graphBox, error);
   }
@@ -281,24 +322,58 @@ async function loadSession(state) {
     return;
   }
   try {
-    const view = await getJSON(`/api/sessions/${encodeURIComponent(state.session)}`);
+    if (!cache.view) {
+      cache.view = await getJSON(`/api/sessions/${encodeURIComponent(state.session)}`);
+      cache.events = collectEvents(cache.view, (step) => (step.tool_call
+        ? `${step.tool_call.tool_name || "도구"} ${toolSummary(step.tool_call)}`
+        : `${STEP_LABEL[step.kind] || step.kind}${step.text ? `: ${firstLine(step.text, 80)}` : ""}`));
+    }
+    const { view, events } = cache;
+    const byId = new Map(events.map((event) => [event.id, event]));
+    const ends = [byId.get(state.from), byId.get(state.to)];
+    const range = ends[0] && ends[1] ? ends.sort((a, b) => a.order - b.order) : null;
     const header = el("div", "session-header");
     header.append(el("div", "name", view.title || view.session_id));
     const meta = el("div", "meta", `${view.project || ""} · 턴 ${view.turn_count} · 도구 ${view.tool_call_count}`);
     if (view.failure_count) meta.append(" · ", el("span", "fail-count", `실패 ${view.failure_count}`));
-    header.append(meta, viewToggle(state, view));
-    const body = state.view === "list" ? renderList(view) : await renderGraphView(state, view);
-    container.replaceChildren(header, body);
+    header.append(meta);
+    const overview = el("div", "overview");
+    const toggle = viewToggle(state, view);
+    const body = state.view === "list" ? renderList(view, state, range) : await renderGraphView(state, view);
+    container.replaceChildren(header, overview, toggle, body);
+    // The strip fits the detail width, so draw it after it is attached.
+    renderOverview(overview, events, {
+      selected: state.step,
+      range,
+      axis: state.axis,
+      onSelect: (event) => updateHash({ step: event.id, turn: event.turn }),
+      onRange: (from, to) => updateHash({ from: from.id, to: to.id }),
+      onClearRange: () => updateHash({ from: null, to: null }),
+      onAxis: (axis) => updateHash({ axis: axis === "time" ? "time" : null }),
+    });
+    if (state.view === "list") focusStep(body, state.step);
   } catch (error) {
     showError(container, error);
   }
 }
 
-async function render() {
+// The last session detail and its turn graphs, reused while only the selection in the hash changes (WebUI.md section 7.4).
+let cache = { view: null, events: [], graphs: new Map() };
+let shown = { project: undefined, session: undefined };
+
+async function render(force = false) {
   const state = readHash();
-  await Promise.all([loadProjects(state.project), loadSessions(state.project, state.session), loadSession(state)]);
+  const changed = force || state.project !== shown.project || state.session !== shown.session;
+  shown = { project: state.project, session: state.session };
+  const tasks = [];
+  if (changed) {
+    cache = { view: null, events: [], graphs: new Map() };
+    tasks.push(loadProjects(state.project), loadSessions(state.project, state.session));
+  }
+  tasks.push(loadSession(state));
+  await Promise.all(tasks);
 }
 
-window.addEventListener("hashchange", render);
-document.getElementById("refresh").addEventListener("click", render);
+window.addEventListener("hashchange", () => render());
+document.getElementById("refresh").addEventListener("click", () => render(true));
 render();

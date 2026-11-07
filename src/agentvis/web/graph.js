@@ -189,7 +189,8 @@ function drawBreaks(content, breaks, height) {
 }
 
 // Draws the graph into `container` with zoom controls; `onSelect(node)` runs when a node is clicked.
-export function renderGraph(container, graph, onSelect) {
+// `initialId` names a node to start selected (WebUI.md section 7.5); it is ignored when no node has that id.
+export function renderGraph(container, graph, onSelect, initialId = null) {
   let zoom = 1;
   let selected = null;
   const toolbar = document.createElement("div");
@@ -266,4 +267,12 @@ export function renderGraph(container, graph, onSelect) {
 
   draw();
   if (scroller.clientWidth) setZoom(Math.max(fitZoom(), 0.15));
+  const initial = initialId === null ? null : graph.nodes.find((node) => node.id === String(initialId));
+  if (initial) {
+    selected = initial.id;
+    highlight();
+    onSelect(initial);
+    const item = layout(graph, zoom).placed.get(initial.id);
+    if (item) scroller.scrollLeft = LEFT_MARGIN + item.x0 - scroller.clientWidth / 2;
+  }
 }
