@@ -65,6 +65,7 @@ function readHash() {
     step: params.get("step") || null,
     width: params.get("width") === "time" ? "time" : "equal",
     scale: params.get("scale") === "real" ? "real" : "compress",
+    live: params.get("live") !== "off",
   };
 }
 
@@ -287,7 +288,18 @@ function renderNodeDetail(container, node, turn, steps) {
 
 // The turn shown in both views: the hash's turn, else the last one (WebUI.md section 2).
 function chosenTurn(state, view) {
-  return view.turns.find((turn) => turn.index === state.turn) || view.turns[view.turns.length - 1];
+  const last = view.turns[view.turns.length - 1];
+  return state.live ? last : view.turns.find((turn) => turn.index === state.turn) || last;
+}
+
+// The newest main-agent step of a turn, followed while live follow is on (WebUI.md section 8.2, I42).
+function latestMainStep(turn) {
+  return turn.steps.length ? String(turn.steps[turn.steps.length - 1].id) : null;
+}
+
+function latestMainNode(graph) {
+  const main = graph.nodes.filter((node) => node.lane === "main");
+  return main.reduce((latest, node) => (!latest || new Date(node.started_at) >= new Date(latest.started_at) ? node : latest), null);
 }
 
 // Box 3: which turn to look at. It is the same in both views.
@@ -310,20 +322,16 @@ function renderTurnPicker(view, turn) {
 }
 
 // Without a turn in the hash the last turn is shown, so a new turn is followed automatically (WebUI.md section 8.2).
+// Picking anything other than the latest turn as a whole turns live follow off, so the next update
+// does not take the choice away (WebUI.md section 8.2).
 function pickTurn(view, index, step) {
   const last = view.turns[view.turns.length - 1];
-  updateHash({ turn: last && index === last.index ? null : index, step });
+  if (readHash().live && last && index === last.index && step === null) return;
+  updateHash({ live: "off", turn: index, step });
 }
 
 function followControl() {
-  if (readHash().turn === null) {
-    return el("div", "meta follow", "● 최신 턴을 따라가는 중");
-  }
-  const button = el("button", "follow", "최신 턴 따라가기");
-  button.type = "button";
-  button.title = "새 턴이 시작되면 자동으로 그 턴을 보여 줍니다";
-  button.addEventListener("click", () => updateHash({ turn: null, step: null }));
-  return button;
+  return readHash().live ? el("div", "meta follow", "● 최신 턴과 최신 노드를 따라가는 중") : el("span");
 }
 
 // Box 4, list view: the chosen turn's steps (WebUI.md section 7.5).
@@ -347,15 +355,18 @@ async function renderTurnGraph(state, view, turn) {
     }
     const graph = cache.graphs.get(turn.index);
     const steps = indexSteps(turn.steps);
+    const latest = state.live ? latestMainNode(graph) : null;
+    shownStep = latest ? latest.id : state.step;
     // The graph needs its container laid out to fit the width, so draw after it is attached.
     const viewKey = `${view.session_id}:${turn.index}:${state.scale}`;
     const onNode = (node, byUser) => {
       renderNodeDetail(detail, node, turn, steps);
       // A clicked node goes to the hash so a live redraw keeps its detail open (WebUI.md section 8.2).
-      if (byUser && String(readHash().step) !== node.id) updateHash({ step: node.id });
+      if (byUser && (readHash().live || String(readHash().step) !== node.id)) updateHash({ live: "off", turn: turn.index, step: node.id });
     };
     requestAnimationFrame(() => renderGraph(graphBox, graph, onNode, {
-      initialId: state.step,
+      initialId: latest ? latest.id : state.step,
+      follow: Boolean(latest),
       scale: state.scale,
       onScale: (scale) => updateHash({ scale: scale === "real" ? "real" : null }),
       view: graphViews.get(viewKey) || null,
@@ -387,6 +398,8 @@ async function loadSession(state) {
     const overview = el("div", "overview");
     const boxes = [box("세션 정보", header, "session"), box("세션 전체 흐름", overview, "session")];
     const turn = view.turns.length ? chosenTurn(state, view) : null;
+    shownTurn = turn ? turn.index : null;
+    shownStep = state.live && turn ? latestMainStep(turn) : state.step;
     if (turn) {
       const flow = state.view === "list" ? renderTurnSteps(view, turn) : await renderTurnGraph(state, view, turn);
       boxes.push(box("턴 선택", renderTurnPicker(view, turn), "turn first"), box(`턴 #${turn.index} 작업 흐름`, flow, "turn", viewToggle(state)));
@@ -402,9 +415,12 @@ async function loadSession(state) {
       onWidth: (width) => updateHash({ width: width === "time" ? "time" : null }),
     });
     // Only a newly chosen step scrolls the list; a live redraw leaves the scroll where it is.
-    const focusKey = `${view.session_id}:${state.step}`;
-    if (turn && state.view === "list") focusStep(container, state.step, focusKey !== lastFocus);
+    // Only a newly chosen step scrolls the list, except while following, which keeps the newest step in sight.
+    const focusId = state.live && turn ? latestMainStep(turn) : state.step;
+    const focusKey = `${view.session_id}:${focusId}`;
+    if (turn && state.view === "list") focusStep(container, focusId, state.live || focusKey !== lastFocus);
     lastFocus = focusKey;
+    updateLiveButton();
   } catch (error) {
     showError(container, error);
   }
@@ -427,6 +443,9 @@ let shown = { project: undefined, session: undefined };
 // Zoom and scroll of each drawn graph, by session, turn and time axis, kept across live redraws (WebUI.md section 8.2).
 const graphViews = new Map();
 let lastFocus = null;
+// What is on screen now, so turning live follow off can pin it.
+let shownTurn = null;
+let shownStep = null;
 
 async function render(force = false) {
   const state = readHash();
@@ -520,11 +539,36 @@ function refreshLists() {
   }, wait);
 }
 
-function setLive(connected) {
-  const badge = document.getElementById("live");
-  badge.textContent = connected ? "● 실시간" : "○ 실시간 끊김";
-  badge.className = connected ? "live on" : "live off";
-  badge.title = connected ? "진행 중인 세션이 바뀌면 화면이 바로 갱신됩니다" : "서버와의 연결을 다시 잇는 중입니다";
+let connected = false;
+
+function setLive(value) {
+  connected = value;
+  updateLiveButton();
+}
+
+// The header button turns live follow on and off; it also shows a lost server connection (WebUI.md section 8.2).
+function updateLiveButton() {
+  const button = document.getElementById("live");
+  const following = readHash().live;
+  if (!connected) {
+    button.textContent = "○ 연결 끊김";
+    button.className = "live lost";
+    button.title = "서버와의 연결을 다시 잇는 중입니다. 이어지면 화면을 다시 받습니다.";
+  } else if (following) {
+    button.textContent = "● 실시간 따라가기";
+    button.className = "live on";
+    button.title = "최신 턴과 주 에이전트의 최신 노드를 따라가는 중입니다. 누르면 지금 화면에 머뭅니다.";
+  } else {
+    button.textContent = "○ 따라가기 꺼짐";
+    button.className = "live off";
+    button.title = "보던 턴과 노드에 머무는 중입니다(내용은 계속 갱신됩니다). 누르면 최신 작업을 따라갑니다.";
+  }
+  button.setAttribute("aria-pressed", String(following));
+}
+
+function toggleLive() {
+  if (readHash().live) updateHash({ live: "off", turn: shownTurn, step: shownStep });
+  else updateHash({ live: null, turn: null, step: null });
 }
 
 function connectStream() {
@@ -555,5 +599,6 @@ function connectStream() {
 setupCollapse();
 window.addEventListener("hashchange", () => render());
 document.getElementById("refresh").addEventListener("click", () => render(true));
+document.getElementById("live").addEventListener("click", toggleLive);
 render();
 connectStream();

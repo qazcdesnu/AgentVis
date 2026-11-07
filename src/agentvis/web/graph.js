@@ -304,7 +304,7 @@ function drawBreaks(content, breaks, height) {
 // reports them on every change, so a live redraw keeps what the user was looking at (WebUI.md section 8.2).
 // onSelect(node, byUser) runs with byUser false for the initial node.
 export function renderGraph(container, graph, onSelect, options = {}) {
-  const { initialId = null, scale: mode = "compress", onScale = () => {}, view = null, onView = () => {} } = options;
+  const { initialId = null, follow = false, scale: mode = "compress", onScale = () => {}, view = null, onView = () => {} } = options;
   let zoom = 1;
   let selected = null;
   const toolbar = document.createElement("div");
@@ -422,7 +422,10 @@ export function renderGraph(container, graph, onSelect, options = {}) {
     // Keep a restored scroll position unless the chosen node is out of sight.
     const item = layout(graph, zoom, mode).placed.get(initial.id);
     const x = item ? LEFT_MARGIN + item.x0 : null;
-    if (x !== null && (!view || x < scroller.scrollLeft || x > scroller.scrollLeft + scroller.clientWidth)) {
+    // While following the newest node, keep it about three quarters across so the work before it stays in sight.
+    if (x !== null && follow) {
+      scroller.scrollLeft = x - scroller.clientWidth * 0.75;
+    } else if (x !== null && (!view || x < scroller.scrollLeft || x > scroller.scrollLeft + scroller.clientWidth)) {
       scroller.scrollLeft = x - scroller.clientWidth / 2;
     }
   }
