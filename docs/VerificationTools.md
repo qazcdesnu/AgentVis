@@ -44,12 +44,12 @@ uv run python -m unittest discover -s tests -t .   # 도구 자체의 테스트
 
 - [find_doc_files](../tools/doclib.py#find_doc_files): 검사 대상 문서 목록. `ENTRY_DOC`, `README_DOC`(있으면), `docs/` 아래의 모든 `.md` 파일이다.
 - [find_code_files](../tools/doclib.py#find_code_files): `CODE_ROOTS` 아래의 모든 코드 파일 목록. 없는 디렉터리는 건너뛴다.
-- [extract_links](../tools/doclib.py#extract_links): 문서 본문에서 링크를 찾는다. 이미지 링크(`![...](...)`), 펜스 코드 블록(```` ``` ````, `~~~`) 안, 인라인 코드 안의 링크는 제외한다.
+- [extract_links](../tools/doclib.py#extract_links): 문서 본문에서 링크를 찾는다. 이미지 링크(`![...](...)`), 펜스 코드 블록(```` ``` ````, `\~\~\~`) 안, 인라인 코드 안의 링크는 제외한다.
 - [is_external](../tools/doclib.py#is_external): `http://`, `https://`, `mailto:`로 시작하는 외부 링크인지 판정한다. 외부 링크는 검사하지 않는다.
 - [resolve_link](../tools/doclib.py#resolve_link): 링크 대상을 (절대 경로, 앵커)로 나눈다. `#앵커`만 있는 링크는 출처 문서 자신을 가리킨다. 앵커는 URL 디코딩한다.
 - [slugify](../tools/doclib.py#slugify): 제목 문자열을 앵커로 바꾼다. 규칙은 [문서 작업 규칙](DocumentationRule.md#3-링크-규칙)에 있다.
 - [display_path](../tools/doclib.py#display_path): 출력용 경로 문자열. 저장소 루트 기준 상대 경로이며, 루트 밖이면 절대 경로다. 구분자는 운영체제와 관계없이 `/`다. 그래서 같은 문제가 모든 운영체제에서 같은 메시지로 나온다. [Problem.format](../tools/doclib.py#Problem.format)과 검사기 메시지가 함께 쓴다.
-- [heading_anchors](../tools/doclib.py#heading_anchors): 문서의 모든 ATX 제목(`#` ~ `######`, 코드 블록 밖)의 앵커 집합. 같은 앵커가 반복되면 두 번째부터 `-1`, `-2`를 붙인다.
+- [heading_anchors](../tools/doclib.py#heading_anchors): 문서의 모든 ATX 제목(`#` \~ `######`, 코드 블록 밖)의 앵커 집합. 같은 앵커가 반복되면 두 번째부터 `-1`, `-2`를 붙인다.
 - [iter_prose_lines](../tools/doclib.py#iter_prose_lines): 펜스 코드 블록 밖의 줄을 (줄 번호, 줄)로 차례로 돌려준다. 펜스 줄 자체도 제외한다.
 - [use_utf8_output](../tools/doclib.py#use_utf8_output): 표준 출력·오류를 UTF-8로 바꾼다. 각 검사기의 `main`이 시작할 때 부른다([운영체제 이식성](CodeRule.md#31-운영체제-이식성)). 출력이 파이프로 갈 때 Windows가 기본 인코딩을 써서 한글 메시지를 출력하지 못하는 것을 막는다.
 - [strip_inline_code](../tools/doclib.py#strip_inline_code): 줄에서 인라인 코드 구간을 지운다. 여는 백틱 수와 같은 수의 백틱으로 닫힌 구간을 지운다.
@@ -65,7 +65,8 @@ uv run python -m unittest discover -s tests -t .   # 도구 자체의 테스트
 - [check_entry](../tools/check_docs.py#check_entry): `ENTRY_DOC`이 존재하고 `INDEX_DOC`으로 가는 링크를 가지는지 검사한다.
 - [check_readme](../tools/check_docs.py#check_readme): `README_DOC`이 존재하고 `INDEX_DOC`과 `ENTRY_DOC`으로 가는 링크를 모두 가지는지 검사한다([문서 작업 규칙의 형식](DocumentationRule.md#2-형식)). 링크 자체는 `README_DOC`도 [find_doc_files](../tools/doclib.py#find_doc_files)에 들어가므로 `check_links`가 검사한다.
 - [find_orphans](../tools/check_docs.py#find_orphans): `INDEX_DOC`에서 문서 간 링크를 따라 너비 우선 탐색을 하고, 도달하지 못한 `docs/` 아래 문서를 고아 문서로 보고한다. `INDEX_DOC`이 없으면 그 자체를 문제로 보고한다.
-- [main](../tools/check_docs.py#main): 네 검사를 실행하고 결과를 [1. 실행 방법](#1-실행-방법)의 형식으로 출력한다.
+- [check_tildes](../tools/check_docs.py#check_tildes): 모든 문서에서 `\`를 붙이지 않은 물결표를 찾는다([문서 작업 규칙의 형식](DocumentationRule.md#2-형식), I54). 코드 블록(`` ``` `` 사이), 인라인 코드, 링크 주소(`](…)`), `http://`·`https://` URL 안의 물결표는 건너뛴다. 물결표가 있는 줄마다 문제 하나를 낸다.
+- [main](../tools/check_docs.py#main): 다섯 검사를 실행하고 결과를 [1. 실행 방법](#1-실행-방법)의 형식으로 출력한다.
 
 ## 4. 포인터 검사기
 

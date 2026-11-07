@@ -1,8 +1,8 @@
 # 기록 리더 설계
 
-이 문서는 Claude Code 세션 기록(JSONL)을 이어 읽어 이벤트 저장소에 넣는 기록 리더([transcript 모듈](../../src/agentvis/transcript.py))를 설계한다. 세션 기록의 구조와 두 데이터 소스의 역할은 [데이터 소스](../DataSource.md#1-개요)에, 전체 구조에서의 위치는 [시스템 구조](../Architecture.md#31-기록-리더가-실행되는-시점)에, 저장 방식은 [이벤트 저장소 설계](Store.md)에 있다. 관련 태스크는 [로드맵](../Roadmap.md#m2-세션-기록-읽기)의 M2-T2~M2-T5다. 전체 문서 목록은 [문서 인덱스](../index.md)에서 확인한다.
+이 문서는 Claude Code 세션 기록(JSONL)을 이어 읽어 이벤트 저장소에 넣는 기록 리더([transcript 모듈](../../src/agentvis/transcript.py))를 설계한다. 세션 기록의 구조와 두 데이터 소스의 역할은 [데이터 소스](../DataSource.md#1-개요)에, 전체 구조에서의 위치는 [시스템 구조](../Architecture.md#31-기록-리더가-실행되는-시점)에, 저장 방식은 [이벤트 저장소 설계](Store.md)에 있다. 관련 태스크는 [로드맵](../Roadmap.md#m2-세션-기록-읽기)의 M2-T2\~M2-T5다. 전체 문서 목록은 [문서 인덱스](../index.md)에서 확인한다.
 
-구현할 심볼은 인라인 코드로 적었다. 태스크를 시작할 때 [작업 관리 규칙](../TaskRule.md#41-시작)에 따라 코드 포인터 링크로 바꾼다. 1~3절과 5절은 M2-T2에서 바꿨다.
+구현할 심볼은 인라인 코드로 적었다. 태스크를 시작할 때 [작업 관리 규칙](../TaskRule.md#41-시작)에 따라 코드 포인터 링크로 바꾼다. 1\~3절과 5절은 M2-T2에서 바꿨다.
 
 ## 1. 읽는 파일
 
@@ -34,7 +34,7 @@
 
 [record_to_raw](../../src/agentvis/transcript.py#record_to_raw)`(line: bytes) -> RawEvent | None`는 세션 기록 한 줄을 원시 이벤트로 바꾸고, 저장 대상이 아니면 `None`을 돌려준다.
 
-**저장 대상 유형** [INGESTED_TYPES](../../src/agentvis/transcript.py#INGESTED_TYPES): `user`, `assistant`, `system`, `queue-operation`, `attachment`, 그리고 세션 제목 기록 `ai-title`, `agent-name`(I47, [실측](../DataSource.md#39-세션-제목과-진행-요약)). `attachment`는 [INGESTED_ATTACHMENTS](../../src/agentvis/transcript.py#INGESTED_ATTACHMENTS)의 `attachment.type`만 저장한다: 작업 중 메시지·작업 알림이 모델에게 전달된 기록 `queued_command`, hook 전달 실패 `hook_non_blocking_error`(I18). 그 밖의 유형(`api-request`, `api-request-blob`, `file-history-*`, `mode`, `last-prompt` 등)과 나머지 첨부(도구 목록, 편집 파일 내용 등)는 분석 질문(Q1~Q6)과 관계없는 요청 사본·화면 상태·파일 이력이라 건너뛴다.
+**저장 대상 유형** [INGESTED_TYPES](../../src/agentvis/transcript.py#INGESTED_TYPES): `user`, `assistant`, `system`, `queue-operation`, `attachment`, 그리고 세션 제목 기록 `ai-title`, `agent-name`(I47, [실측](../DataSource.md#39-세션-제목과-진행-요약)). `attachment`는 [INGESTED_ATTACHMENTS](../../src/agentvis/transcript.py#INGESTED_ATTACHMENTS)의 `attachment.type`만 저장한다: 작업 중 메시지·작업 알림이 모델에게 전달된 기록 `queued_command`, hook 전달 실패 `hook_non_blocking_error`(I18). 그 밖의 유형(`api-request`, `api-request-blob`, `file-history-*`, `mode`, `last-prompt` 등)과 나머지 첨부(도구 목록, 편집 파일 내용 등)는 분석 질문(Q1\~Q6)과 관계없는 요청 사본·화면 상태·파일 이력이라 건너뛴다.
 
 | 원시 이벤트 필드 | 값 |
 | --- | --- |
