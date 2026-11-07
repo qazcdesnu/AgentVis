@@ -56,3 +56,23 @@
 PR과 `main` push마다 GitHub Actions의 [CI](VerificationTools.md#8-ci)가 [검증 도구](VerificationTools.md#1-실행-방법) 전체를 실행한다. PR에서는 PR 제목과 브랜치 이름, 그리고 그 PR이 번호가 앞선 열린 PR을 모두 포함하는지([PR 순서 검사기](VerificationTools.md#9-pr-순서-검사기))도 검사한다.
 
 GitHub 저장소 설정에서 `main` 보호 규칙(PR 필수, CI 통과 필수)을 켜 두면 이 규칙이 저장소 차원에서 강제된다. 이 설정은 사용자가 GitHub에서 한다.
+
+## 6. 릴리스
+
+배포 단위를 남길 때 릴리스한다(I48). 릴리스도 작업이므로 이슈나 로드맵 태스크의 ID로 시작하고, 다른 작업처럼 PR로 합친다.
+
+**버전**
+- 형식은 [유의적 버전](https://semver.org/lang/ko/) `주.부.수`(예: `1.0.0`)다. 하위 호환이 깨지는 바뀜(저장소를 되돌릴 수 없는 스키마 이동, hook 설정 형식 변경 등)은 주 버전, 기능 추가는 부 버전, 결함 수정만 있으면 수 버전을 올린다.
+- 버전은 `pyproject.toml`의 `project.version` 한 곳에만 적는다. 코드의 `agentvis.__version__`은 설치된 패키지 정보에서 읽는다([CLI 설계의 패키지 골격](design/Cli.md#1-패키지-골격)). `uv lock`으로 `uv.lock`의 버전도 맞춘다.
+- CLI 테스트(`tests/test_cli.py`)가 `pyproject.toml`의 버전이 `주.부.수` 형식인지, `__version__`과 같은지 검사한다.
+
+**순서**
+1. 릴리스 작업 브랜치에서 버전을 올리고, [README](../README.md)의 현재 상태를 그 버전에 맞게 고친다.
+2. PR을 만들고 CI가 통과하면 병합한다. 병합은 사용자가 하거나, 사용자가 릴리스를 지시했으면 Claude가 한다.
+3. 로컬 `main`을 원격과 맞춘 뒤, 그 병합 커밋에 주석 태그 `v<버전>`을 단다(`git tag -a v1.0.0 -m "AgentVis v1.0.0"`). 태그를 push한다.
+4. GitHub 릴리스를 만든다(`gh release create v1.0.0 --title "AgentVis v1.0.0" --notes-file <노트 파일>`). 노트에는 다음을 적는다.
+   - 주요 기능 또는 지난 릴리스 뒤 바뀐 점(작업 ID와 함께)
+   - 올리기 전에 알아 둘 점(스키마 이동, 처음 시작이 오래 걸리는 일 등)
+   - 설치·실행 안내([README의 설치와 실행](../README.md#3-설치와-실행)로 가는 링크)
+5. 완료 기록에 태그와 릴리스 주소를 적는다.
+
