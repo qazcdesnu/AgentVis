@@ -197,7 +197,7 @@ class _GraphBuilder:
         if step.kind == "subagent":
             self.child_unlinked(lane, step)
             return None
-        label = {"compact": "문맥 압축", "hook_failure": "hook 전달 실패"}.get(step.kind) or _first_line(step.text)
+        label = {"compact": "대화 요약(문맥 압축)", "hook_failure": "hook 전달 실패"}.get(step.kind) or _first_line(step.text)
         return self.node(Node(str(step.id), lane.id, step.kind, step.at, step.at, label, step_ids=[step.id]))
 
     def tool(self, lane: Lane, step: Step) -> str:

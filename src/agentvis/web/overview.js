@@ -10,8 +10,8 @@ const MIN_LABEL_WIDTH = 28;
 const FAILURE = new Set(["error", "interrupted"]);
 const BADGES = [
   { key: "failure", label: "실패한 턴", match: (turn) => turn.failed },
-  { key: "user", label: "사용자 메시지가 있는 턴", match: (turn) => turn.userMessages > 0 },
-  { key: "compact", label: "압축이 있는 턴", match: (turn) => turn.compacts > 0 },
+  { key: "user", label: "작업 중 사용자 메시지가 있는 턴", match: (turn) => turn.userMessages > 0 },
+  { key: "compact", label: "대화 요약이 일어난 턴", title: "대화가 길어져 Claude Code가 앞 대화를 요약문으로 바꾼 턴입니다. 이 뒤로 에이전트는 앞의 세부 내용을 요약으로만 기억합니다.", match: (turn) => turn.compacts > 0 },
 ];
 
 let keyHandler = null;
@@ -57,7 +57,7 @@ function turnText(turn) {
   const parts = [`#${turn.index}`, turn.prompt.length > 60 ? `${turn.prompt.slice(0, 60)}…` : turn.prompt, `도구 ${turn.tools}`];
   if (turn.failures) parts.push(`실패 ${turn.failures}`);
   parts.push(formatDuration(turn.duration));
-  if (turn.userMessages) parts.push(`사용자 메시지 ${turn.userMessages}`);
+  if (turn.userMessages) parts.push(`작업 중 사용자 메시지 ${turn.userMessages}`);
   if (turn.state === "running") parts.push("실행 중");
   return parts.join(" · ");
 }
@@ -105,11 +105,12 @@ function drawStrip(box, turns, options, info) {
         .attr("y", SYMBOL_ROW + CELL_HEIGHT / 2).attr("dy", "0.35em").text(label.slice(0, fits));
     }
     if (turn.userMessages) {
-      svg.append("text").attr("class", "ov-symbol ov-symbol-user").attr("x", x + w / 2).attr("y", SYMBOL_ROW - 3).attr("text-anchor", "middle").text("▲");
+      svg.append("text").attr("class", "ov-symbol ov-symbol-user").attr("x", x + w / 2).attr("y", SYMBOL_ROW - 3).attr("text-anchor", "middle").text("◆");
     }
     if (turn.compacts) {
       svg.append("line").attr("class", "ov-compact").attr("x1", x - CELL_GAP / 2).attr("x2", x - CELL_GAP / 2).attr("y1", 0).attr("y2", height);
-      svg.append("text").attr("class", "ov-compact-label").attr("x", x + 2).attr("y", 10).text("압축");
+      svg.append("text").attr("class", "ov-compact-label").attr("x", x + 2).attr("y", 10).text("대화 요약")
+        .append("title").text(BADGES[2].title);
     }
     group.on("click", () => options.onSelect(turn, false));
     group.on("mouseenter", () => { info.textContent = turnText(turn); });
@@ -128,7 +129,9 @@ function renderBadges(turns, options) {
     const previous = () => (current ? shown.filter((turn) => turn.index < current.index).pop() : shown[shown.length - 1]);
     jumps[badge.key] = { next, previous };
     const group = el("span", `ov-badge ov-badge-${badge.key}`);
-    group.append(el("span", "ov-badge-label", `${badge.label} ${shown.length}`));
+    const label = el("span", "ov-badge-label", `${badge.label} ${shown.length}`);
+    if (badge.title) label.title = badge.title;
+    group.append(label);
     for (const [symbol, pick, title] of [["◀", previous, "이전"], ["▶", next, "다음"]]) {
       const button = el("button", null, symbol);
       button.type = "button";
