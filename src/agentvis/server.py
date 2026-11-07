@@ -16,6 +16,8 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.trustedhost import TrustedHostMiddleware
+from starlette.responses import Response
+from starlette.types import Scope
 
 from agentvis.analysis.catalog import get_session, get_turn_graph, list_projects, list_sessions
 from agentvis.collector import InvalidHookEvent, hook_event_to_raw
@@ -25,6 +27,15 @@ from agentvis.transcript import TranscriptReader, paths_to_read
 # @doc: docs/design/Collector.md#21-요청-검증
 ALLOWED_HOSTS = ("127.0.0.1", "localhost")
 _WEB_DIR = Path(__file__).parent / "web"
+
+
+class _RevalidatedStaticFiles(StaticFiles):
+    """Static files the browser must revalidate before each use, so edited screen files show on a plain reload."""
+
+    async def get_response(self, path: str, scope: Scope) -> Response:
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
 
 
 def _rejection(request: Request) -> JSONResponse | None:
@@ -96,5 +107,5 @@ def create_app(store: EventStore, reader: TranscriptReader | None = None) -> Fas
         return jsonable_encoder(graph)
 
     # Mounted last so the API routes above take precedence over static files.
-    app.mount("/", StaticFiles(directory=_WEB_DIR, html=True), name="web")
+    app.mount("/", _RevalidatedStaticFiles(directory=_WEB_DIR, html=True), name="web")
     return app

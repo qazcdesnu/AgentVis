@@ -384,6 +384,50 @@ async function render(force = false) {
   await Promise.all(tasks);
 }
 
+// Side pane collapse is a per-viewer preference, so it lives in localStorage, never in the hash (WebUI.md section 2).
+const COLLAPSE_KEY = "agentvis.collapsed";
+
+function readCollapsed() {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(COLLAPSE_KEY) || "[]"));
+  } catch {
+    return new Set();
+  }
+}
+
+function applyCollapsed(collapsed) {
+  const panes = document.querySelector(".panes");
+  for (const button of document.querySelectorAll("button.collapse")) {
+    const id = button.dataset.pane;
+    const closed = collapsed.has(id);
+    panes.classList.toggle(`${id}-collapsed`, closed);
+    document.getElementById(id).classList.toggle("collapsed", closed);
+    button.setAttribute("aria-expanded", String(!closed));
+    button.textContent = closed ? "▸" : "◂";
+    const name = document.getElementById(id).querySelector("h2").textContent;
+    button.title = `${name} 목록 ${closed ? "펴기" : "접기"}`;
+  }
+}
+
+function setupCollapse() {
+  const collapsed = readCollapsed();
+  for (const button of document.querySelectorAll("button.collapse")) {
+    button.addEventListener("click", () => {
+      const id = button.dataset.pane;
+      if (collapsed.has(id)) collapsed.delete(id);
+      else collapsed.add(id);
+      try {
+        localStorage.setItem(COLLAPSE_KEY, JSON.stringify([...collapsed]));
+      } catch {
+        // Storage can be unavailable (private window); the toggle still works for this page.
+      }
+      applyCollapsed(collapsed);
+    });
+  }
+  applyCollapsed(collapsed);
+}
+
+setupCollapse();
 window.addEventListener("hashchange", () => render());
 document.getElementById("refresh").addEventListener("click", () => render(true));
 render();

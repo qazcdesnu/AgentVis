@@ -263,8 +263,23 @@ details > summary { cursor: pointer; list-style-position: outside; }
 .g-bar-label { fill: #ffffff; pointer-events: none; }
 .node-detail { border-top: 1px solid var(--line); padding-top: 8px; }
 
+/* Collapsible side panes: docs/design/WebUI.md section 2 (I35). */
+.pane-head { display: flex; align-items: center; justify-content: space-between; margin-right: 8px; }
+.pane-head h2 { margin-bottom: 4px; }
+.collapse { padding: 0 6px; font-size: 12px; line-height: 20px; color: var(--muted); }
+.panes.projects-pane-collapsed { grid-template-columns: 32px 300px minmax(0, 1fr); }
+.panes.sessions-pane-collapsed { grid-template-columns: 240px 32px minmax(0, 1fr); }
+.panes.projects-pane-collapsed.sessions-pane-collapsed { grid-template-columns: 32px 32px minmax(0, 1fr); }
+.pane.collapsed { overflow: hidden; }
+.pane.collapsed .list { display: none; }
+.pane.collapsed .pane-head { flex-direction: column-reverse; align-items: center; justify-content: flex-end; gap: 8px; margin: 0; }
+.pane.collapsed .pane-head h2 { writing-mode: vertical-rl; margin: 0; text-transform: none; }
+
 @media (max-width: 900px) {
-  .panes { grid-template-columns: 1fr; height: auto; }
+  .panes, .panes.projects-pane-collapsed, .panes.sessions-pane-collapsed,
+  .panes.projects-pane-collapsed.sessions-pane-collapsed { grid-template-columns: 1fr; height: auto; }
+  .pane.collapsed .pane-head { flex-direction: row; justify-content: space-between; margin-right: 8px; }
+  .pane.collapsed .pane-head h2 { writing-mode: horizontal-tb; margin: 4px 16px 4px; }
   .pane { border-right: none; border-bottom: 1px solid var(--line); max-height: 40vh; }
   .detail { max-height: none; }
 }
