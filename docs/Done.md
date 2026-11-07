@@ -2,6 +2,33 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## I53 v1.0.2 릴리스
+
+- 시작일: 2026-11-07
+- 완료일: 2026-11-07
+- 근거 문서: [PR 규칙의 릴리스](PullRequestRule.md#6-릴리스)
+
+### 계획
+- v1.0.1 뒤의 변경(I51·I52, 문서만)을 반영해 수 버전을 올린다. `pyproject.toml`·`uv.lock`과 README의 현재 상태를 고친다.
+- PR이 병합되면 그 병합 커밋에 `v1.0.2` 태그를 달고 GitHub 릴리스를 만든다.
+- 최신 `main`에서 만든 `i53-release-1-0-2`에서 진행한다.
+
+### 진행 기록
+- 2026-11-07: 사용자가 v1.0.2 릴리스를 지시했다. 바뀐 것이 문서뿐이라 수 버전을 올렸다.
+
+### 결정 사항
+- 기능과 저장소 스키마는 v1.0.1과 같다.
+
+### 변경 파일
+- `pyproject.toml`, `uv.lock`, `README.md`
+- `docs/Issue.md`, `docs/Done.md`
+
+### 결과
+- `main`의 릴리스 병합 커밋에 태그 `v1.0.2`가 있고, GitHub 릴리스 https://github.com/qazcdesnu/AgentVis/releases/tag/v1.0.2 에 노트가 있다.
+
+### 검증
+- `check_docs`, `check_pointers`, `check_tasks`, `check_commits`, `check_web` 통과. 단위 테스트 144개 통과.
+
 ## I51 Q6에 지시·설정 자체가 틀린 경우를 더하고 README 정리
 
 - 시작일: 2026-11-07
