@@ -6,7 +6,7 @@
 import unittest
 
 from tests.support import RepoTestCase
-from tools.check_docs import check_entry, check_links, check_readme, find_orphans
+from tools.check_docs import check_entry, check_links, check_readme, check_tildes, find_orphans
 
 
 class CheckDocsTest(RepoTestCase):
@@ -22,6 +22,12 @@ class CheckDocsTest(RepoTestCase):
     def test_clean_repository_passes(self) -> None:
         problems = check_links(self.root) + check_entry(self.root) + check_readme(self.root) + find_orphans(self.root)
         self.assertEqual(problems, [])
+
+    def test_bare_tildes_are_reported_but_escaped_code_and_url_tildes_are_not(self) -> None:
+        # GitHub renders text between two bare tildes as strikethrough (I54).
+        self.write("docs/Rule.md", "# Rule\n\nQ1~Q6 and Q3~Q5\n\nT1\\~T6, `a~b`, [p](https://x.org/~me), https://y.org/~you\n\n```\nls ~/x\n```\n")
+        problems = check_tildes(self.root)
+        self.assertEqual([(problem.path.name, problem.line) for problem in problems], [("Rule.md", 3)])
 
     def test_reports_missing_file_and_anchor(self) -> None:
         self.write("docs/Rule.md", "# Rule\n\n## 1. Intro\n\n[gone](Gone.md) [bad](index.md#nope)\n")

@@ -4,6 +4,7 @@
 """
 
 import argparse
+import re
 import sys
 from collections import deque
 from pathlib import Path
@@ -81,6 +82,28 @@ def check_readme(root: Path) -> list[Problem]:
     ]
 
 
+# Spans where a tilde is literal: inline code, link destinations and bare URLs.
+_TILDE_SAFE = re.compile(r"`+[^`]*`+|\]\([^)]*\)|https?://\S+")
+_BARE_TILDE = re.compile(r"(?<!\\)~")
+
+
+def check_tildes(root: Path) -> list[Problem]:
+    """Report lines with a tilde that GitHub could render as strikethrough.
+
+    @doc: docs/VerificationTools.md#3-문서-링크-검사기
+    """
+    problems = []
+    for path in find_doc_files(root):
+        fenced = False
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            if line.lstrip().startswith("```"):
+                fenced = not fenced
+                continue
+            if not fenced and _BARE_TILDE.search(_TILDE_SAFE.sub("", line)):
+                problems.append(Problem(path, number, "물결표는 \\~로 써야 함(취소선 방지)"))
+    return problems
+
+
 def find_orphans(root: Path) -> list[Problem]:
     """Report documents under the docs directory unreachable from the index.
 
@@ -117,7 +140,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--root", type=Path, default=REPO_ROOT)
     root = parser.parse_args(argv).root.resolve()
-    problems = check_links(root) + check_entry(root) + check_readme(root) + find_orphans(root)
+    problems = check_links(root) + check_entry(root) + check_readme(root) + check_tildes(root) + find_orphans(root)
     for problem in problems:
         print(problem.format(root))
     if problems:
