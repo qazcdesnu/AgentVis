@@ -76,6 +76,22 @@ class TurnTest(unittest.TestCase):
         self.assertEqual((view.turns[0].state, view.turns[1].state), ("ended", "running"))
         self.assertEqual(view.title, "테스트 고쳐")
 
+    def test_thinking_steps_carry_duration_and_the_response_tokens_once(self) -> None:
+        s = _Session()
+        s.prompt("u1", "p1", "생각해")
+        usage = {"output_tokens_details": {"thinking_tokens": 254}}
+        s.record(type="assistant", uuid="a1", parentUuid="u1", thinkingDurationMs=4174,
+                 message={"id": "m1", "usage": usage, "content": [{"type": "thinking", "thinking": "", "signature": "x"}]})
+        s.record(type="assistant", uuid="a2", parentUuid="a1", thinkingDurationMs=1,
+                 message={"id": "m1", "usage": usage, "content": [{"type": "thinking", "thinking": "요약된 생각", "signature": "y"}]})
+        s.record(type="assistant", uuid="a3", parentUuid="a2", message={"id": "m2", "content": [{"type": "thinking", "thinking": ""}]})
+        view_steps = s.build().turns[0].steps
+        first, second, bare = view_steps
+        self.assertEqual(first.detail, {"duration_ms": 4174, "tokens": 254})
+        self.assertEqual(second.detail, {"duration_ms": 1})
+        self.assertEqual(bare.detail, {})
+        self.assertEqual(len(view_steps), 3)
+
     def test_hook_only_turn_and_stop_failure(self) -> None:
         s = _Session()
         s.hook("UserPromptSubmit", prompt_id="p1", prompt="hook으로만 온 지시")

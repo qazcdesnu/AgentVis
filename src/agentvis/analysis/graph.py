@@ -87,6 +87,11 @@ def _tool_label(call: ToolCall) -> str:
     return f"{call.tool_name or '도구'} {_first_line(summary)}".strip()
 
 
+def _thinking_label(steps: list[Step]) -> str:
+    durations = [step.detail["duration_ms"] for step in steps if "duration_ms" in step.detail]
+    return f"생각 {sum(durations) / 1000:.1f}초" if durations else "생각"
+
+
 class _GraphBuilder:
     def __init__(self, graph: FlowGraph, turn: Turn, session_ended: bool) -> None:
         self.graph = graph
@@ -135,7 +140,7 @@ class _GraphBuilder:
         if not model_steps:
             return tools, tools
         text = next((step.text for step in model_steps if step.kind == "text"), None)
-        label = _first_line(text) if text is not None else "생각"
+        label = _first_line(text) if text is not None else _thinking_label(model_steps)
         model = self.node(Node(str(model_steps[0].id), lane.id, "model", model_steps[0].at, model_steps[0].at, label,
                                step_ids=[step.id for step in model_steps]))
         for tool in tools:

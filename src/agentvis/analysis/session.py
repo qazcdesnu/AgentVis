@@ -153,6 +153,7 @@ class _Builder:
         self.preamble: list[Step] = []
         self.tool_calls: dict[str, ToolCall] = {}
         self.uuid_turn: dict[str, str] = {}
+        self.thinking_messages: set[str] = set()
 
     def turn_of(self, record: dict, at: datetime) -> str | None:
         prompt_id = record.get("promptId")
@@ -186,6 +187,8 @@ class _Builder:
             step = self._assistant_step(event, _block(record))
             if step is not None and isinstance(message_id, str):
                 step.message_id = message_id
+            if step is not None and step.kind == "thinking":
+                self._thinking_detail(step, record)
             return step
         if kind == "user":
             return self._user_step(event, record)
@@ -194,6 +197,19 @@ class _Builder:
         if kind == "system" and record.get("subtype") == "compact_boundary":
             return Step(event.id, "compact", event.occurred_at, "transcript", detail={"trigger": (record.get("compactMetadata") or {}).get("trigger")})
         return None
+
+    def _thinking_detail(self, step: Step, record: dict) -> None:
+        duration = record.get("thinkingDurationMs")
+        if isinstance(duration, int) and not isinstance(duration, bool):
+            step.detail["duration_ms"] = duration
+        # The token count belongs to the whole response and repeats on each of its records, so only the first keeps it.
+        if step.message_id is None or step.message_id in self.thinking_messages:
+            return
+        self.thinking_messages.add(step.message_id)
+        usage = (record.get("message") or {}).get("usage") or {}
+        tokens = (usage.get("output_tokens_details") or {}).get("thinking_tokens")
+        if isinstance(tokens, int) and not isinstance(tokens, bool):
+            step.detail["tokens"] = tokens
 
     def _assistant_step(self, event: RawEvent, block: dict) -> Step | None:
         block_type = block.get("type")

@@ -63,6 +63,16 @@ class ParallelTest(unittest.TestCase):
         self.assertFalse(tool1.approximate)
         self.assertEqual([lane.id for lane in graph.lanes], ["main"])
 
+    def test_thinking_only_response_is_named_with_its_duration(self) -> None:
+        s = _Session()
+        s.prompt("u1", "p1", "읽어")
+        _say(s, "a1", "u1", "m1", {"type": "thinking", "thinking": ""}, thinkingDurationMs=4174)
+        _say(s, "a2", "a1", "m1", {"type": "thinking", "thinking": "요약"}, thinkingDurationMs=26)
+        _say(s, "a3", "a2", "m1", _tool("Read", "t1", file_path="a.py"))
+        _say(s, "a4", "a3", "m2", {"type": "thinking", "thinking": ""})
+        graph = _graph(s)
+        self.assertEqual((_node(graph, "model").label, _node(graph, "model", 1).label), ("생각 4.2초", "생각"))
+
     def test_response_without_thinking_or_text_has_no_model_node(self) -> None:
         s = _Session()
         s.prompt("u1", "p1", "실행")

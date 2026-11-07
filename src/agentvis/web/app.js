@@ -158,7 +158,12 @@ function renderStep(step) {
   if (step.kind === "tool_call" && step.tool_call) {
     item.append(renderToolCall(step.tool_call));
   } else if (step.kind === "thinking") {
-    item.append(expandable("thinking", `${label}: ${firstLine(step.text, 100)}`, step.text));
+    const facts = [];
+    if (step.detail?.duration_ms !== undefined) facts.push(`${(step.detail.duration_ms / 1000).toFixed(1)}초`);
+    if (step.detail?.tokens !== undefined) facts.push(`${step.detail.tokens}토큰`);
+    const head = [label, ...facts].join(" · ");
+    if (String(step.text || "").trim()) item.append(expandable("thinking", `${head}: ${firstLine(step.text, 100)}`, step.text));
+    else item.append(el("span", "thinking", `${head} (내용이 기록에 남지 않음)`));
   } else if (step.kind === "text") {
     const text = String(step.text || "");
     item.append(text.length > 300 ? expandable("text", firstLine(text, 200), text) : el("div", "text", text));
