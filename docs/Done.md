@@ -2,6 +2,38 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## I48 v1.0.0 릴리스
+
+- 시작일: 2026-11-07
+- 완료일: 2026-11-07
+- 근거 문서: [PR 규칙의 릴리스](PullRequestRule.md#6-릴리스)
+
+### 계획
+- PR 규칙에 릴리스 절차(버전 형식과 위치, 릴리스 PR, 태그, GitHub 릴리스와 노트)를 정하고, 버전 형식을 테스트로 검사한다.
+- `pyproject.toml`과 `uv.lock`의 버전을 1.0.0으로 올린다.
+- README의 현재 상태와 화면 사용법을 지금 화면에 맞춘다.
+- PR을 병합한 뒤 `main`에 `v1.0.0` 태그를 달고 GitHub 릴리스를 만든다.
+- 최신 `main`에서 만든 `i48-release-1-0-0`에서 진행한다.
+
+### 진행 기록
+- 2026-11-07: 사용자가 지금 버전을 v1.0.0으로 릴리스하라고 지시했다. PR #32~#37은 이미 병합되어 있었다.
+- 2026-11-07: PR 규칙 6절(릴리스)을 쓰고, 버전 형식 검사를 CLI 테스트에 더했다. `pyproject.toml`·`uv.lock`을 1.0.0으로 올리고, README의 현재 상태와 화면 사용법을 지금 화면(네 상자, 턴 시퀀스, 실시간 따라가기, JSON 보기, 전체 보기)에 맞췄다. 릴리스 노트에 주요 기능(작업 ID와 함께), 처음 시작 때 스키마 5판 이동으로 모든 기록을 다시 읽는다는 점, 설치 안내를 적었다.
+
+### 결정 사항
+- 첫 릴리스를 1.0.0으로 한다(사용자 지시). 버전은 `pyproject.toml` 한 곳에만 두고 `__version__`은 패키지 정보에서 읽는다.
+- 사용자가 릴리스를 지시했으므로 릴리스 PR의 병합, 태그, GitHub 릴리스는 Claude가 한다([PR 규칙 6절](PullRequestRule.md#6-릴리스)).
+
+### 변경 파일
+- `pyproject.toml`, `uv.lock`, `tests/test_cli.py`, `README.md`
+- `docs/PullRequestRule.md`, `docs/index.md`, `docs/Issue.md`, `docs/Ongoing.md`, `docs/Done.md`
+
+### 결과
+- `main`의 릴리스 병합 커밋에 태그 `v1.0.0`이 있고, GitHub 릴리스 https://github.com/qazcdesnu/AgentVis/releases/tag/v1.0.0 에 노트가 있다.
+
+### 검증
+- `check_docs`, `check_pointers`, `check_tasks`, `check_commits`, `check_web` 통과. 단위 테스트 144개 통과(버전 형식 검사 추가). `uv run python -c "import agentvis; print(agentvis.__version__)"`가 `1.0.0`을 출력한다.
+
+
 ## I47 세션 제목과 진행 요약
 
 - 시작일: 2026-11-07

@@ -34,6 +34,8 @@ class CliTest(unittest.TestCase):
         self.assertEqual(output.getvalue().strip(), f"agentvis {__version__}")
         pyproject = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
         self.assertEqual(__version__, pyproject["project"]["version"])
+        # Releases use semantic versions (PullRequestRule.md section 6).
+        self.assertRegex(pyproject["project"]["version"], r"^\d+\.\d+\.\d+$")
 
     def test_no_arguments_prints_help(self) -> None:
         output = io.StringIO()
