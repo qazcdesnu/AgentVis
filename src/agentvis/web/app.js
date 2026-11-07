@@ -207,6 +207,8 @@ function renderStep(step) {
 }
 
 // JSON raw/formatted view (WebUI.md section 3, I43). The chosen view of each block survives live redraws.
+// Four spaces: two were too dense to read (I45).
+const JSON_INDENT = 4;
 const jsonViews = new Map();
 
 function parseJSON(text) {
@@ -245,7 +247,7 @@ function textBlock(label, key, text, className, views, note = null, extra = null
       for (const button of toggle.children) button.classList.toggle("active", button.dataset.mode === mode);
       jsonViews.set(key, mode);
     };
-    for (const [mode, name, title] of [["raw", "원문", "기록에 남은 그대로 봅니다"], ["formatted", "JSON 정리", "JSON을 들여쓰기 2칸으로 정리해 봅니다"]]) {
+    for (const [mode, name, title] of [["raw", "원문", "기록에 남은 그대로 봅니다"], ["formatted", "JSON 정리", "JSON을 들여쓰기 4칸으로 정리해 봅니다"]]) {
       const button = el("button", null, name);
       button.type = "button";
       button.title = title;
@@ -315,7 +317,7 @@ function outputBlock(call, field, label, className) {
   const looksJSON = trimmed[0] === "{" || trimmed[0] === "[";
   const parsed = looksJSON ? parseJSON(trimmed) : { ok: false };
   const block = parsed.ok
-    ? textBlock(label, key, text, className, { raw: text, formatted: JSON.stringify(parsed.value, null, 2), initial: "raw" }, null, extra)
+    ? textBlock(label, key, text, className, { raw: text, formatted: JSON.stringify(parsed.value, null, JSON_INDENT), initial: "raw" }, null, extra)
     : textBlock(label, key, text, className, null, cut && looksJSON ? "잘린 JSON이라 정리할 수 없음 · 전체 보기로 받으면 정리할 수 있음" : null, extra);
   return block;
 }
@@ -332,7 +334,7 @@ function renderToolCall(call) {
   if (call.duration_ms !== null && call.duration_ms !== undefined) facts.push(`실행 시간: ${call.duration_ms}ms`);
   details.append(el("div", "facts", facts.join(" · ")));
   const id = call.tool_use_id;
-  const formattedInput = JSON.stringify(expandJSONStrings(call.input), null, 2);
+  const formattedInput = JSON.stringify(expandJSONStrings(call.input), null, JSON_INDENT);
   details.append(textBlock("입력", `${id}:input`, formattedInput, "body", { raw: JSON.stringify(call.input), formatted: formattedInput, initial: "formatted" }));
   if (call.error) details.append(outputBlock(call, "error", "오류", "body error-text"));
   else if (call.result) details.append(outputBlock(call, "result", "결과", "body"));
