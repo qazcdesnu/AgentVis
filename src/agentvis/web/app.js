@@ -293,6 +293,7 @@ async function renderGraphView(state, view) {
   }
   const turnIndex = view.turns.some((turn) => turn.index === state.turn) ? state.turn : view.turns[view.turns.length - 1].index;
   const turn = view.turns.find((item) => item.index === turnIndex);
+  wrapper.dataset.turn = String(turnIndex);
   const select = el("select", "turn-select");
   for (const item of view.turns) {
     const option = el("option", null, `#${item.index} ${firstLine(item.prompt, 80)}${item.failure_count ? ` · 실패 ${item.failure_count}` : ""}`);
@@ -350,7 +351,13 @@ async function loadSession(state) {
     const overview = el("div", "overview");
     const toggle = viewToggle(state, view);
     const body = state.view === "list" ? renderList(view, state, range) : await renderGraphView(state, view);
-    container.replaceChildren(header, overview, toggle, body);
+    const turnTitle = state.view === "list" ? "턴 목록" : body.dataset.turn ? `턴 #${body.dataset.turn} 흐름 그래프` : "턴 흐름 그래프";
+    container.replaceChildren(
+      box("세션 정보", header, "session"),
+      box("세션 전체 흐름", overview, "session"),
+      box("턴 보기 방식", toggle, "turn first"),
+      box(turnTitle, body, "turn"),
+    );
     // The strip fits the detail width, so draw it after it is attached.
     renderOverview(overview, events, {
       selected: state.step,
@@ -365,6 +372,13 @@ async function loadSession(state) {
   } catch (error) {
     showError(container, error);
   }
+}
+
+// One titled box of the session detail; boxes of the same scope (session or turn) form a group (WebUI.md section 2).
+function box(title, content, scope) {
+  const section = el("section", `box box-${scope.split(" ").join(" box-")}`);
+  section.append(el("h3", "box-title", title), content);
+  return section;
 }
 
 // The last session detail and its turn graphs, reused while only the selection in the hash changes (WebUI.md section 7.4).

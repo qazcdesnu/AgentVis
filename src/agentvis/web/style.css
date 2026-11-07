@@ -116,7 +116,7 @@ button {
 .error { color: var(--error); padding: 8px 16px; }
 .fail-count { color: var(--error); font-weight: 600; }
 
-.session-header { padding: 4px 0 12px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+.session-header { padding: 0; }
 .session-header .name { font-size: 16px; font-weight: 600; }
 
 details > summary { cursor: pointer; list-style-position: outside; }
@@ -285,7 +285,14 @@ details > summary { cursor: pointer; list-style-position: outside; }
 }
 
 /* Session overview strip and jump badges: docs/design/WebUI.md section 7. */
-.overview { margin: 8px 0; }
+.overview { margin: 0; }
+
+/* Titled boxes of the session detail: docs/design/WebUI.md section 2 (I36). */
+.box { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px 10px; margin: 0 0 10px; }
+.box-title { font-size: 11px; font-weight: 600; color: var(--muted); margin: 0 0 6px; letter-spacing: 0.02em; }
+.box-turn.box-first { margin-top: 22px; }
+.box .view-toggle { margin-top: 0; }
+.box .graph-box { margin-bottom: 0; }
 .ov-badges { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-bottom: 4px; }
 .ov-badge { display: inline-flex; align-items: center; gap: 2px; font-size: 12px; }
 .ov-badge-label { margin-right: 4px; color: var(--muted); }
