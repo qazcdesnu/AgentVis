@@ -2,6 +2,33 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## I50 v1.0.1 릴리스
+
+- 시작일: 2026-11-07
+- 완료일: 2026-11-07
+- 근거 문서: [PR 규칙의 릴리스](PullRequestRule.md#6-릴리스)
+
+### 계획
+- v1.0.0 뒤의 변경(I49, 문서만)을 반영해 수 버전을 올린다. `pyproject.toml`·`uv.lock`과 README의 현재 상태를 고친다.
+- PR을 병합한 뒤 그 병합 커밋에 `v1.0.1` 태그를 달고 GitHub 릴리스를 만든다.
+- 최신 `main`에서 만든 `i50-release-1-0-1`에서 진행한다.
+
+### 진행 기록
+- 2026-11-07: 사용자가 v1.0.0 뒤의 변경까지 반영해 새 릴리스를 지시했다. 바뀐 것이 문서뿐이라 [유의적 버전](PullRequestRule.md#6-릴리스) 규칙대로 1.0.1로 했다. README 현재 상태에 고충 조사 6절 링크를 더했다.
+
+### 결정 사항
+- 기능과 저장소 스키마는 v1.0.0과 같다. 올릴 때 다시 읽기 같은 추가 동작은 없다.
+
+### 변경 파일
+- `pyproject.toml`, `uv.lock`, `README.md`
+- `docs/Issue.md`, `docs/Done.md`
+
+### 결과
+- `main`의 릴리스 병합 커밋에 태그 `v1.0.1`이 있고, GitHub 릴리스 https://github.com/qazcdesnu/AgentVis/releases/tag/v1.0.1 에 노트가 있다.
+
+### 검증
+- `check_docs`, `check_pointers`, `check_tasks`, `check_commits`, `check_web` 통과. 단위 테스트 144개 통과.
+
 ## I49 사용자 쪽 오류에서 시작하는 고충 조사
 
 - 시작일: 2026-11-07
