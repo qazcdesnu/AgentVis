@@ -6,7 +6,10 @@ const ROW_HEIGHT = 26;
 const LANE_PADDING = 6;
 const PX_PER_SECOND = 40;
 const MIN_GAP = 6;
-const MAX_GAP = 120;
+const LONG_GAP_MS = 10000;
+const BREAK_WIDTH = 48;
+const WAVE_STEP = 6;
+const WAVE_AMPLITUDE = 3;
 const BAR_HEIGHT = 14;
 const MIN_BAR = 6;
 const POINT_RADIUS = 5;
@@ -26,8 +29,9 @@ function time(value) {
 function formatDuration(ms) {
   const seconds = Math.round(ms / 1000);
   if (seconds < 60) return `${seconds}초`;
-  const minutes = Math.round(seconds / 60);
-  return minutes < 60 ? `${minutes}분` : `${Math.floor(minutes / 60)}시간 ${minutes % 60}분`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return seconds % 60 ? `${minutes}분 ${seconds % 60}초` : `${minutes}분`;
+  return `${Math.floor(minutes / 60)}시간 ${minutes % 60}분`;
 }
 
 function formatClock(ms) {
@@ -36,8 +40,9 @@ function formatClock(ms) {
   return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.${pad(date.getMilliseconds(), 3)}`;
 }
 
-// Order-preserving compressed time scale: each gap between neighbouring times is clamped.
-function buildScale(times, zoom) {
+// Order-preserving time scale (FlowGraph.md section 6.1). "compress" keeps gaps up to LONG_GAP_MS proportional and
+// cuts longer ones to BREAK_WIDTH with a wave mark; "real" keeps every gap proportional.
+function buildScale(times, zoom, mode) {
   const sorted = [...new Set(times)].sort((a, b) => a - b);
   const domain = [sorted[0]];
   const range = [0];
@@ -45,10 +50,11 @@ function buildScale(times, zoom) {
   for (let i = 1; i < sorted.length; i += 1) {
     const gap = sorted[i] - sorted[i - 1];
     const natural = (gap / 1000) * PX_PER_SECOND;
-    const width = Math.min(MAX_GAP, Math.max(MIN_GAP, natural)) * zoom;
+    const cut = mode !== "real" && gap > LONG_GAP_MS;
+    const width = (mode === "real" ? natural : cut ? BREAK_WIDTH : Math.max(MIN_GAP, natural)) * zoom;
     domain.push(sorted[i]);
     range.push(range[range.length - 1] + width);
-    if (natural > MAX_GAP) breaks.push({ x: range[range.length - 2] + width / 2, duration: gap });
+    if (cut) breaks.push({ x: range[range.length - 2] + width / 2, duration: gap });
   }
   if (domain.length === 1) {
     domain.push(domain[0] + 1);
@@ -71,10 +77,14 @@ function orderLanes(lanes) {
   return ordered;
 }
 
-function layout(graph, zoom) {
+function isBar(node) {
+  return BAR_KINDS.has(node.kind) || (node.kind === "model" && time(node.ended_at) > time(node.started_at));
+}
+
+function layout(graph, zoom, mode) {
   const end = d3.max(graph.nodes.flatMap((node) => [time(node.started_at), time(node.ended_at)]).concat([time(graph.ended_at)]).filter(Boolean));
   const times = graph.nodes.flatMap((node) => [time(node.started_at), time(node.ended_at) ?? end]);
-  const { scale, width, breaks } = buildScale(times, zoom);
+  const { scale, width, breaks } = buildScale(times, zoom, mode);
   const lanes = orderLanes(graph.lanes);
   const placed = new Map();
   let y = TOP_MARGIN;
@@ -83,10 +93,10 @@ function layout(graph, zoom) {
     const rows = [];
     const nodes = graph.nodes.filter((node) => node.lane === lane.id);
     for (const node of nodes) {
-      const isBar = BAR_KINDS.has(node.kind);
+      const bar = isBar(node);
       const start = scale(time(node.started_at));
-      const finish = isBar ? Math.max(scale(time(node.ended_at) ?? end), start + MIN_BAR) : start + POINT_RADIUS;
-      const left = isBar ? start : start - POINT_RADIUS;
+      const finish = bar ? Math.max(scale(time(node.ended_at) ?? end), start + MIN_BAR) : start + POINT_RADIUS;
+      const left = bar ? start : start - POINT_RADIUS;
       let row = rows.findIndex((right) => right + OVERLAP_MARGIN <= left);
       if (row === -1) {
         row = rows.length;
@@ -94,7 +104,7 @@ function layout(graph, zoom) {
       } else {
         rows[row] = finish;
       }
-      placed.set(node.id, { node, isBar, x0: start, x1: finish, row, open: isBar && !node.ended_at });
+      placed.set(node.id, { node, isBar: bar, x0: start, x1: finish, row, open: bar && !node.ended_at });
     }
     const height = Math.max(1, rows.length) * ROW_HEIGHT + LANE_PADDING * 2;
     laneBoxes.push({ lane, y, height });
@@ -113,7 +123,7 @@ function nodeTitle(node) {
   if (node.status) parts.push(`상태: ${node.status}`);
   parts.push(`시각: ${formatClock(start)}${finish && finish !== start ? ` ~ ${formatClock(finish)}` : ""}`);
   if (finish && finish !== start) parts.push(`실행 시간: ${formatDuration(finish - start)} (${finish - start}ms)`);
-  if (node.approximate) parts.push("시각 근사(hook 없음)");
+  if (node.approximate) parts.push(node.kind === "model" ? "시작 시각 근사(생각이 끝난 시각 − 걸린 시간)" : "시각 근사(hook 없음)");
   return parts.join("\n");
 }
 
@@ -147,6 +157,20 @@ function drawEdges(content, graph, placed) {
   }
 }
 
+// A bar crossing a cut gap gets a wave cut where the gap was shortened: it is longer than it looks.
+function drawBarCuts(content, placed, breaks) {
+  const group = content.append("g").attr("class", "g-bar-cuts");
+  for (const item of placed.values()) {
+    if (!item.isBar) continue;
+    for (const gap of breaks) {
+      if (gap.x <= item.x0 || gap.x >= item.x1) continue;
+      const path = wavePath(gap.x, item.y - BAR_HEIGHT / 2 - 2, item.y + BAR_HEIGHT / 2 + 2);
+      group.append("path").attr("class", "g-bar-cut-gap").attr("d", path);
+      group.append("path").attr("class", "g-bar-cut").attr("d", path);
+    }
+  }
+}
+
 function drawNodes(content, placed, height, onSelect) {
   const group = content.append("g").attr("class", "g-nodes");
   for (const item of placed.values()) {
@@ -174,13 +198,21 @@ function drawNodes(content, placed, height, onSelect) {
   }
 }
 
+function wavePath(x, y0, y1) {
+  let path = `M ${x} ${y0}`;
+  for (let y = y0, side = 1; y < y1; y += WAVE_STEP, side = -side) {
+    path += ` Q ${x + side * WAVE_AMPLITUDE} ${y + WAVE_STEP / 2} ${x} ${Math.min(y + WAVE_STEP, y1)}`;
+  }
+  return path;
+}
+
 function drawBreaks(content, breaks, height) {
   const group = content.append("g").attr("class", "g-breaks");
   let lastLabel = -Infinity;
   for (const gap of breaks) {
-    const text = `⋯ ${formatDuration(gap.duration)}`;
-    group.append("line").attr("class", "g-break").attr("x1", gap.x).attr("x2", gap.x).attr("y1", TOP_MARGIN - 4).attr("y2", height)
-      .append("title").text(text);
+    const text = `≈ ${formatDuration(gap.duration)}`;
+    group.append("path").attr("class", "g-break").attr("d", wavePath(gap.x, TOP_MARGIN - 4, height))
+      .append("title").text(`생략한 구간: ${formatDuration(gap.duration)}`);
     // Labels too close to the previous one would overlap, so only the line remains.
     if (gap.x - lastLabel < BREAK_LABEL_SPACING) continue;
     lastLabel = gap.x;
@@ -188,9 +220,11 @@ function drawBreaks(content, breaks, height) {
   }
 }
 
-// Draws the graph into `container` with zoom controls; `onSelect(node)` runs when a node is clicked.
-// `initialId` names a node to start selected (WebUI.md section 7.5); it is ignored when no node has that id.
-export function renderGraph(container, graph, onSelect, initialId = null) {
+// Draws the graph into `container` with zoom and time-axis controls; `onSelect(node)` runs when a node is clicked.
+// options.initialId names a node to start selected (WebUI.md section 7.5); it is ignored when no node has that id.
+// options.scale is "compress" or "real" (section 6.1) and options.onScale(scale) runs when the toggle is pressed.
+export function renderGraph(container, graph, onSelect, options = {}) {
+  const { initialId = null, scale: mode = "compress", onScale = () => {} } = options;
   let zoom = 1;
   let selected = null;
   const toolbar = document.createElement("div");
@@ -213,11 +247,22 @@ export function renderGraph(container, graph, onSelect, initialId = null) {
     button.addEventListener("click", action);
     return button;
   });
-  toolbar.append(...buttons, hint);
+  const scaleToggle = document.createElement("div");
+  scaleToggle.className = "view-toggle g-scale";
+  for (const [value, label, title] of [["compress", "긴 구간 줄이기", "10초를 넘는 간격을 물결로 줄입니다"], ["real", "실제 시간 비례", "모든 길이가 실제 시간에 비례합니다"]]) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = label;
+    button.title = title;
+    if (value === mode) button.className = "active";
+    button.addEventListener("click", () => { if (value !== mode) onScale(value); });
+    scaleToggle.append(button);
+  }
+  toolbar.append(scaleToggle, ...buttons, hint);
   container.replaceChildren(toolbar, canvas);
 
   function fitZoom() {
-    const natural = layout(graph, 1).width;
+    const natural = layout(graph, 1, mode).width;
     const available = scroller.clientWidth - LEFT_MARGIN - RIGHT_MARGIN;
     return natural > 0 && available > 0 ? Math.min(1, available / natural) : 1;
   }
@@ -230,7 +275,7 @@ export function renderGraph(container, graph, onSelect, initialId = null) {
   }
 
   function draw() {
-    const { placed, laneBoxes, breaks, width, height } = layout(graph, zoom);
+    const { placed, laneBoxes, breaks, width, height } = layout(graph, zoom, mode);
     const totalWidth = LEFT_MARGIN + width + RIGHT_MARGIN;
     const labelSvg = d3.create("svg").attr("class", "g-svg").attr("width", LABEL_WIDTH).attr("height", height + 8);
     drawBands(labelSvg, laneBoxes, LABEL_WIDTH);
@@ -248,6 +293,7 @@ export function renderGraph(container, graph, onSelect, initialId = null) {
       highlight();
       onSelect(node);
     });
+    drawBarCuts(content, placed, breaks);
     labels.replaceChildren(labelSvg.node());
     scroller.replaceChildren(svg.node());
     highlight();
@@ -266,13 +312,14 @@ export function renderGraph(container, graph, onSelect, initialId = null) {
   }, { passive: false });
 
   draw();
-  if (scroller.clientWidth) setZoom(Math.max(fitZoom(), 0.15));
+  // Real-time proportion can be very wide, so it always starts fitted (section 6.1).
+  if (scroller.clientWidth) setZoom(mode === "real" ? fitZoom() : Math.max(fitZoom(), 0.15));
   const initial = initialId === null ? null : graph.nodes.find((node) => node.id === String(initialId));
   if (initial) {
     selected = initial.id;
     highlight();
     onSelect(initial);
-    const item = layout(graph, zoom).placed.get(initial.id);
+    const item = layout(graph, zoom, mode).placed.get(initial.id);
     if (item) scroller.scrollLeft = LEFT_MARGIN + item.x0 - scroller.clientWidth / 2;
   }
 }

@@ -236,7 +236,11 @@ details > summary { cursor: pointer; list-style-position: outside; }
 .g-edge.spawn, .g-edge.return { stroke: var(--running); stroke-dasharray: 4 3; }
 .g-arrow { fill: var(--running); }
 .g-guide { stroke: var(--user-message-line); stroke-width: 1.5; stroke-dasharray: 2 3; }
-.g-break { stroke: var(--muted); stroke-dasharray: 1 4; }
+.g-break { fill: none; stroke: var(--muted); stroke-width: 1.2; }
+.g-bar-cut-gap { fill: none; stroke: var(--panel); stroke-width: 4; }
+.g-bar-cut { fill: none; stroke: var(--text); stroke-width: 1; }
+.g-node.kind-model rect { fill: var(--unfinished); }
+.g-toolbar .g-scale { margin-top: 0; margin-right: 6px; }
 .g-break-label { fill: var(--muted); font-size: 10px; }
 .g-node { cursor: pointer; }
 .g-node rect, .g-node circle, .g-node path { stroke: var(--panel); stroke-width: 1; }

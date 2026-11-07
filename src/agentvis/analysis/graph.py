@@ -4,7 +4,7 @@
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from agentvis.analysis.session import SessionView, Step, ToolCall, Turn
 
@@ -87,9 +87,14 @@ def _tool_label(call: ToolCall) -> str:
     return f"{call.tool_name or '도구'} {_first_line(summary)}".strip()
 
 
-def _thinking_label(steps: list[Step]) -> str:
+def _thinking_ms(steps: list[Step]) -> int | None:
     durations = [step.detail["duration_ms"] for step in steps if "duration_ms" in step.detail]
-    return f"생각 {sum(durations) / 1000:.1f}초" if durations else "생각"
+    return sum(durations) if durations else None
+
+
+def _thinking_label(steps: list[Step]) -> str:
+    thinking = _thinking_ms(steps)
+    return f"생각 {thinking / 1000:.1f}초" if thinking is not None else "생각"
 
 
 class _GraphBuilder:
@@ -141,7 +146,11 @@ class _GraphBuilder:
             return tools, tools
         text = next((step.text for step in model_steps if step.kind == "text"), None)
         label = _first_line(text) if text is not None else _thinking_label(model_steps)
-        model = self.node(Node(str(model_steps[0].id), lane.id, "model", model_steps[0].at, model_steps[0].at, label,
+        # A thinking record is written when the thinking ends, so its span ends at the first step (FlowGraph.md 3.2).
+        thinking = _thinking_ms(model_steps)
+        end = model_steps[0].at
+        start = end - timedelta(milliseconds=thinking) if thinking else end
+        model = self.node(Node(str(model_steps[0].id), lane.id, "model", start, end, label, approximate=bool(thinking),
                                step_ids=[step.id for step in model_steps]))
         for tool in tools:
             self.link([model.id], tool)
