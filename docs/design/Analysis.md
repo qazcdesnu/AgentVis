@@ -61,7 +61,7 @@
 
 | `kind` | 원천 | 주요 필드 |
 | --- | --- | --- |
-| `thinking` | `assistant`의 `thinking` 블록 | `text` |
+| `thinking` | `assistant`의 `thinking` 블록 | `text`(비어 있을 수 있다). `detail.duration_ms`: 기록의 `thinkingDurationMs`(정수일 때). `detail.tokens`: `message.usage.output_tokens_details.thinking_tokens`. 응답 단위 값이 되풀이되므로 같은 `message_id`의 첫 생각 단계에만 넣는다(I33, [실측](../DataSource.md#36-생각-블록과-그-메타데이터)). |
 | `text` | `assistant`의 `text` 블록 | `text` |
 | `tool_call` | `assistant`의 `tool_use` 블록, 같은 `tool_use_id`의 도구 결과·hook 이벤트 | 5절 |
 | `user_message` | 작업 도중 사람이 보낸 메시지가 모델에게 전달된 기록(`attachment.type` = `queued_command`, `origin.kind` = `human`) | `text` |

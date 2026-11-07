@@ -73,7 +73,7 @@
 | `kind` | 원천 단계([분석기의 단계](Analysis.md#4-단계)) | 모양 |
 | --- | --- | --- |
 | `prompt` | 턴 시작 지시. `main` 줄에만 있다. | 점 |
-| `model` | 같은 `message_id`를 가진 `thinking`·`text` 단계 묶음. 응답 하나에 생각·글이 없으면 만들지 않는다. | 점 |
+| `model` | 같은 `message_id`를 가진 `thinking`·`text` 단계 묶음. 응답 하나에 생각·글이 없으면 만들지 않는다. 이름은 글의 첫 줄이고, 글이 없으면 `생각`이다. 묶음의 생각 단계에 걸린 시간(`detail.duration_ms`의 합)이 있으면 `생각 4.2초`처럼 덧붙인다(I33). | 점 |
 | `tool_call` | `tool_call` 단계 | 실행 구간 막대 |
 | `background_task` | 백그라운드 셸 명령의 실행. 그 줄의 유일한 노드다. | 실행 구간 막대 |
 | `user_message` | `user_message` 단계 | 강조 표시 |

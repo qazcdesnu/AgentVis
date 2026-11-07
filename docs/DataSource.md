@@ -142,6 +142,17 @@ M4-T6에서 이 세션의 세션 기록(기록 4,295개)과 실제 이벤트 저
 - **백그라운드 서브에이전트**(`Agent`의 `input.run_in_background`가 참): 도구 결과가 바로 돌아오고, `toolUseResult`에 `isAsync: true`, `status: "async_launched"`, `agentId`가 있다. 서브에이전트 기록은 동기 서브에이전트와 같이 `agentId`로 연결된다.
 - **백그라운드 작업의 끝**은 `queued_command` 첨부 기록(`commandMode` = `task-notification`)의 `<task-notification>` 본문이 알린다. 본문에 `<task-id>`, 띄운 도구 호출 ID `<tool-use-id>`, `<status>`, `<summary>`가 있다. 이 세션의 작업 알림 10건 모두 `<tool-use-id>`가 있었고 `status`는 모두 `completed`였다. `completed`가 아닌 값(실패, 강제 종료)의 표기는 아직 관찰하지 못했다.
 
+### 3.6 생각 블록과 그 메타데이터
+
+2026-11-07에 이 프로젝트의 세션 기록(Claude Code 2.1.312~2.1.318, 모델 `claude-opus-5-5`)에서 `thinking` 블록을 가진 `assistant` 기록 607개를 관찰했다.
+
+- **내용**: 블록은 `{"type": "thinking", "thinking": "…", "signature": "…"}`이다. 607개 중 460개는 `thinking`이 빈 문자열이고 서명(`signature`)만 있다. 생각 내용이 기록에 남지 않은 것이다.
+- **응답 안의 위치**: 생각이 있는 모델 응답(같은 `message.id`)은 모두 빈 생각 기록으로 시작한다. 내용이 있는 생각은 그 다음 기록(약 5ms 뒤)에 따로 온다. 관찰한 응답의 모양은 `빈 생각 → 내용 있는 생각 → 도구 호출`, `빈 생각 → 도구 호출`, `빈 생각 → 글 → 도구 호출`, `빈 생각 → 글` 등이다.
+- **`thinkingDurationMs`**(기록 맨 위 필드): 생각 기록 607개 모두에 있다. 빈 생각 기록의 값은 중앙값 4,174ms, 최대 105,949ms이고, 내용이 있는 생각 기록의 값은 중앙값 1ms, 최대 223ms다. 따라서 응답 하나의 생각에 걸린 시간은 사실상 첫 빈 생각 기록의 값이다.
+- **`message.usage.output_tokens_details.thinking_tokens`**: 605개에 있다. 응답 단위 값이며, 같은 응답의 생각 기록들에 같은 값이 되풀이된다(관찰한 146개 응답 모두).
+- **그 밖의 필드**: `thinkingDisplay`(관찰값은 모두 `updates`), `effort`(추론 노력 수준)가 있다. 분석에는 아직 쓰지 않는다.
+- 기록 시각(`timestamp`)이 생각의 시작인지 끝인지는 확인하지 못했다. 그래서 생각은 구간이 아니라 시점으로 둔다.
+
 ## 4. 두 소스 비교
 
 2026-10-31에 로컬 세션 기록(세션 5개, 서브에이전트 기록 3개)과 hook 실측(M0-T4, M1-T6, H2)으로 확인했다. 이 비교에 따라 세션 기록을 주 내용 출처로, hook을 신호로 쓴다(I17).
