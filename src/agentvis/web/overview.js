@@ -24,6 +24,17 @@ function formatDuration(ms) {
   return `${Math.floor(minutes / 60)}시간 ${minutes % 60}분`;
 }
 
+// First line of a prompt; a slash command prompt is markup, so it is shown as the command (WebUI.md section 3, I47).
+export function promptLine(text) {
+  const prompt = String(text || "");
+  const command = prompt.match(/<command-name>\s*([^<]+?)\s*<\/command-name>/);
+  if (command) {
+    const args = prompt.match(/<command-args>\s*([^<]*?)\s*<\/command-args>/);
+    return args && args[1] ? `${command[1]} ${args[1]}` : command[1];
+  }
+  return prompt.trim().split("\n")[0];
+}
+
 // One summary per turn (WebUI.md section 7.1).
 export function summarizeTurns(view) {
   return view.turns.map((turn) => {
@@ -32,7 +43,7 @@ export function summarizeTurns(view) {
     const firstFailure = steps.find((step) => step.kind === "tool_call" && step.tool_call && FAILURE.has(step.tool_call.status));
     return {
       index: turn.index,
-      prompt: String(turn.prompt || "").trim().split("\n")[0],
+      prompt: promptLine(turn.prompt),
       state: turn.state,
       tools: turn.tool_call_count,
       failures: turn.failure_count,

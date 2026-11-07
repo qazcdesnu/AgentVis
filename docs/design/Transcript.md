@@ -34,7 +34,7 @@
 
 [record_to_raw](../../src/agentvis/transcript.py#record_to_raw)`(line: bytes) -> RawEvent | None`는 세션 기록 한 줄을 원시 이벤트로 바꾸고, 저장 대상이 아니면 `None`을 돌려준다.
 
-**저장 대상 유형** [INGESTED_TYPES](../../src/agentvis/transcript.py#INGESTED_TYPES): `user`, `assistant`, `system`, `queue-operation`, `attachment`. `attachment`는 [INGESTED_ATTACHMENTS](../../src/agentvis/transcript.py#INGESTED_ATTACHMENTS)의 `attachment.type`만 저장한다: 작업 중 메시지·작업 알림이 모델에게 전달된 기록 `queued_command`, hook 전달 실패 `hook_non_blocking_error`(I18). 그 밖의 유형(`api-request`, `api-request-blob`, `file-history-*`, `mode`, `ai-title` 등)과 나머지 첨부(도구 목록, 편집 파일 내용 등)는 분석 질문(Q1~Q6)과 관계없는 요청 사본·화면 상태·파일 이력이라 건너뛴다.
+**저장 대상 유형** [INGESTED_TYPES](../../src/agentvis/transcript.py#INGESTED_TYPES): `user`, `assistant`, `system`, `queue-operation`, `attachment`, 그리고 세션 제목 기록 `ai-title`, `agent-name`(I47, [실측](../DataSource.md#39-세션-제목과-진행-요약)). `attachment`는 [INGESTED_ATTACHMENTS](../../src/agentvis/transcript.py#INGESTED_ATTACHMENTS)의 `attachment.type`만 저장한다: 작업 중 메시지·작업 알림이 모델에게 전달된 기록 `queued_command`, hook 전달 실패 `hook_non_blocking_error`(I18). 그 밖의 유형(`api-request`, `api-request-blob`, `file-history-*`, `mode`, `last-prompt` 등)과 나머지 첨부(도구 목록, 편집 파일 내용 등)는 분석 질문(Q1~Q6)과 관계없는 요청 사본·화면 상태·파일 이력이라 건너뛴다.
 
 | 원시 이벤트 필드 | 값 |
 | --- | --- |
@@ -44,11 +44,12 @@
 | `prompt_id` | `promptId` (`user` 기록에만 있다. 다른 기록은 `None`이며, 턴 귀속은 M3에서 `parentUuid`를 따라 한다) |
 | `tool_use_id` | `assistant`의 `tool_use` 블록 `id`, `user`의 `tool_result` 블록 `tool_use_id`, `hook_non_blocking_error` 첨부의 `toolUseID`(`toolu_`로 시작할 때). 그 밖에는 `None` |
 | `cwd` | `cwd` (없으면 `None`) |
-| `occurred_at` | `timestamp`(ISO 8601, `Z`는 UTC). 없거나 해석할 수 없으면 그 줄을 건너뛴다. |
+| `occurred_at` | `timestamp`(ISO 8601, `Z`는 UTC). 없거나 해석할 수 없으면 그 줄을 건너뛴다. 단, 시각이 없는 제목 기록([TIMELESS_TYPES](../../src/agentvis/transcript.py#TIMELESS_TYPES): `ai-title`, `agent-name`)은 읽은 시각을 쓴다. 이 시각은 사건의 시각이 아니므로 분석기는 세션 시각 계산에 쓰지 않는다([분석기 설계의 세션](Analysis.md#7-세션)). |
 | `payload` | 줄 원문을 UTF-8로 디코딩한 문자열 |
 | `dedup_key` | `uuid`가 있으면 `uuid:<uuid>`, 없으면(`queue-operation` 등) `sha256:<줄 원문 바이트의 SHA-256>` |
 
 - 근거(2026-10-31 실측): `assistant` 기록은 모두 내용 블록을 하나만 가져(사고 과정·응답 텍스트·도구 호출이 각각 별도 기록) 기록 하나가 단계 하나에 대응한다. `promptId`는 `user` 기록에만 있다. `queue-operation`에는 `uuid`가 없다.
+- 제목 기록은 `uuid`가 없어 줄 원문 해시로 중복을 가른다. 같은 줄이 수천 번 되풀이되지만 하나만 저장된다.
 - 줄 원문 해시를 쓰는 이유: 파일 경로나 줄 번호는 프로젝트 폴더를 옮기거나 파일이 다시 쓰이면 바뀐다. 같은 내용의 줄이 두 번 나오면 시각까지 같은 같은 사건이므로 하나로 본다.
 - 서브에이전트 기록도 같은 규칙으로 바꾼다. 서브에이전트임은 `payload`의 `isSidechain`, `agentId`로 알 수 있다.
 - 서브에이전트 메타 파일은 `kind`가 `subagent-meta`인 원시 이벤트로 저장한다. `session_id`는 경로의 세션 ID, `occurred_at`은 파일 수정 시각, `payload`는 파일 내용, `dedup_key`는 `sha256:<내용의 SHA-256>`이다. 서브에이전트가 끝나 `finished`가 바뀌면 새 내용으로 한 번 더 저장된다.

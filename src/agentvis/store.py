@@ -4,6 +4,7 @@
 @doc: docs/design/Store.md#6-m2-변경
 @doc: docs/design/Store.md#7-m3-변경
 @doc: docs/design/Store.md#8-조회-보조
+@doc: docs/design/Store.md#11-i47-변경
 """
 
 import os
@@ -16,7 +17,7 @@ from pathlib import Path
 from types import TracebackType
 
 # @doc: docs/design/Store.md#2-스키마
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 _SOURCES = ("hook", "transcript")
 _BUSY_TIMEOUT_MS = 1000
@@ -72,6 +73,8 @@ _MIGRATIONS = (
             updated_at  TEXT NOT NULL
         )""",
     ),
+    # Session title records are stored now; read every transcript again from the start once (I47).
+    ("UPDATE transcript_cursors SET offset = 0",),
 )
 
 

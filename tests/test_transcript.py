@@ -86,6 +86,16 @@ class RecordToRawTest(RepoTestCase):
         self.assertEqual((queued.kind, queued.dedup_key, queued.tool_use_id), ("attachment", "uuid:t1", None))
         self.assertEqual(record_to_raw(_HOOK_ERROR.strip()).tool_use_id, "toolu_1")
 
+    def test_title_records_without_a_timestamp_are_stored_once(self) -> None:
+        # Session title records have neither timestamp nor uuid; identical repeats share one key (I47).
+        line = json.dumps({"type": "ai-title", "sessionId": "s1", "aiTitle": "문서 규칙 정하기"}).encode()
+        first, again = record_to_raw(line), record_to_raw(line)
+        self.assertEqual((first.kind, first.session_id), ("ai-title", "s1"))
+        self.assertIsNotNone(first.occurred_at.utcoffset())
+        self.assertEqual(first.dedup_key, again.dedup_key)
+        self.assertEqual(record_to_raw(json.dumps({"type": "agent-name", "sessionId": "s1", "agentName": "이름"}).encode()).kind, "agent-name")
+        self.assertIsNone(record_to_raw(json.dumps({"type": "last-prompt", "sessionId": "s1", "lastPrompt": "x"}).encode()))
+
     def test_skips_other_types_and_unreadable_lines(self) -> None:
         for line in _IGNORED + [b"\xff\xfe", _line(type="user", uuid="u9", timestamp="2026-10-31T01:00:00")]:
             with self.subTest(line=line):

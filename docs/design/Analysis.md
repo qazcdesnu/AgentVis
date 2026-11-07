@@ -127,8 +127,11 @@
 | 필드 | 값 |
 | --- | --- |
 | `session_id`, `project`, `project_from_hook` | 세션 ID, 프로젝트 경로(2절), 경로를 hook에서 추정했는지 |
-| `title` | 첫 턴의 지시 첫 줄(최대 80자) |
-| `started_at`, `last_activity` | 첫·마지막 이벤트 시각 |
+| `title` | 세션 제목(최대 80자). 아래 순서로 처음 있는 값(I47): 마지막 `agent-name` 기록의 `agentName` → 마지막 `ai-title` 기록의 `aiTitle` → 첫 턴 지시의 첫 줄. 첫 지시가 슬래시 명령(`<command-name>/start</command-name>`)이면 `/start`처럼 명령 이름(과 `<command-args>`의 인자)으로 바꾼다. "마지막"은 저장 순서(이벤트 `id`)다. 제목 기록에는 시각이 없기 때문이다. |
+| `title_source` | 제목을 어디서 얻었는지: `name`(`agent-name`), `ai`(`ai-title`), `prompt`(첫 지시), 지시도 없으면 `none` |
+| `recap` | 가장 늦은 `away_summary` 기록: `{"text", "at"}`. `text`는 `content`에서 끝의 ` (disable recaps in /config)`를 뗀 글, `at`은 기록 시각. 없으면 `None`. Claude Code가 생성한 요약이다([실측](../DataSource.md#39-세션-제목과-진행-요약)). |
+| `git_branch` | 세션 기록에서 가장 늦은 `gitBranch` 값. 없으면 `None` |
+| `started_at`, `last_activity` | 첫·마지막 이벤트 시각. 제목 기록(`ai-title`, `agent-name`)은 읽은 시각이라 뺀다(I47). |
 | `ended` | `SessionEnd` hook을 받았는지 |
 | `turn_count`, `tool_call_count`, `failure_count` | 턴들의 합 |
 | `turns` | 턴 목록(상세 조회에서만) |
