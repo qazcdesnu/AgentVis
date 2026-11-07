@@ -289,20 +289,18 @@ details > summary { cursor: pointer; list-style-position: outside; }
 .ov-badge button:disabled { opacity: 0.4; cursor: default; }
 .ov-strip { border: 1px solid var(--line); border-radius: 6px; background: var(--panel); overflow: hidden; }
 .ov-svg { display: block; font-size: 10px; }
-.ov-bar.routine { fill: var(--unfinished); opacity: 0.55; }
-.ov-bar.status-error { fill: var(--error); }
-.ov-bar.status-interrupted { fill: var(--interrupted); }
+.ov-turn-cell { cursor: pointer; }
+.ov-cell.routine { fill: var(--unfinished); opacity: 0.45; }
+.ov-cell.failed { fill: var(--error); }
+.ov-cell.running { stroke: var(--running); stroke-width: 2; stroke-dasharray: 3 2; }
+.ov-cell.selected { stroke: var(--running); stroke-width: 3; stroke-dasharray: none; }
+.ov-turn-cell:hover .ov-cell { stroke: var(--text); stroke-width: 2; }
+.ov-cell-label { fill: var(--text); font-size: 11px; font-weight: 600; pointer-events: none; }
+.ov-cell-label.failed { fill: #ffffff; }
 .ov-symbol { font-size: 10px; font-weight: 700; }
-.ov-symbol-error { fill: var(--error); }
-.ov-symbol-interrupted { fill: var(--interrupted); }
 .ov-symbol-user { fill: var(--user-message-line); }
 .ov-compact { stroke: var(--text); stroke-dasharray: 3 2; }
 .ov-compact-label { fill: var(--muted); }
-.ov-turn { stroke: var(--muted); }
-.ov-turn-label { fill: var(--muted); }
-.ov-range { fill: var(--running); opacity: 0.12; }
-.ov-cursor { stroke: var(--running); stroke-width: 2; }
-.ov-brush .selection { fill: var(--running); fill-opacity: 0.15; stroke: none; }
 .ov-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 4px; }
 .ov-footer .view-toggle { margin-top: 0; }
 .ov-info { font-size: 12px; color: var(--text); overflow-wrap: anywhere; flex: 1 1 200px; }
