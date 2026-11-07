@@ -16,7 +16,10 @@ from pathlib import Path
 from agentvis.store import EventStore, RawEvent, TranscriptCursor
 
 # @doc: docs/design/Transcript.md#3-기록-변환
-INGESTED_TYPES = ("user", "assistant", "system", "queue-operation", "attachment")
+INGESTED_TYPES = ("user", "assistant", "system", "queue-operation", "attachment", "ai-title", "agent-name")
+# Session title records carry no timestamp; they are stored with the time they were read (I47).
+# @doc: docs/design/Transcript.md#3-기록-변환
+TIMELESS_TYPES = ("ai-title", "agent-name")
 # @doc: docs/design/Transcript.md#3-기록-변환
 INGESTED_ATTACHMENTS = ("queued_command", "hook_non_blocking_error")
 # @doc: docs/design/Transcript.md#2-이어-읽기
@@ -90,7 +93,10 @@ def record_to_raw(line: bytes) -> RawEvent | None:
     try:
         text = line.decode("utf-8")
         record = json.loads(text)
-        occurred_at = datetime.fromisoformat(record["timestamp"])
+        if isinstance(record, dict) and record.get("type") in TIMELESS_TYPES and "timestamp" not in record:
+            occurred_at = datetime.now(UTC)
+        else:
+            occurred_at = datetime.fromisoformat(record["timestamp"])
     except (UnicodeDecodeError, ValueError, KeyError, TypeError):
         return None
     if not isinstance(record, dict) or record.get("type") not in INGESTED_TYPES:

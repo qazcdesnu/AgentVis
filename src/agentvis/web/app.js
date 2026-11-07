@@ -2,7 +2,7 @@
 // Spec: docs/design/WebUI.md, docs/design/FlowGraph.md. All session text is untrusted: only ever use textContent.
 
 import { renderGraph } from "./graph.js";
-import { renderOverview, summarizeTurns } from "./overview.js";
+import { promptLine, renderOverview, summarizeTurns } from "./overview.js";
 
 const STATUS = {
   success: ["✓", "성공"],
@@ -145,7 +145,9 @@ async function loadSessions(project, selected) {
     list.replaceChildren();
     for (const session of sessions) {
       const item = el("li", "item" + (session.session_id === selected ? " selected" : ""));
-      item.append(el("div", "name", session.title || session.session_id));
+      item.append(el("div", "name clamp", session.title || session.session_id));
+      // The whole title and Claude Code's latest recap show on hover (WebUI.md section 2, I47).
+      item.title = [session.title, session.recap ? `요약: ${session.recap.text}` : null].filter(Boolean).join("\n");
       const meta = el("div", "meta", `${formatTime(session.last_activity)} · 턴 ${session.turn_count} · 도구 ${session.tool_call_count}`);
       if (session.failure_count) meta.append(" · ", el("span", "fail-count", `실패 ${session.failure_count}`));
       item.append(meta);
@@ -447,7 +449,7 @@ function renderTurnPicker(view, turn) {
   const picker = el("div", "turn-picker");
   const select = el("select", "turn-select");
   for (const item of view.turns) {
-    const option = el("option", null, `#${item.index} ${firstLine(item.prompt, 80)}${item.failure_count ? ` · 실패 ${item.failure_count}` : ""}`);
+    const option = el("option", null, `#${item.index} ${firstLine(promptLine(item.prompt), 80)}${item.failure_count ? ` · 실패 ${item.failure_count}` : ""}`);
     option.value = String(item.index);
     option.selected = item === turn;
     select.append(option);
@@ -530,11 +532,7 @@ async function loadSession(state) {
       cache.turns = summarizeTurns(cache.view);
     }
     const { view, turns } = cache;
-    const header = el("div", "session-header");
-    header.append(el("div", "name", view.title || view.session_id));
-    const meta = el("div", "meta", `${view.project || ""} · 턴 ${view.turn_count} · 도구 ${view.tool_call_count}`);
-    if (view.failure_count) meta.append(" · ", el("span", "fail-count", `실패 ${view.failure_count}`));
-    header.append(meta);
+    const header = renderSessionInfo(view);
     const overview = el("div", "overview");
     const boxes = [box("세션 정보", header, "session"), box("세션 전체 흐름", overview, "session")];
     const turn = view.turns.length ? chosenTurn(state, view) : null;
@@ -564,6 +562,43 @@ async function loadSession(state) {
   } catch (error) {
     showError(container, error);
   }
+}
+
+function formatSpan(ms) {
+  const minutes = Math.round(ms / 60000);
+  if (minutes < 60) return `${minutes}분`;
+  const hours = Math.floor(minutes / 60);
+  return hours < 24 ? `${hours}시간 ${minutes % 60}분` : `${Math.floor(hours / 24)}일 ${hours % 24}시간`;
+}
+
+// Box 1: title, Claude Code's latest recap and one line of facts (WebUI.md section 2, I47).
+function renderSessionInfo(view) {
+  const header = el("div", "session-header");
+  const name = el("div", "name", view.title || view.session_id);
+  if (view.title_source === "ai") name.title = "Claude Code가 지은 제목";
+  header.append(name);
+  if (view.recap && view.recap.text) {
+    const recap = el("div", "recap");
+    recap.append(el("span", "tag summary-tag", "요약"), el("span", "recap-text", view.recap.text),
+      el("span", "meta", ` · Claude Code · ${formatTime(view.recap.at)}`));
+    recap.title = "Claude Code가 생성한 진행 요약입니다";
+    header.append(recap);
+  }
+  const last = view.turns[view.turns.length - 1];
+  const state = view.ended ? "끝남" : last && last.state === "running" ? "진행 중" : "대기 중";
+  const facts = [state];
+  if (view.started_at && view.last_activity) {
+    const span = new Date(view.last_activity) - new Date(view.started_at);
+    facts.push(`${formatTime(view.started_at)} ~ ${formatTime(view.last_activity)} (${formatSpan(span)})`);
+  }
+  if (view.project) facts.push(view.project);
+  if (view.git_branch) facts.push(`브랜치 ${view.git_branch}`);
+  facts.push(`턴 ${view.turn_count}`, `도구 ${view.tool_call_count}`);
+  const meta = el("div", "meta", facts.join(" · "));
+  meta.prepend(el("span", `state state-${state === "진행 중" ? "running" : state === "끝남" ? "ended" : "idle"}`, "● "));
+  if (view.failure_count) meta.append(" · ", el("span", "fail-count", `실패 ${view.failure_count}`));
+  header.append(meta);
+  return header;
 }
 
 // One titled box of the session detail; boxes of the same scope (session or turn) form a group (WebUI.md section 2).

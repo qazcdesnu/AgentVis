@@ -106,6 +106,22 @@ class TurnTest(unittest.TestCase):
         self.assertEqual([step.kind for step in turn.steps], ["text", "hook_failure"])
         self.assertEqual(turn.steps[1].detail["hook_event"], "Stop")
 
+    def test_session_title_recap_and_branch(self) -> None:
+        s = _Session()
+        s.record(type="user", uuid="u1", promptId="p1", origin={"kind": "human"}, gitBranch="main",
+                 message={"content": "<command-message>start</command-message>\n<command-name>/start</command-name>"})
+        self.assertEqual((s.build().title, s.build().title_source), ("/start", "prompt"))
+        s.record(type="system", uuid="r1", parentUuid="u1", subtype="away_summary", gitBranch="i47-title",
+                 content="문서 규칙을 정하는 중이에요. (disable recaps in /config)")
+        s.record(type="ai-title", aiTitle="문서 규칙 정하기")
+        view = s.build()
+        self.assertEqual((view.title, view.title_source, view.git_branch), ("문서 규칙 정하기", "ai", "i47-title"))
+        self.assertEqual(view.recap["text"], "문서 규칙을 정하는 중이에요.")
+        # The title record carries no real time, so it does not move the session's last activity.
+        self.assertEqual(view.last_activity, view.recap["at"])
+        s.record(type="agent-name", agentName="내가 붙인 이름")
+        self.assertEqual((s.build().title, s.build().title_source), ("내가 붙인 이름", "name"))
+
     def test_hook_only_turn_and_stop_failure(self) -> None:
         s = _Session()
         s.hook("UserPromptSubmit", prompt_id="p1", prompt="hook으로만 온 지시")

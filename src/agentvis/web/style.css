@@ -124,6 +124,13 @@ button {
 
 .session-header { padding: 0; }
 .session-header .name { font-size: 16px; font-weight: 600; }
+/* Session title and recap: docs/design/WebUI.md section 2 (I47). */
+.name.clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.session-header .recap { margin: 4px 0 2px; line-height: 1.5; }
+.session-header .recap .summary-tag { margin-right: 6px; border-style: dashed; }
+.session-header .state-running { color: var(--running); }
+.session-header .state-idle { color: var(--muted); }
+.session-header .state-ended { color: var(--unfinished); }
 
 details > summary { cursor: pointer; list-style-position: outside; }
 

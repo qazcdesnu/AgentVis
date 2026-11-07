@@ -13,6 +13,10 @@ from agentvis.store import RawEvent
 # @doc: docs/design/Analysis.md#5-도구-호출
 RESULT_PREVIEW_CHARS = 2000
 _TITLE_CHARS = 80
+_TIMELESS_KINDS = ("ai-title", "agent-name")
+_COMMAND = re.compile(r"<command-name>\s*([^<]+?)\s*</command-name>")
+_COMMAND_ARGS = re.compile(r"<command-args>\s*([^<]*?)\s*</command-args>")
+_RECAP_FOOTER = re.compile(r"\s*\(disable recaps in /config\)\s*$")
 _INTERRUPT_MARK = "[Request interrupted by user"
 _SHELL_MARKS = ("<bash-input>", "<bash-stdout>", "<bash-stderr>")
 _AGENT_TOOLS = ("Agent", "Task")
@@ -101,6 +105,9 @@ class SessionView:
     failure_count: int
     turns: list[Turn]
     preamble: list[Step]
+    title_source: str = "none"
+    recap: dict | None = None
+    git_branch: str | None = None
 
 
 def _content_text(content: object) -> str:
@@ -429,6 +436,35 @@ def _link_background(calls: dict[str, ToolCall], steps: list[Step]) -> None:
             call.background.update(status=step.detail.get("status"), ended_at=step.at, notification_step_id=step.id)
 
 
+def _prompt_title(prompt: str) -> str:
+    # A slash command prompt is markup; name it the way the user typed it (Analysis.md section 7, I47).
+    command = _COMMAND.search(prompt)
+    if command:
+        args = _COMMAND_ARGS.search(prompt)
+        return f"{command.group(1)} {args.group(1)}".strip() if args else command.group(1)
+    lines = prompt.strip().splitlines()
+    return lines[0] if lines else ""
+
+
+def _session_labels(main: list[tuple[RawEvent, dict]], first_prompt: str) -> tuple[str, str, dict | None, str | None]:
+    """Return the session's title, where the title came from, its latest recap and its git branch."""
+    names = [record.get("agentName") for _, record in main if record.get("type") == "agent-name"]
+    titles = [record.get("aiTitle") for _, record in main if record.get("type") == "ai-title"]
+    name = next((value.strip() for value in reversed(names) if isinstance(value, str) and value.strip()), None)
+    ai = next((value.strip() for value in reversed(titles) if isinstance(value, str) and value.strip()), None)
+    prompt = _prompt_title(first_prompt)
+    title, source = (name, "name") if name else (ai, "ai") if ai else (prompt, "prompt") if prompt else ("", "none")
+    recaps = [(event.occurred_at, record) for event, record in main
+              if record.get("type") == "system" and record.get("subtype") == "away_summary" and isinstance(record.get("content"), str)]
+    recap = None
+    if recaps:
+        at, record = max(recaps, key=lambda item: item[0])
+        recap = {"text": _RECAP_FOOTER.sub("", record["content"]).strip(), "at": at}
+    dated = [(event.occurred_at, record.get("gitBranch")) for event, record in main if isinstance(record.get("gitBranch"), str) and record.get("gitBranch")]
+    branch = max(dated, key=lambda item: item[0])[1] if dated else None
+    return title[:_TITLE_CHARS], source, recap, branch
+
+
 def build_session(events: list[RawEvent], preview_chars: int | None = RESULT_PREVIEW_CHARS) -> SessionView:
     """Compute the session view of one session's raw events; preview_chars=None keeps whole tool results.
 
@@ -481,13 +517,14 @@ def build_session(events: list[RawEvent], preview_chars: int | None = RESULT_PRE
     from_hook = project is None
     if from_hook:
         project = next((payload.get("cwd") for _, payload in hooks if isinstance(payload.get("cwd"), str)), None)
-    times = [event.occurred_at for event in events]
-    first_prompt = turns[0].prompt.strip().splitlines()[0] if turns and turns[0].prompt.strip() else ""
+    # Title records hold the time they were read, not when anything happened (I47).
+    times = [event.occurred_at for event in events if event.kind not in _TIMELESS_KINDS]
+    title, title_source, recap, git_branch = _session_labels(main, turns[0].prompt if turns else "")
     return SessionView(
         session_id=events[0].session_id if events else "",
         project=project,
         project_from_hook=from_hook and project is not None,
-        title=first_prompt[:_TITLE_CHARS],
+        title=title,
         started_at=min(times) if times else None,
         last_activity=max(times) if times else None,
         ended=ended,
@@ -496,4 +533,7 @@ def build_session(events: list[RawEvent], preview_chars: int | None = RESULT_PRE
         failure_count=sum(turn.failure_count for turn in turns),
         turns=turns,
         preamble=sorted(builder.preamble, key=lambda step: (step.at, step.id)),
+        title_source=title_source,
+        recap=recap,
+        git_branch=git_branch,
     )

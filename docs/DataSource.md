@@ -175,6 +175,19 @@ M4-T6에서 이 세션의 세션 기록(기록 4,295개)과 실제 이벤트 저
 - **턴 끝 기록**: `system` 기록 `subtype` = `turn_duration`이 턴이 끝날 때 남는다. 필드는 `durationMs`(턴 소요 시간), `messageCount`다. 이 세션의 턴 109개 중 102개에 하나씩 있었고, 한 턴에 둘 이상인 경우는 없었다. 없는 7개 턴이 무엇인지(사용자 중단 등)는 확인하지 않았다.
 - 같은 때 `stop_hook_summary`(`Stop` hook 실행 요약)도 남지만, `Stop` hook이 설정된 경우에만 남으므로 턴 끝 신호로는 `turn_duration`을 쓴다.
 
+### 3.9 세션 제목과 진행 요약
+
+2026-11-07에 이 컴퓨터의 세션 기록 12개(서브에이전트 기록 포함)에서 관찰했다(I47).
+
+| 기록 | 필드 | 관찰 |
+| --- | --- | --- |
+| `type` = `ai-title` | `aiTitle` | Claude Code가 지은 세션 제목. 12개 세션 모두에 있고 세션마다 값이 하나다(바뀐 세션 없음). 길이 10~50자, 평균 19.2자, 중앙값 17.5자. 같은 줄이 계속 되풀이된다(2,699줄). **`timestamp`·`uuid`가 없다.** |
+| `type` = `agent-name` | `agentName` | 세션 이름. 2개 세션에만 있고 값이 그 세션의 `aiTitle`과 같았다(17자, 20자). 사용자가 이름을 붙이면 남는 기록으로 보이나 확인하지 않았다. `timestamp`·`uuid`가 없다. |
+| `type` = `system`, `subtype` = `away_summary` | `content`, `timestamp` | Claude Code의 진행 요약(recap). "지금 무엇을 하고 있고 다음 할 일은 무엇인지"를 한두 문장으로 적고, 끝에 ` (disable recaps in /config)`를 붙인다. 12개 세션 모두에 있고 세션마다 3~34개가 작업 중에 새로 쓰인다. |
+
+- 스킬(슬래시 명령)로 시작한 세션의 첫 사람 입력은 `<command-message>start</command-message>\n<command-name>/start</command-name>` 꼴이다. 관찰한 12개 중 6개가 그랬다.
+- 진행 요약은 Claude Code가 생성한 글이므로 확정 사실이 아니라 요약으로 다룬다.
+
 ## 4. 두 소스 비교
 
 2026-10-31에 로컬 세션 기록(세션 5개, 서브에이전트 기록 3개)과 hook 실측(M0-T4, M1-T6, H2)으로 확인했다. 이 비교에 따라 세션 기록을 주 내용 출처로, hook을 신호로 쓴다(I17).

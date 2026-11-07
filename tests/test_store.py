@@ -177,6 +177,19 @@ class StoreM2Test(RepoTestCase):
         connection.close()
         self.assertEqual((columns["device"], columns["inode"]), ("TEXT", "TEXT"))
 
+    def test_version_4_database_reads_every_transcript_again(self) -> None:
+        path = self.root / "v4.db"
+        with EventStore(path) as store:
+            store.append_batch([_EVENT], TranscriptCursor("/p/s.jsonl", 9, "1", "2"))
+        connection = sqlite3.connect(path)
+        connection.execute("PRAGMA user_version = 4")
+        connection.commit()
+        connection.close()
+        with EventStore(path) as store:
+            # Session title records are stored from now on, so old transcripts are read again from the start (I47).
+            self.assertEqual(store.cursor("/p/s.jsonl"), TranscriptCursor("/p/s.jsonl", 0, "1", "2"))
+            self.assertEqual(len(store.events()), 1)
+
     def test_concurrent_first_open_succeeds(self) -> None:
         for attempt in range(10):
             path = self.root / f"race{attempt}.db"

@@ -2,6 +2,42 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## I47 세션 제목과 진행 요약
+
+- 시작일: 2026-11-07
+- 완료일: 2026-11-07
+- 근거 문서: [데이터 소스의 세션 제목과 진행 요약](DataSource.md#39-세션-제목과-진행-요약), [분석기 설계의 세션](design/Analysis.md#7-세션)
+
+### 계획
+- 데이터 소스에 `ai-title`, `agent-name`, `away_summary` 실측을 적는다.
+- 기록 리더가 시각 없는 제목 기록도 저장하고, 저장소 5판에서 읽기 위치를 처음으로 되돌려 이미 읽은 기록에서 제목을 가져온다.
+- 분석기가 제목(이름 → AI 제목 → 정리한 첫 지시), 진행 요약, 브랜치를 내고, 제목 기록은 세션 시각 계산에서 뺀다.
+- 화면의 세션 목록과 세션 정보 상자를 고친다.
+- I46 브랜치 위에 쌓은 `i47-session-title-recap`에서 진행한다.
+
+### 진행 기록
+- 2026-11-07: 사용자가 세션 정보를 더 잘 보여 줄 정보를 물었다. 세션 기록 12개에서 `ai-title`(12개 세션, 10~50자, 평균 19.2자), `agent-name`(2개 세션, 17·20자, 같은 세션의 `ai-title`과 같은 값), `away_summary`(12개 세션, 세션마다 3~34개)를 찾았다. 스킬로 시작한 세션 6개의 첫 지시는 `<command-message>…</command-message>`였다. 사용자가 진행을 지시했다.
+- 2026-11-07: 데이터 소스 3.9절, 기록 리더 3절, 저장소 11절, 분석기 7절, 웹 UI 2·3절을 먼저 고친 뒤 `transcript.py`(`TIMELESS_TYPES`), `store.py`(5판: 커서 위치 되돌리기), `session.py`(`title_source`, `recap`, `git_branch`, 제목 기록을 세션 시각에서 뺌), `overview.js`(`promptLine`), `app.js`·`style.css`(세션 정보 상자, 목록 제목 두 줄)를 고쳤다.
+- 2026-11-07: 실제 저장소를 백업(`~/.agentvis/backups/agentvis-before-v5-20261107T122630Z.db`)한 뒤 서버를 다시 띄웠다. 5판으로 올라가 세션 기록 144개 파일을 다시 읽었고, 제목 기록은 중복 없이 `ai-title` 10개, `agent-name` 2개가 저장되었다. 세션 11개 중 10개가 이름이나 Claude Code 제목을, 1개(제목 기록 없는 짧은 시험 세션)가 첫 지시를 제목으로 쓴다. 10개 모두 진행 요약과 브랜치가 나온다.
+
+### 결정 사항
+- 제목은 이름 → Claude Code 제목 → 정리한 첫 지시 순이다. 제목 기록에는 시각이 없어 마지막 값은 저장 순서로 고르고, 세션 시각 계산에서 뺀다.
+- 진행 요약은 Claude Code가 생성한 글이라 `요약` 표지를 붙여 확정 사실과 구분한다.
+- 남은 점: Claude Code 제목은 세션 처음에 정해지고 바뀌지 않아, 오래 이어진 세션은 지금 하는 일과 다를 수 있다(예: 이 세션의 제목 "문서 규칙 및 docs 구조 설정"). 지금 하는 일은 진행 요약이 보여 준다.
+
+### 변경 파일
+- `src/agentvis/transcript.py`, `src/agentvis/store.py`, `src/agentvis/analysis/session.py`, `src/agentvis/web/app.js`, `src/agentvis/web/overview.js`, `src/agentvis/web/style.css`
+- `tests/test_transcript.py`, `tests/test_store.py`, `tests/test_analysis.py`
+- `docs/DataSource.md`, `docs/design/Transcript.md`, `docs/design/Store.md`, `docs/design/Analysis.md`, `docs/design/WebUI.md`, `docs/Issue.md`, `docs/Ongoing.md`, `docs/Done.md`
+
+### 결과
+- 세션 목록과 세션 정보가 Claude Code의 세션 이름·제목으로 보이고, 세션 정보 상자에 진행 요약, 상태, 시간, 브랜치가 보인다. 슬래시 명령으로 시작한 지시는 `/start`처럼 보인다.
+
+### 검증
+- `check_docs`, `check_pointers`, `check_tasks`, `check_commits`, `check_web` 통과. 단위 테스트 144개 통과(I47 테스트 3개 추가).
+- 실제 저장소의 5판 이동과 다시 읽기를 위 진행 기록대로 확인했다. 브라우저 화면은 확인하지 않았다(사용자 확인 필요).
+
+
 ## I46 JSON 보기 선택을 칸 종류마다 하나로
 
 - 시작일: 2026-11-07
