@@ -65,8 +65,10 @@ body {
 .top h1 { font-size: 18px; margin: 0; }
 .top .subtitle { color: var(--muted); }
 .top .live { margin-left: auto; font-size: 12px; }
-.live.on { color: var(--success); }
+.top button#refresh { margin-left: 0; }
+.live.on { color: var(--success); border-color: var(--success); }
 .live.off { color: var(--muted); }
+.live.lost { color: var(--interrupted); border-color: var(--interrupted); }
 .turn-picker .follow { margin-top: 6px; }
 .turn-picker .meta.follow { color: var(--success); }
 
