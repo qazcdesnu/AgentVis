@@ -202,7 +202,7 @@ function drawNodes(content, placed, height, onSelect) {
         element.append("text").attr("class", "g-bar-label").attr("x", item.x0 + 4).attr("y", item.y).attr("dy", "0.35em").text(text.slice(0, Math.floor((item.x1 - item.x0 - 8) / 7)));
       }
     } else if (node.kind === "user_message") {
-      element.append("path").attr("d", d3.symbol(d3.symbolDiamond, 140)()).attr("transform", `translate(${item.x0},${item.y})`);
+      element.append("path").attr("d", d3.symbol(d3.symbolDiamond, USER_MESSAGE_SIZE)()).attr("transform", `translate(${item.x0},${item.y})`);
     } else if (node.kind === "compact" || node.kind === "hook_failure") {
       element.append("rect").attr("x", item.x0 - 4).attr("y", item.y - 4).attr("width", 8).attr("height", 8);
     } else {
@@ -224,35 +224,45 @@ function addHatch(svg) {
     });
 }
 
+const USER_MESSAGE_SIZE = 140;
+const LEGEND_WIDTH = 26;
+const LEGEND_HEIGHT = 24;
 const LEGEND = [
-  ["bar status-success", "도구 실행(색 = 상태: ✓ 성공 · ✕ 오류 · ⏸ 중단)"],
-  ["bar thinking", "생각"],
-  ["bar writing", "작성(응답·도구 입력 생성)"],
-  ["bar approximate", "시각 근사(점선 테두리)"],
+  ["run", "도구 실행(색 = 상태: ✓ 성공 · ✕ 오류 · ⏸ 중단)"],
+  ["thinking", "생각"],
+  ["writing", "작성(응답·도구 입력 생성)"],
+  ["approximate", "시각 근사(점선 테두리)"],
   ["wave", "≈ 줄인 대기"],
-  ["diamond", "사용자 메시지"],
-  ["dot", "지시·알림"],
+  ["user", "사용자 메시지(세로 점선이 모든 줄을 가로지름)"],
+  ["prompt", "지시"],
+  ["notification", "알림"],
 ];
 
-// One-line legend above the graph (FlowGraph.md section 6.3, I38); swatches use the graph's own shapes and colors.
+// One-line legend above the graph (FlowGraph.md section 6.3, I38). Swatches reuse the graph's own sizes and classes,
+// so a symbol looks the same in the legend and in the graph.
 function renderLegend() {
   const legend = document.createElement("div");
   legend.className = "g-legend";
+  const mid = LEGEND_HEIGHT / 2;
   for (const [kind, text] of LEGEND) {
     const item = document.createElement("span");
     item.className = "g-legend-item";
-    const svg = d3.create("svg").attr("class", "g-svg").attr("width", 22).attr("height", 14);
-    if (kind === "bar writing") addHatch(svg);
-    if (kind.startsWith("bar")) {
-      const cls = { "bar status-success": "g-node status-success", "bar thinking": "g-node kind-model", "bar writing": "g-node kind-model", "bar approximate": "g-node approximate kind-model" }[kind];
-      svg.append("g").attr("class", cls).append("rect").attr("class", kind === "bar writing" ? "g-writing" : kind === "bar thinking" ? "g-thinking" : null)
-        .attr("x", 2).attr("y", 3).attr("width", 18).attr("height", 8).attr("rx", 2);
-    } else if (kind === "wave") {
-      svg.append("path").attr("class", "g-break").attr("d", wavePath(11, 0, 14));
-    } else if (kind === "diamond") {
-      svg.append("g").attr("class", "g-node kind-user_message").append("path").attr("d", d3.symbol(d3.symbolDiamond, 60)()).attr("transform", "translate(11,7)");
+    const svg = d3.create("svg").attr("class", "g-svg").attr("width", LEGEND_WIDTH).attr("height", LEGEND_HEIGHT);
+    if (kind === "writing") addHatch(svg);
+    const bar = (classes, rectClass = null) => svg.append("g").attr("class", classes).append("rect").attr("class", rectClass)
+      .attr("x", 1).attr("y", mid - BAR_HEIGHT / 2).attr("width", LEGEND_WIDTH - 2).attr("height", BAR_HEIGHT).attr("rx", 3);
+    if (kind === "run") bar("g-node status-success");
+    else if (kind === "thinking") bar("g-node kind-model", "g-thinking");
+    else if (kind === "writing") bar("g-node kind-model", "g-writing");
+    else if (kind === "approximate") bar("g-node kind-model approximate", "g-thinking");
+    else if (kind === "wave") svg.append("path").attr("class", "g-break").attr("d", wavePath(LEGEND_WIDTH / 2, 0, LEGEND_HEIGHT));
+    else if (kind === "user") {
+      svg.append("line").attr("class", "g-guide").attr("x1", LEGEND_WIDTH / 2).attr("x2", LEGEND_WIDTH / 2).attr("y1", 0).attr("y2", LEGEND_HEIGHT);
+      svg.append("g").attr("class", "g-node kind-user_message").append("path")
+        .attr("d", d3.symbol(d3.symbolDiamond, USER_MESSAGE_SIZE)()).attr("transform", `translate(${LEGEND_WIDTH / 2},${mid})`);
     } else {
-      svg.append("g").attr("class", "g-node kind-prompt").append("circle").attr("cx", 11).attr("cy", 7).attr("r", 4);
+      svg.append("g").attr("class", `g-node kind-${kind}`).append("circle").attr("cx", LEGEND_WIDTH / 2).attr("cy", mid)
+        .attr("r", kind === "prompt" ? POINT_RADIUS + 2 : POINT_RADIUS);
     }
     const label = document.createElement("span");
     label.textContent = text;
