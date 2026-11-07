@@ -2,7 +2,7 @@
 // Spec: docs/design/WebUI.md, docs/design/FlowGraph.md. All session text is untrusted: only ever use textContent.
 
 import { renderGraph } from "./graph.js";
-import { collectEvents, renderOverview } from "./overview.js";
+import { renderOverview, summarizeTurns } from "./overview.js";
 
 const STATUS = {
   success: ["✓", "성공"],
@@ -43,9 +43,7 @@ function readHash() {
     view: params.get("view") === "list" ? "list" : "graph",
     turn: Number(params.get("turn")) || null,
     step: Number(params.get("step")) || null,
-    from: Number(params.get("from")) || null,
-    to: Number(params.get("to")) || null,
-    axis: params.get("axis") === "time" ? "time" : "order",
+    width: params.get("width") === "time" ? "time" : "equal",
     scale: params.get("scale") === "real" ? "real" : "compress",
   };
 }
@@ -213,7 +211,7 @@ function indexSteps(steps, index = new Map()) {
   return index;
 }
 
-// Only how the chosen turn's flow is drawn; the chosen turn, step and range stay (WebUI.md section 2).
+// Only how the chosen turn's flow is drawn; the chosen turn and step stay (WebUI.md section 2).
 function viewToggle(state) {
   const toggle = el("div", "view-toggle");
   for (const [value, label] of [["graph", "흐름 그래프"], ["list", "목록"]]) {
@@ -277,17 +275,11 @@ function renderTurnPicker(view, turn) {
   return picker;
 }
 
-// Box 4, list view: the chosen turn's steps; with a range, only those between its first and last event (section 7.5).
-function renderTurnSteps(view, turn, range) {
+// Box 4, list view: the chosen turn's steps (WebUI.md section 7.5).
+function renderTurnSteps(view, turn) {
   const wrapper = el("div", "turn-steps");
-  const inRange = (step) => {
-    const at = new Date(step.at).getTime();
-    return at >= range[0].stepAt && at <= range[1].stepAt;
-  };
-  const steps = range ? turn.steps.filter(inRange) : turn.steps;
-  if (range) wrapper.append(el("p", "meta", `고른 범위 안의 단계 ${steps.length}개 (범위: #${range[0].turn} ~ #${range[1].turn})`));
-  if (!range && turn === view.turns[0] && view.preamble.length) wrapper.append(el("div", "label", "첫 턴 앞의 단계"), renderSteps(view.preamble));
-  wrapper.append(steps.length ? renderSteps(steps) : el("p", "empty", "보여 줄 단계가 없습니다."));
+  if (turn === view.turns[0] && view.preamble.length) wrapper.append(el("div", "label", "첫 턴 앞의 단계"), renderSteps(view.preamble));
+  wrapper.append(turn.steps.length ? renderSteps(turn.steps) : el("p", "empty", "보여 줄 단계가 없습니다."));
   return wrapper;
 }
 
@@ -325,14 +317,9 @@ async function loadSession(state) {
   try {
     if (!cache.view) {
       cache.view = await getJSON(`/api/sessions/${encodeURIComponent(state.session)}`);
-      cache.events = collectEvents(cache.view, (step) => (step.tool_call
-        ? `${step.tool_call.tool_name || "도구"} ${toolSummary(step.tool_call)}`
-        : `${STEP_LABEL[step.kind] || step.kind}${step.text ? `: ${firstLine(step.text, 80)}` : ""}`));
+      cache.turns = summarizeTurns(cache.view);
     }
-    const { view, events } = cache;
-    const byId = new Map(events.map((event) => [event.id, event]));
-    const ends = [byId.get(state.from), byId.get(state.to)];
-    const range = ends[0] && ends[1] ? ends.sort((a, b) => a.order - b.order) : null;
+    const { view, turns } = cache;
     const header = el("div", "session-header");
     header.append(el("div", "name", view.title || view.session_id));
     const meta = el("div", "meta", `${view.project || ""} · 턴 ${view.turn_count} · 도구 ${view.tool_call_count}`);
@@ -342,21 +329,18 @@ async function loadSession(state) {
     const boxes = [box("세션 정보", header, "session"), box("세션 전체 흐름", overview, "session")];
     const turn = view.turns.length ? chosenTurn(state, view) : null;
     if (turn) {
-      const flow = state.view === "list" ? renderTurnSteps(view, turn, range) : await renderTurnGraph(state, view, turn);
+      const flow = state.view === "list" ? renderTurnSteps(view, turn) : await renderTurnGraph(state, view, turn);
       boxes.push(box("턴 선택", renderTurnPicker(view, turn), "turn first"), box(`턴 #${turn.index} 작업 흐름`, flow, "turn", viewToggle(state)));
     } else {
       boxes.push(box("턴 선택", el("p", "empty", "턴이 없습니다."), "turn first"));
     }
     container.replaceChildren(...boxes);
     // The strip fits the detail width, so draw it after it is attached.
-    renderOverview(overview, events, {
-      selected: state.step,
-      range,
-      axis: state.axis,
-      onSelect: (event) => updateHash({ step: event.id, turn: event.turn }),
-      onRange: (from, to) => updateHash({ from: from.id, to: to.id, turn: from.turn }),
-      onClearRange: () => updateHash({ from: null, to: null }),
-      onAxis: (axis) => updateHash({ axis: axis === "time" ? "time" : null }),
+    renderOverview(overview, turns, {
+      selected: turn ? turn.index : null,
+      width: state.width,
+      onSelect: (picked, toFailure) => updateHash({ turn: picked.index, step: toFailure ? picked.firstFailure : null }),
+      onWidth: (width) => updateHash({ width: width === "time" ? "time" : null }),
     });
     if (turn && state.view === "list") focusStep(container, state.step);
   } catch (error) {
@@ -376,7 +360,7 @@ function box(title, content, scope, controls = null) {
 }
 
 // The last session detail and its turn graphs, reused while only the selection in the hash changes (WebUI.md section 7.4).
-let cache = { view: null, events: [], graphs: new Map() };
+let cache = { view: null, turns: [], graphs: new Map() };
 let shown = { project: undefined, session: undefined };
 
 async function render(force = false) {
@@ -385,7 +369,7 @@ async function render(force = false) {
   shown = { project: state.project, session: state.session };
   const tasks = [];
   if (changed) {
-    cache = { view: null, events: [], graphs: new Map() };
+    cache = { view: null, turns: [], graphs: new Map() };
     tasks.push(loadProjects(state.project), loadSessions(state.project, state.session));
   }
   tasks.push(loadSession(state));
