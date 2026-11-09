@@ -262,3 +262,61 @@ class GraphFieldTest(unittest.TestCase):
         self.assertEqual((inner.message_id, inner.tool_call.status, inner.tool_call.duration_ms, inner.tool_call.approximate), ("msg_g", "success", 12, False))
         self.assertEqual(view.tool_call_count, 1)
 
+
+
+class TaskMarkTest(unittest.TestCase):
+    """@doc: docs/design/Analysis.md#9-테스트"""
+
+    def _bash(self, s: _Session, n: int, command: str, output: str, is_error: bool = False) -> None:
+        s.assistant(f"a{n}", f"r{n - 1}", {"type": "tool_use", "id": f"toolu_{n}", "name": "Bash", "input": {"command": command}})
+        s.result(f"r{n}", f"a{n}", "p1", f"toolu_{n}", output, is_error=is_error)
+
+    def test_test_runs_are_judged_from_the_whole_output(self) -> None:
+        s = _Session()
+        s.prompt("r0", "p1", "테스트 고쳐")
+        self._bash(s, 1, "uv run pytest -q 2>&1 | tail -3", "x" * 2500 + "\n2 failed, 68 passed in 0.65s")
+        self._bash(s, 2, "pytest -q 2>&1 | tail -3", "no summary")
+        self._bash(s, 3, "pytest -q > log.txt", "Exit code 1", is_error=True)
+        self._bash(s, 4, "git status", "clean")
+        calls = [step.tool_call for step in s.build().turns[0].steps]
+        # The summary lies past the 2,000-character preview; piping hides the exit code (Analysis.md 5.1).
+        self.assertEqual(calls[0].status, "success")
+        self.assertEqual(calls[0].test_run, {"result": "fail", "summary": "2 failed, 68 passed", "basis": "output", "clipped": True})
+        self.assertEqual((calls[1].test_run["result"], calls[1].test_run["basis"]), ("unknown", None))
+        self.assertEqual((calls[2].test_run["result"], calls[2].test_run["basis"]), ("fail", "exit_code"))
+        self.assertIsNone(calls[3].test_run)
+
+    def test_test_file_changes_know_the_run_before_them(self) -> None:
+        s = _Session()
+        s.prompt("r0", "p1", "테스트 고쳐")
+        self._bash(s, 1, "pytest", "1 failed, 2 passed in 0.1s", is_error=True)
+        s.assistant("a2", "r1", {"type": "tool_use", "id": "toolu_2", "name": "Edit", "input": {"file_path": "/Users/me/app/tests/test_cart.py"}})
+        s.result("r2", "a2", "p1", "toolu_2", "ok")
+        self._bash(s, 3, "pytest", "3 passed in 0.1s")
+        self._bash(s, 4, "sed -i '' 's/a/b/' tests/test_api.py", "")
+        s.assistant("a5", "r4", {"type": "tool_use", "id": "toolu_5", "name": "Edit", "input": {"file_path": "/Users/me/app/src/cart.py"}})
+        s.result("r5", "a5", "p1", "toolu_5", "ok")
+        calls = [step.tool_call for step in s.build().turns[0].steps]
+        self.assertEqual(calls[1].test_edit, {"paths": ["tests/test_cart.py"], "estimated": False, "after_failure": True,
+                                              "previous_run": {"result": "fail", "summary": "1 failed, 2 passed"}})
+        self.assertEqual((calls[3].test_edit["paths"], calls[3].test_edit["estimated"], calls[3].test_edit["after_failure"]),
+                         (["tests/test_api.py"], True, False))
+        self.assertIsNone(calls[4].test_edit)
+
+    def test_completion_reports_come_from_the_final_response_and_todos(self) -> None:
+        s = _Session()
+        s.prompt("u1", "p1", "로그인 만들어")
+        s.record(type="assistant", uuid="a1", parentUuid="u1", message={"id": "m1", "content": [{"type": "text", "text": "화면을 추가했습니다. 이제 테스트를 하겠습니다."}]})
+        s.record(type="assistant", uuid="a2", parentUuid="a1", message={"id": "m1", "content": [
+            {"type": "tool_use", "id": "toolu_1", "name": "TodoWrite", "input": {"todos": [{"content": "화면", "status": "completed"}, {"content": "테스트", "status": "pending"}]}}]})
+        s.result("u2", "a2", "p1", "toolu_1", "ok")
+        s.record(type="assistant", uuid="a3", parentUuid="u2", message={"id": "m2", "content": [{"type": "text", "text": "로그인 화면을 만들었습니다."}]})
+        s.record(type="assistant", uuid="a4", parentUuid="a3", message={"id": "m2", "content": [{"type": "text", "text": "테스트는 아직 못 했습니다."}]})
+        s.hook("Stop", prompt_id="p1")
+        s.prompt("u3", "p2", "다음", parent="a4")
+        s.record(type="assistant", uuid="a5", parentUuid="u3", message={"id": "m3", "content": [{"type": "text", "text": "고쳤습니다."}]})
+        view = s.build()
+        reports = view.turns[0].completion_reports
+        self.assertEqual([(report["text"], report["source"]) for report in reports], [("화면", "todo"), ("로그인 화면을 만들었습니다.", "response")])
+        # The second turn is still running, so its final response is not settled yet.
+        self.assertEqual(view.turns[1].completion_reports, [])

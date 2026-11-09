@@ -56,6 +56,7 @@
 
 턴은 [Turn](../../src/agentvis/analysis/session.py#Turn)으로 나타낸다. 세션 기록에 아직 사람 입력 기록이 없는 턴은 hook의 `UserPromptSubmit`(`prompt`)으로 만든다.
 | `tool_call_count`, `failure_count` | 도구 호출 수, 상태가 `error`·`interrupted`인 도구 호출 수 |
+| `completion_reports` | 완료 보고 목록(5.1절, M8-T6) |
 
 ## 4. 단계
 
@@ -96,6 +97,7 @@
 | `is_error`, `interrupted` | 상태 판정에 쓴 사실(오류 표시, 중단 표시). 결과가 아직 없으면 `is_error`는 비어 있다. |
 | `started_at`, `ended_at` | 실행 구간(M4-T7). 시작은 `PreToolUse` 시각, 없으면 `tool_use` 기록 시각. 끝은 `PostToolUse`·`PostToolUseFailure` 시각, 없으면 도구 결과 기록 시각, 둘 다 없으면 `None`. `tool_use` 기록 시각은 생성 시각이다([실측](../DataSource.md#35-병렬-실행과-백그라운드-작업의-연결)). |
 | `approximate` | 시작이나 끝을 hook이 아닌 세션 기록 시각으로 정했는지(M4-T7) |
+| `test_run`, `test_edit` | 테스트 실행과 그 결과, 테스트 파일 변경(5.1절, M8-T6). 해당하지 않으면 `None`이다. |
 | `background` | 백그라운드 실행(`input.run_in_background`가 참)이면 사전, 아니면 `None`(M4-T7). `kind`(`shell`·`agent`), `task_id`(`toolUseResult.backgroundTaskId`, 서브에이전트는 `agentId`), 그리고 `tool_use_id`가 이 호출인 작업 알림 단계에서 가져온 `status`, `ended_at`(알림 시각), `notification_step_id`. 알림이 아직 없으면 뒤의 셋은 `None`이다. |
 
 **결과 미리보기 길이**(I44): 세션 상세는 세션의 모든 단계를 한 응답으로 보내고, 실시간 갱신 때마다 다시 받는다([웹 UI 설계의 실시간 갱신](WebUI.md#8-실시간-갱신)). 그래서 결과·오류는 앞 2,000자만 담고, 전체는 필요할 때 따로 받는다(조회 API의 전체 결과). 2026-11-07 실측(가장 큰 세션): 자르면 응답이 4.5MB, 자르지 않으면 5.2MB였고 계산 시간은 둘 다 0.16초였다. 결과 871개 중 2,000자를 넘는 것은 73개(최장 16,381자, 중앙값 225자)였다. 저장소의 원시 이벤트는 자르지 않는다.
@@ -111,6 +113,47 @@
 | `unfinished` | 결과가 없는데 턴이 끝남. 권한 거부나 중단의 후보다([실측 동작](../DataSource.md#26-실측으로-확인한-동작)). |
 
 세션 기록은 실행 중인 도구 호출 하나만큼 늦으므로([두 소스 비교](../DataSource.md#4-두-소스-비교)), 지금 실행 중인 도구는 `PreToolUse` hook만으로 `running` 단계로 나타난다.
+
+### 5.1 테스트 사건과 완료 보고
+
+수업 실험의 T1(완료 보고 파악)과 T2(테스트 변경 파악)에 쓰는 판정이다(M8-T6, I57). 화면 요소는 [인코딩 설계의 E11·E12](VisualEncoding.md#311-e11-완료-보고-표시와-목록)이고, 과업의 정의와 실측 근거는 [과업과 데이터 추상화](TaskAbstraction.md#41-t1-근거-없는-성공-보고)에 있다. 모두 규칙으로 정하는 **추정**이며, 규칙은 [identify 모듈](../../src/agentvis/analysis/identify.py)에 모은다. 판정은 변경 내용의 옳고 그름을 따지지 않는다.
+
+**테스트 실행**(`test_run`): Bash 호출의 명령이 테스트 실행인지 [test_command](../../src/agentvis/analysis/identify.py#test_command)`(command) -> dict | None`로 본다.
+- heredoc 본문(`<<'EOF'` \~ `EOF`)을 지운 뒤 `&&`, `||`, `;`, 줄바꿈으로 명령을 나누고, 각 명령을 파이프(`|`)로 나눈다. 파이프의 첫 부분이 테스트 실행기로 시작하면 테스트 실행이다. 앞에 붙는 `uv run`, `poetry run`, `npx` 같은 실행 도구와 `KEY=값` 환경 변수는 건너뛴다.
+- 테스트 실행기: `pytest`, `python -m pytest`, `python -m unittest`, `npm test`(`yarn`·`pnpm`·`bun`, `run test` 포함), `go test`, `cargo test`, `jest`, `vitest`, `mocha`, `rspec`, `tox`, `nox`, `make test`, `mvn test`, `gradle test`, `dotnet test`, `ctest`.
+- 테스트 실행 뒤에 파이프가 있으면 `clipped`가 참이다. 이때 종료 코드는 마지막 명령(`tail` 등)의 것이라 테스트 결과를 나타내지 않는다.
+
+결과는 **자르기 전 출력**에서 [test_outcome](../../src/agentvis/analysis/identify.py#test_outcome)`(text) -> tuple[str | None, str | None]`로 먼저 정한다. 결과 미리보기(2,000자)는 앞부분만 담는데 요약은 출력 끝에 있기 때문이다.
+
+| 실행기 | 찾는 요약 | 실패로 보는 경우 |
+| --- | --- | --- |
+| pytest | `2 failed, 68 passed in 0.65s` 같은 줄 | `failed`나 `error`가 있음 |
+| unittest | `Ran 17 tests` 뒤의 `OK` 또는 `FAILED (failures=8)`. `Ran` 줄이 없으면(`\| tail -1`로 잘림) 줄 전체가 `OK`·`OK (skipped=1)`·`FAILED (failures=…)`인 줄 | `FAILED` |
+| go test | `ok  패키지`, `FAIL  패키지`, `--- FAIL:` | `FAIL`이 있음 |
+| cargo test | `test result: ok. 3 passed; 0 failed` | `FAILED` |
+| jest, vitest | `Tests:  1 failed, 5 passed, 6 total` | `failed`가 있음 |
+
+- 한 명령에 요약이 여럿이면 하나라도 실패면 실패이고, 아니면 마지막 요약을 쓴다.
+- 출력에 요약이 없으면 종료 코드로 정한다(`basis`가 `exit_code`). 상태가 `error`면 실패, `success`면 통과다. 단, `clipped`이면 종료 코드를 믿을 수 없어 `unknown`이다. 아직 끝나지 않은 호출은 `None`이다.
+- `test_run`은 `{"result": "pass" | "fail" | "unknown" | None, "summary": 요약 글 또는 None, "basis": "output" | "exit_code" | None, "clipped": bool}`이다. 테스트 실행이 아닌 호출은 `None`이다.
+
+**테스트 파일 변경**(`test_edit`): 파일 경로가 테스트 파일인지 [is_test_path](../../src/agentvis/analysis/identify.py#is_test_path)`(path, root) -> bool`로 본다.
+- 경로를 프로젝트 경로(`root`) 기준 상대 경로로 바꾼 뒤 본다([relative_path](../../src/agentvis/analysis/identify.py#relative_path)). 화면에 보이는 경로도 이 상대 경로다. 프로젝트가 `test/` 같은 이름의 폴더 아래 있어도 모든 파일이 테스트가 되지 않게 하기 위해서다.
+- 테스트 경로 규칙: 경로 안의 `tests/`, `test/`, `__tests__/`, `spec/`, `specs/` 폴더, `test_*.py`, `*_test.py`, `*_test.go`, `*.test.js`·`*.spec.ts`(`js`, `jsx`, `ts`, `tsx`, `mjs`, `cjs`), `*_spec.rb`.
+- `Edit`, `Write`, `MultiEdit`, `NotebookEdit`의 `file_path`(`notebook_path`)가 테스트 파일이면 확정 변경이다(`estimated`가 거짓).
+- Bash 명령이 테스트 파일을 쓴 것으로 보이면 추정 변경이다(`estimated`가 참). [written_paths](../../src/agentvis/analysis/identify.py#written_paths)`(command) -> list[str]`가 쓰기 대상을 뽑는다. heredoc 본문을 지운 명령에서 `>`·`>>` 대상(`/dev/`와 `&1` 같은 대상은 뺌), `tee` 대상, `sed -i`·`perl -pi` 명령의 마지막 인자를 찾는다. 파이썬 heredoc 본문에 `write_text`나 쓰기 모드 `open(`이 있으면 본문의 `Path("...")`·`open("...")` 경로 글자도 넣는다. 거친 규칙이라 놓치거나 잘못 잡을 수 있다([실측](TaskAbstraction.md#42-t2-테스트-변조건너뛰기)).
+- `test_edit`는 `{"paths": [프로젝트 기준 경로], "estimated": bool, "after_failure": bool, "previous_run": {"result", "summary"} 또는 None}`이다. 테스트 파일을 바꾸지 않은 호출은 `None`이다. 한 Bash 명령이 테스트 파일도 쓰고 테스트도 실행하면 `test_run`과 `test_edit`를 둘 다 가진다.
+- **직전 테스트 실행**: 세션의 모든 도구 호출(서브에이전트 포함)을 시작 시각 순으로 늘어놓고, 각 테스트 파일 변경보다 먼저 시작한 마지막 테스트 실행을 `previous_run`으로 둔다. 그 결과가 `fail`이면 `after_failure`가 참이다(실패 직후의 테스트 변경).
+
+**완료 보고**(턴의 `completion_reports`): 에이전트가 완료했다고 보고한 것의 목록이다.
+- **응답 글**(`source` = `response`, 추정): 끝난 턴(`state`가 `running`이 아님)의 **마지막 응답**에서만 뽑는다(2026-11-09 사용자 결정, I57). 마지막 응답은 턴의 주 에이전트 단계 중 마지막 `text` 단계와, 그와 `message_id`가 같은 `text` 단계들이다. [completion_sentences](../../src/agentvis/analysis/identify.py#completion_sentences)`(text) -> list[str]`가 문장을 뽑는다.
+  - 코드 블록(```` ``` ````)과 표 줄(`|`로 시작)은 건너뛴다. 줄머리의 목록 기호(`-`, `*`, `1.`), 제목 기호(`#`), 인용 기호(`>`)와 굵게 표시(`**`)를 지우고, 줄을 문장 끝(`.`, `!`, `?` 뒤의 공백)에서 나눈다.
+  - 완료 표현 사전에 맞는 문장을 남긴다: `완료했`·`완료됐`·`완료되었`·`완료입니다`·`완료함`, `통과했`·`통과합니다`·`통과함`·`통과됐`, `모두 통과`, `고쳤`, `수정했`, `추가했`, `구현했`, `만들었`, `바꿨`, `반영했`, `해결했`, `작성했`, `마쳤`, `끝냈`, `올렸`, `커밋했`, `합쳤`, `옮겼`, `지웠`, `삭제했`, `넣었`, `등록했`, `정리했`, 그리고 영어 `done`, `complete(d)`, `fixed`, `implemented`, `added`, `passed`, `passes`, `passing`, `resolved`, `finished`, `merged`, `created`, `updated`, `tests pass`.
+  - 이름으로서의 `완료`·`통과`("완료 보고", "통과 여부")는 보고가 아니므로 동사 꼴만 센다. 2026-11-09 실제 세션에서 맨 `완료`를 세자 "완료 보고" 같은 제목 줄이 섞였다.
+  - 부정·미완 표현(`못`, `않`, `실패`, `아직`, `남았`, `not`, `n't`, `fail`)이 있는 문장과 물음표로 끝나는 문장은 뺀다.
+  - 문장은 300자에서 자른다.
+- **할 일 도구**(`source` = `todo`, 확정): 주 에이전트의 `TodoWrite` 호출에서 이전 호출까지 `completed`가 아니던 항목이 `completed`가 되면 그 항목의 `content`를 보고로 더한다. `TaskUpdate` 호출의 `status`가 `completed`이면 `subject`(없으면 `작업 <taskId>`)를 더한다. 실행 중인 턴에서도 뽑는다. 2026-11-09 실측 기록에는 두 도구가 없어 입력 형태는 공개 문서 기준이고, 시나리오 자료를 만들 때 확인한다.
+- 항목은 `{"step_id": 단계 id, "text": 문장 또는 항목, "source": "response" | "todo"}`이고 단계 순서를 따른다. 할 일 도구 보고의 `step_id`는 그 도구 호출 단계다.
 
 ## 6. 서브에이전트
 
@@ -170,4 +213,6 @@
 - 서브에이전트 단계가 띄운 도구 호출 아래에 들어간다.
 - 프로젝트 경로는 세션 기록의 첫 `cwd`이며, 하위 폴더 `cwd`를 가진 hook 이벤트에 끌려가지 않는다.
 - 프로젝트 목록이 세션을 프로젝트 경로로 묶어 세션 수·마지막 활동·이름·상위 경로(`~`)·폴더 존재 여부를 내고 마지막 활동 순으로 정렬되며, 프로젝트 경로가 없는 세션은 빠진다.
+- 테스트 판정(5.1절): 테스트 명령 나누기(heredoc, 파이프, 앞붙이), 실행기별 요약과 실패, 자르기 전 출력으로 정한 결과, 출력에 요약이 없을 때의 종료 코드와 `clipped`의 `unknown`, 프로젝트 기준 테스트 경로, Bash 쓰기 대상 추정, 실패 직후 변경(`after_failure`)과 서브에이전트 호출의 순서. 판정 규칙은 [tests/test_identify.py](../../tests/test_identify.py)에서 따로 확인한다.
+- 완료 보고(5.1절): 끝난 턴의 마지막 응답에서만 뽑고, 중간 응답과 실행 중인 턴은 빼고, 부정·물음 문장과 코드 블록을 빼며, 할 일 도구의 새 `completed` 항목을 확정 보고로 더한다.
 - 세션 목록이 프로젝트 조건과 마지막 활동 순서를 지키고 `turns`·`preamble`을 빼며, 세션 상세가 턴과 단계를 담고, 없는 세션은 `404`다.

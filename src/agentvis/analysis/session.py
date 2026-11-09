@@ -8,6 +8,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime
 
+from agentvis.analysis.identify import completion_sentences, is_test_path, relative_path, test_command, test_outcome, written_paths
 from agentvis.store import RawEvent
 
 # @doc: docs/design/Analysis.md#5-도구-호출
@@ -21,6 +22,7 @@ _INTERRUPT_MARK = "[Request interrupted by user"
 _SHELL_MARKS = ("<bash-input>", "<bash-stdout>", "<bash-stderr>")
 _AGENT_TOOLS = ("Agent", "Task")
 _NOTIFICATION_TAGS = {"task_id": "task-id", "tool_use_id": "tool-use-id", "status": "status"}
+_EDIT_TOOLS = ("Edit", "Write", "MultiEdit", "NotebookEdit")
 
 
 @dataclass
@@ -48,6 +50,8 @@ class ToolCall:
     ended_at: datetime | None = None
     approximate: bool = False
     background: dict | None = None
+    test_run: dict | None = None
+    test_edit: dict | None = None
 
 
 @dataclass
@@ -84,6 +88,7 @@ class Turn:
     steps: list[Step] = field(default_factory=list)
     tool_call_count: int = 0
     failure_count: int = 0
+    completion_reports: list[dict] = field(default_factory=list)
 
 
 @dataclass
@@ -128,11 +133,29 @@ def _content_text(content: object) -> str:
 def _set_result(call: "ToolCall", text: str, limit: int | None) -> None:
     call.result = text if limit is None else text[:limit]
     call.result_chars = len(text)
+    _note_test_output(call, text)
 
 
 def _set_error(call: "ToolCall", text: str, limit: int | None) -> None:
     call.error = text if limit is None else text[:limit]
     call.error_chars = len(text)
+    _note_test_output(call, text)
+
+
+def _bash_command(call: "ToolCall") -> str | None:
+    command = call.input.get("command") if call.tool_name == "Bash" and isinstance(call.input, dict) else None
+    return command if isinstance(command, str) else None
+
+
+def _note_test_output(call: "ToolCall", text: str) -> None:
+    # The summary sits at the end of the output, past the preview, so read it before cutting (Analysis.md 5.1).
+    command = _bash_command(call)
+    shape = test_command(command) if command is not None else None
+    if shape is None:
+        return
+    result, summary = test_outcome(text)
+    if result is not None or call.test_run is None:
+        call.test_run = {"result": result, "summary": summary, "basis": "output" if result else None, "clipped": shape["clipped"]}
 
 
 def _block(record: dict) -> dict:
@@ -465,6 +488,74 @@ def _session_labels(main: list[tuple[RawEvent, dict]], first_prompt: str) -> tup
     return title[:_TITLE_CHARS], source, recap, branch
 
 
+def _mark_tests(calls: list[ToolCall], root: str | None) -> None:
+    """Settle test run results and mark test file changes and what ran just before them (Analysis.md 5.1)."""
+    for call in calls:
+        command = _bash_command(call)
+        shape = test_command(command) if command is not None else None
+        if shape is not None:
+            run = call.test_run or {"result": None, "summary": None, "basis": None, "clipped": shape["clipped"]}
+            if run["result"] is None and call.status in ("success", "error"):
+                # Piped output hides the test's exit code, so only an unpiped run is judged by it.
+                run["result"] = "unknown" if run["clipped"] else "fail" if call.status == "error" else "pass"
+                run["basis"] = None if run["clipped"] else "exit_code"
+            call.test_run = run
+        data = call.input if isinstance(call.input, dict) else {}
+        if call.tool_name in _EDIT_TOOLS:
+            path = data.get("file_path") or data.get("notebook_path")
+            paths, estimated = ([path] if isinstance(path, str) else []), False
+        elif command is not None:
+            paths, estimated = written_paths(command), True
+        else:
+            paths, estimated = [], False
+        tests = [relative_path(path, root) for path in paths if is_test_path(path, root)]
+        if tests:
+            call.test_edit = {"paths": tests, "estimated": estimated, "after_failure": False, "previous_run": None}
+    last_run: dict | None = None
+    started = [call for call in calls if call.started_at is not None]
+    for call in sorted(started, key=lambda item: item.started_at):
+        if call.test_edit is not None and last_run is not None:
+            call.test_edit["previous_run"] = {"result": last_run["result"], "summary": last_run["summary"]}
+            call.test_edit["after_failure"] = last_run["result"] == "fail"
+        if call.test_run is not None and call.test_run["result"] is not None:
+            last_run = call.test_run
+
+
+def _todo_reports(turns: list[Turn]) -> dict[str, list[dict]]:
+    """Todo items the main agent newly marked completed, per turn (Analysis.md 5.1)."""
+    done: set[str] = set()
+    reports: dict[str, list[dict]] = {}
+    for turn in turns:
+        for step in turn.steps:
+            call = step.tool_call
+            data = call.input if call is not None and isinstance(call.input, dict) else {}
+            if call is not None and call.tool_name == "TodoWrite" and isinstance(data.get("todos"), list):
+                for item in data["todos"]:
+                    content = item.get("content") if isinstance(item, dict) else None
+                    if isinstance(content, str) and item.get("status") == "completed" and content not in done:
+                        done.add(content)
+                        reports.setdefault(turn.prompt_id, []).append({"step_id": step.id, "text": content, "source": "todo"})
+            elif call is not None and call.tool_name == "TaskUpdate" and data.get("status") == "completed":
+                text = data.get("subject") if isinstance(data.get("subject"), str) else f"작업 {data.get('taskId')}"
+                reports.setdefault(turn.prompt_id, []).append({"step_id": step.id, "text": text, "source": "todo"})
+    return reports
+
+
+def _completion_reports(turns: list[Turn]) -> None:
+    """Completion reports: sentences of each ended turn's final response, plus completed todo items (Analysis.md 5.1)."""
+    todos = _todo_reports(turns)
+    for turn in turns:
+        reports = list(todos.get(turn.prompt_id, []))
+        texts = [step for step in turn.steps if step.kind == "text"]
+        if turn.state != "running" and texts:
+            last = texts[-1]
+            final = [step for step in texts if step is last or (last.message_id is not None and step.message_id == last.message_id)]
+            for step in final:
+                reports.extend({"step_id": step.id, "text": sentence, "source": "response"} for sentence in completion_sentences(step.text or ""))
+        order = {step.id: index for index, step in enumerate(turn.steps)}
+        turn.completion_reports = sorted(reports, key=lambda report: order.get(report["step_id"], 0))
+
+
 def build_session(events: list[RawEvent], preview_chars: int | None = RESULT_PREVIEW_CHARS) -> SessionView:
     """Compute the session view of one session's raw events; preview_chars=None keeps whole tool results.
 
@@ -517,6 +608,8 @@ def build_session(events: list[RawEvent], preview_chars: int | None = RESULT_PRE
     from_hook = project is None
     if from_hook:
         project = next((payload.get("cwd") for _, payload in hooks if isinstance(payload.get("cwd"), str)), None)
+    _mark_tests(list(calls.values()), project)
+    _completion_reports(turns)
     # Title records hold the time they were read, not when anything happened (I47).
     times = [event.occurred_at for event in events if event.kind not in _TIMELESS_KINDS]
     title, title_source, recap, git_branch = _session_labels(main, turns[0].prompt if turns else "")

@@ -159,6 +159,50 @@ async function loadSessions(project, selected) {
   }
 }
 
+// Completion reports of the shown session by step id, for the step detail (WebUI.md section 3, M8-T6).
+let reportsByStep = new Map();
+const RUN_RESULT = { pass: ["테스트 통과", "통과"], fail: ["테스트 실패", "실패"], unknown: ["테스트 결과 모름", "결과 모름"] };
+
+function indexReports(view) {
+  reportsByStep = new Map();
+  for (const turn of view.turns) {
+    for (const report of turn.completion_reports || []) {
+      if (!reportsByStep.has(report.step_id)) reportsByStep.set(report.step_id, []);
+      reportsByStep.get(report.step_id).push(report);
+    }
+  }
+}
+
+function reportBlock(reports, label) {
+  const block = el("div", "report-note");
+  block.append(el("div", "label", label));
+  const list = el("ul");
+  for (const report of reports) list.append(el("li", null, report.text));
+  block.append(list);
+  return block;
+}
+
+// What the test rules found for a tool call (Analysis.md section 5.1).
+function testFacts(call) {
+  const lines = [];
+  const run = call.test_run;
+  if (run) {
+    const [, result] = RUN_RESULT[run.result] || [null, "아직 없음"];
+    const basis = run.basis === "output" ? "출력 요약으로 판정" : run.basis === "exit_code" ? "종료 코드로 판정(출력에 요약 없음)" : null;
+    lines.push(["테스트 결과", [result + (run.summary ? ` (${run.summary})` : ""), basis].filter(Boolean).join(" · ")]);
+    if (run.clipped) lines.push(["출력 자름", "출력을 파이프로 잘라 종료 코드로는 테스트 결과를 알 수 없습니다"]);
+  }
+  const edit = call.test_edit;
+  if (edit) {
+    const previous = edit.previous_run;
+    const parts = [edit.paths.join(", ")];
+    parts.push(previous ? `직전 테스트: ${(RUN_RESULT[previous.result] || [null, "결과 모름"])[1]}${previous.summary ? `(${previous.summary})` : ""}` : "직전 테스트: 없음");
+    if (edit.estimated) parts.push("Bash 명령에서 추정");
+    lines.push(["테스트 파일", parts.join(" · ")]);
+  }
+  return lines;
+}
+
 function renderSteps(steps) {
   const list = el("ol", "steps");
   for (const step of steps) list.append(renderStep(step));
@@ -178,7 +222,7 @@ function renderStep(step) {
   item.dataset.stepId = String(step.id);
   const label = STEP_LABEL[step.kind];
   if (step.kind === "tool_call" && step.tool_call) {
-    item.append(renderToolCall(step.tool_call));
+    item.append(renderToolCall(step.tool_call, step.id));
   } else if (step.kind === "thinking") {
     const facts = [];
     if (step.detail?.duration_ms !== undefined) facts.push(`${(step.detail.duration_ms / 1000).toFixed(1)}초`);
@@ -188,6 +232,8 @@ function renderStep(step) {
     else item.append(el("span", "thinking", `${head} (내용이 기록에 남지 않음)`));
   } else if (step.kind === "text") {
     const text = String(step.text || "");
+    const reports = reportsByStep.get(step.id);
+    if (reports) item.append(reportBlock(reports, "⚑ 완료 보고(응답 글에서 추정)"));
     item.append(text.length > 300 ? expandable("text", firstLine(text, 200), text) : el("div", "text", text));
   } else if (step.kind === "user_message") {
     item.append(el("span", "badge", label), el("span", "message", step.text));
@@ -347,17 +393,22 @@ function outputBlock(call, field, label, className) {
   return block;
 }
 
-function renderToolCall(call) {
+function renderToolCall(call, stepId) {
   const [symbol, statusText] = STATUS[call.status] || ["·", call.status];
   const details = el("details", `tool status-${call.status}`);
   const summary = el("summary");
   summary.append(el("span", "symbol", symbol), el("span", "tool-name", call.tool_name || "도구"), el("span", "tool-input", toolSummary(call)));
   if (call.permission_requested) summary.append(el("span", "tag", "권한 요청"));
   if (call.subagent) summary.append(el("span", "tag", `서브에이전트 ${call.subagent.length}단계`));
+  if (call.test_run) summary.append(el("span", `tag test-tag test-${call.test_run.result || "none"}`, (RUN_RESULT[call.test_run.result] || ["테스트 실행 중"])[0]));
+  if (call.test_edit) summary.append(el("span", `tag test-tag${call.test_edit.after_failure ? " after-failure" : ""}`, "[테스트] 파일 변경"));
   details.append(summary);
   const facts = [`상태: ${statusText}`];
   if (call.duration_ms !== null && call.duration_ms !== undefined) facts.push(`실행 시간: ${call.duration_ms}ms`);
   details.append(el("div", "facts", facts.join(" · ")));
+  for (const [name, text] of testFacts(call)) details.append(el("div", "facts test-facts", `${name}: ${text}`));
+  const stepReports = reportsByStep.get(stepId);
+  if (stepReports) details.append(reportBlock(stepReports, "⚑ 완료 보고(할 일)"));
   const formattedInput = JSON.stringify(expandJSONStrings(call.input), null, JSON_INDENT);
   details.append(textBlock("입력", "input", formattedInput, "body", { raw: JSON.stringify(call.input), formatted: formattedInput, initial: "formatted" }));
   if (call.error) details.append(outputBlock(call, "error", "오류", "body error-text"));
@@ -531,6 +582,7 @@ async function loadSession(state) {
       cache.view = await getJSON(`/api/sessions/${encodeURIComponent(state.session)}`);
       cache.turns = summarizeTurns(cache.view);
     }
+    indexReports(cache.view);
     const { view, turns } = cache;
     const header = renderSessionInfo(view);
     const overview = el("div", "overview");
@@ -549,7 +601,7 @@ async function loadSession(state) {
     renderOverview(overview, turns, {
       selected: turn ? turn.index : null,
       width: state.width,
-      onSelect: (picked, toFailure) => pickTurn(view, picked.index, toFailure ? picked.firstFailure : null),
+      onSelect: (picked, stepId) => pickTurn(view, picked.index, stepId === null || stepId === undefined ? null : String(stepId)),
       onWidth: (width) => updateHash({ width: width === "time" ? "time" : null }),
     });
     // Only a newly chosen step scrolls the list; a live redraw leaves the scroll where it is.

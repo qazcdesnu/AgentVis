@@ -2,6 +2,47 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## M8-T6 완료 보고와 테스트 사건 표시
+
+- 시작일: 2026-11-09
+- 완료일: 2026-11-09
+- 근거 문서: [시각화 인코딩 설계 E11·E12](design/VisualEncoding.md#311-e11-완료-보고-표시와-목록), [분석기 설계](design/Analysis.md#51-테스트-사건과-완료-보고), [작업 흐름 그래프](design/FlowGraph.md#32-노드), [웹 UI 설계](design/WebUI.md#7-세션-개요-띠와-이동-배지)
+- 관련 이슈: I57, H7
+
+### 계획
+- 분석기: 판정 규칙 모듈(`identify.py`)을 만들고, 도구 호출에 테스트 실행(`test_run`)·테스트 파일 변경(`test_edit`)을, 턴에 완료 보고(`completion_reports`)를 더한다. 테스트 결과는 자르기 전 출력의 요약으로 정한다.
+- 그래프: 노드에 표지(`marks`)를 더한다.
+- 화면: 턴 시퀀스의 ⚑ 기호와 배지 두 개, 완료 보고 목록과 테스트 파일 변경 목록, 그래프 노드의 표지와 범례, 단계 상세의 판정 근거.
+- 문서를 먼저 고치고, 테스트를 더하고, 실제 서버로 확인한다.
+- I57 브랜치(`i57-t1-t2-identify-tasks`) 위에 쌓은 `m8-t6-completion-test-marks`에서 진행한다.
+
+### 진행 기록
+- 2026-11-09: 사용자 결정으로 완료 보고는 턴의 마지막 응답만 센다.
+- 2026-11-09: 분석기 설계 5.1절(판정 규칙), 그래프의 `marks`, 웹 UI 7.6절(목록)과 단계 상세를 먼저 쓰고 구현했다.
+- 2026-11-09: 이 세션(147턴)으로 API를 확인하자 테스트 실행 104개가 `결과 모름`이었다. `| tail -1`로 잘린 unittest 출력에 `Ran` 줄이 없어서였다. `OK`·`FAILED (…)` 한 줄도 요약으로 읽게 고치자 통과 128, 실패 16, 모름 21(대부분 `grep`으로 오류 줄만 남긴 출력)이 되었다. 맨 `완료`를 세자 "완료 보고" 같은 제목 줄이 섞여, 한국어 사전을 동사 꼴로 좁혔다(보고 331개 → 294개).
+- 2026-11-09: 진행 중 표시 `- [~]`를 물결표 검사기가 잡는 문제를 찾아 H7로 등록하고 이 작업에서 고쳤다.
+- 2026-11-09: 이 세션에는 Chrome 확장 도구가 없어 브라우저 확인을 하지 못했다. 화면 스크립트 세 개의 문법을 `node --check`로 확인하고, `overview.js`의 `summarizeTurns`를 node에서 실제 API 응답으로 돌려 턴 147개 중 완료 보고 턴 96개, 테스트 파일 변경 턴 29개를 확인했다. 화면은 사용자가 확인한다.
+
+### 결정 사항
+- 완료 보고는 턴의 마지막 응답(같은 `message_id`의 글 블록들)에서만 뽑는다(사용자 결정). 실행 중인 턴은 아직 마지막 응답이 정해지지 않았으므로 뽑지 않는다.
+- 테스트 결과는 자르기 전 출력에서 읽는다. 요약이 출력 끝에 있어 2,000자 미리보기로는 못 읽는다.
+- 막대 색(도구 상태)은 그대로 두고 표지를 따로 단다. 막대가 성공 색인데 표지가 `테스트 ✕`이면 결과를 가린 실행이다.
+- 그래프 행 높이를 26px에서 30px로 늘려 표지 글자 자리를 만들었다.
+- 목록 두 개는 세션 전체 흐름 상자 안에 접힌 채로 둔다. 세션 수준의 정보이기 때문이다.
+
+### 변경 파일
+- `src/agentvis/analysis/identify.py`(새 파일), `src/agentvis/analysis/session.py`, `src/agentvis/analysis/graph.py`
+- `src/agentvis/web/overview.js`, `src/agentvis/web/app.js`, `src/agentvis/web/graph.js`, `src/agentvis/web/style.css`
+- `tools/check_docs.py`
+- `tests/test_identify.py`(새 파일), `tests/test_analysis.py`, `tests/test_graph.py`, `tests/test_check_docs.py`
+- `docs/design/Analysis.md`, `docs/design/FlowGraph.md`, `docs/design/WebUI.md`, `docs/design/VisualEncoding.md`, `docs/DocumentationRule.md`, `docs/VerificationTools.md`, `docs/Roadmap.md`, `docs/Issue.md`, `docs/Ongoing.md`, `docs/Done.md`
+
+### 결과
+- 턴 시퀀스에 ⚑와 `완료 보고가 있는 턴`·`테스트 파일을 바꾼 턴` 배지가 생기고, 세션 전체 흐름 상자에 완료 보고 목록과 테스트 파일 변경 목록이 생겼다. 흐름 그래프의 노드에 `테스트 ✓·✕·?`, `출력 자름`, `[테스트]`, `⚑` 표지와 실패 직후 변경의 굵은 테두리가 생기고, 범례와 단계 상세가 판정 근거를 보여 준다.
+
+### 검증
+- `check_docs`, `check_pointers`, `check_tasks`, `check_commits`, `check_web` 통과. 단위 테스트 156개 통과(새 테스트 11개). 브라우저 확인은 하지 못함(이 세션에 Chrome 확장 도구 없음), 사용자 확인 필요.
+
 ## I57 수업 실험의 T1·T2를 판정 과업에서 식별 과업으로 좁힘
 
 - 시작일: 2026-11-09
