@@ -29,12 +29,13 @@
 
 ## 2. HTTP 엔드포인트
 
-[create_app](../../src/agentvis/server.py#create_app)`(store: EventStore, reader: TranscriptReader | None = None, collect_hooks: bool = True) -> FastAPI`가 앱을 만든다. `reader`가 있으면 hook 이벤트를 저장한 뒤 [기록 리더 설계 4.1](Transcript.md#41-hook-이벤트를-받을-때-m2-t3)에 따라 읽기를 요청한다(M2-T3). `collect_hooks=False`이면([실험 모드](Cli.md#22-experiment), I59) `POST /hooks`는 요청 검증만 하고 저장·읽기 요청 없이 `{}`를 돌려준다. 참가자 컴퓨터의 Claude Code를 방해하지 않으면서 실험 데이터에 섞이지 않게 하기 위해서다. M1에서 제공하는 경로는 다음과 같다.
+[create_app](../../src/agentvis/server.py#create_app)`(store: EventStore, reader: TranscriptReader | None = None, collect_hooks: bool = True, interaction_log: InteractionLog | None = None) -> FastAPI`가 앱을 만든다. `reader`가 있으면 hook 이벤트를 저장한 뒤 [기록 리더 설계 4.1](Transcript.md#41-hook-이벤트를-받을-때-m2-t3)에 따라 읽기를 요청한다(M2-T3). `collect_hooks=False`이면([실험 모드](Cli.md#22-experiment), I59) `POST /hooks`는 요청 검증만 하고 저장·읽기 요청 없이 `{}`를 돌려준다. 참가자 컴퓨터의 Claude Code를 방해하지 않으면서 실험 데이터에 섞이지 않게 하기 위해서다. M1에서 제공하는 경로는 다음과 같다.
 
 | 경로 | 동작 | 응답 |
 | --- | --- | --- |
 | `POST /hooks` | 본문을 `hook_event_to_raw`로 바꿔 저장한다. 쿼리 문자열(`client=agentvis`)은 무시한다. | 성공: `200`, 본문 `{}`. 변환 실패: `400`, 본문 `{"error": "<InvalidHookEvent 메시지>"}`. |
 | `GET /health` | 서버 동작 확인 | `200`, 본문 `{"status": "ok"}` |
+| `GET /api/experiment`, `POST /api/interactions` | 실험 모드와 화면 사용 기록(I60). `create_app`의 `interaction_log`가 있을 때만 기록한다. 상세는 [웹 UI 설계 9절](WebUI.md#9-실험-모드)에 있다. | 같은 곳 |
 | `GET /` 등 그 밖의 경로 | M4-T3부터 웹 화면 정적 파일([웹 UI 설계](WebUI.md#5-파일-구성)). 다른 경로를 모두 등록한 뒤 마지막에 연결해 API를 가리지 않는다. 모든 정적 파일 응답에 `Cache-Control: no-cache`를 붙인다(H5). 브라우저는 파일을 보관하되 쓸 때마다 서버에 바뀌었는지 묻고(`If-None-Match`·`If-Modified-Since`), 바뀌지 않았으면 `304`를 받는다. 화면 파일을 고친 뒤 일반 새로고침만으로 새 파일이 쓰인다. | 정적 파일, 없으면 `404` |
 
 - 요청은 [2.1 요청 검증](#21-요청-검증)을 통과해야 처리한다.

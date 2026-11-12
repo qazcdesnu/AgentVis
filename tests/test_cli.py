@@ -150,6 +150,9 @@ class ExperimentTest(RepoTestCase):
         self.assertIn("시나리오 세션 기록: 1개 파일", output)
         self.assertIn(f"데이터 디렉터리: {self.database.parent}", output)
         self.assertIn(f"AgentVis 버전: {__version__}", output)
+        log = self.database.parent / "interactions.jsonl"
+        self.assertIn(f"화면 사용 기록: {log}", output)
+        self.assertEqual(json.loads(log.read_text(encoding="utf-8").splitlines()[0])["type"], "server_start")
         self.assertFalse((self.root / "home" / "agentvis.db").exists())
 
     def test_participant_numbers_cannot_leave_the_directory(self) -> None:

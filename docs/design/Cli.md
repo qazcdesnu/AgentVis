@@ -51,6 +51,7 @@ I59에서 만든다. 유저 스터디에서 참가자에게 실험용 시나리�
 - **읽기**: 기록 리더를 `DIR`을 기록 루트로 시작하고, [`DIR`의 모든 세션 기록](Transcript.md#42-서버가-시작될-때-m2-t4)을 읽기 요청으로 넘긴 뒤 읽기가 끝날 때까지 기다린다([EXPERIMENT_READ_SECONDS](../../src/agentvis/cli.py#EXPERIMENT_READ_SECONDS), 300초). 참가자가 화면을 처음 열 때 세션이 모두 보이게 하기 위해서다. 시간 안에 끝나지 않으면 경고를 출력하고 서버를 그대로 시작한다(남은 읽기는 계속된다).
 - **hook**: 앱을 hook 저장 없이 만든다([수집기 설계](Collector.md#2-http-엔드포인트)). 참가자 컴퓨터에 AgentVis hook이 설치되어 있어도 그 세션이 실험 데이터에 섞이지 않는다.
 - **출력**: `AgentVis 실험 모드: 참가자 <번호>`, `AgentVis 서버: http://127.0.0.1:<포트>`, `시나리오 세션 기록: N개 파일`, `데이터 디렉터리: <경로>`, `AgentVis 버전: <버전>`을 출력한다. 버전은 실험 기록에 적기 위해서다([PR 규칙의 유저 스터디 기준판](../PullRequestRule.md#6-릴리스)).
+- **화면 사용 기록**(I60): 데이터 디렉터리의 `interactions.jsonl`에 [웹 UI 설계 9절](WebUI.md#9-실험-모드)의 기록을 남긴다. 시작할 때 `화면 사용 기록: <경로>`를 출력한다.
 - 서버 실행과 종료 처리는 `serve`와 같다([_run_server](../../src/agentvis/cli.py#_run_server)).
 
 ## 3. hook 설정 편집
@@ -121,6 +122,6 @@ AgentVis hook은 URL의 쿼리 `client=agentvis`로 식별한다. Claude Code �
   - 같은 설치를 다시 하면 `변경 없음`을 출력하고 백업을 만들지 않는다.
   - 잘못된 설정 파일이면 종료 코드 1이고 파일이 바뀌지 않는다.
 - [tests/test_cli.py](../../tests/test_cli.py) (I59 추가분)
-  - `experiment P01 --transcripts DIR`이 `AGENTVIS_HOME/experiments/P01/agentvis.db`를 열고, 서버를 시작하기 전에 `DIR`의 세션 기록(수정 시각과 상관없이)을 모두 저장한다. 출력에 참가자, 기록 파일 수, 데이터 디렉터리, 버전이 있다.
+  - `experiment P01 --transcripts DIR`이 `AGENTVIS_HOME/experiments/P01/agentvis.db`를 열고, 서버를 시작하기 전에 `DIR`의 세션 기록(수정 시각과 상관없이)을 모두 저장한다. 출력에 참가자, 기록 파일 수, 데이터 디렉터리, 화면 사용 기록 경로, 버전이 있다. 화면 사용 기록 파일의 첫 줄이 서버 시작 줄이다.
   - 참가자 번호에 `/`, `..`, 공백이 있거나 33자 이상이면 종료 코드 2다.
   - `DIR`이 없거나 세션 기록이 없으면 종료 코드 1이고 데이터베이스를 만들지 않는다.
