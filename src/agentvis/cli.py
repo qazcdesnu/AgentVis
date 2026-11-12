@@ -4,10 +4,12 @@
 @doc: docs/design/Cli.md#21-serve
 @doc: docs/design/Cli.md#22-experiment
 @doc: docs/design/Cli.md#34-hooks-명령
+@doc: docs/design/Cli.md#23-study
 """
 
 import argparse
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -27,6 +29,7 @@ from agentvis.hook_settings import (
 )
 from agentvis.interaction import InteractionLog
 from agentvis.server import create_app
+from agentvis.study.runner import STUDY_TIMEOUT_SECONDS, RunSpec, run_variant
 from agentvis.store import EventStore, data_dir, default_db_path, experiment_dir
 from agentvis.transcript import TranscriptReader, default_projects_dir, find_unread_transcripts
 
@@ -130,6 +133,33 @@ def _experiment(args: argparse.Namespace) -> int:
     return 0
 
 
+def _study_run(args: argparse.Namespace) -> int:
+    """Run Claude Code on one instruction variant and collect the transcripts.
+
+    @doc: docs/design/Study.md#2-실행-기록-생성-m9-t2
+    """
+    try:
+        instruction = args.instruction.read_text(encoding="utf-8")
+    except OSError as error:
+        print(f"오류: 지시 파일을 읽을 수 없음: {error}", file=sys.stderr)
+        return 1
+    spec = RunSpec(
+        repo=args.repo, commit=args.commit, instruction=instruction, name=args.name, model=args.model,
+        max_budget_usd=args.max_budget_usd, timeout=args.timeout, claude=args.claude,
+    )
+    try:
+        records = run_variant(spec, args.runs, args.out, default_projects_dir(), args.workdir)
+    except (ValueError, subprocess.CalledProcessError) as error:
+        print(f"오류: {error}", file=sys.stderr)
+        return 1
+    for record in records:
+        print(f"{record['name']} #{record['run']}: {record['transcript'] or '기록 없음'} "
+              f"(종료 코드 {record['exit_code']}, 비용 {record['total_cost_usd']})")
+    failed = sum(1 for record in records if record["transcript"] is None)
+    print(f"실행 {len(records)}회, 기록 없음 {failed}회, 실행 정보: {args.out / 'runs.jsonl'}")
+    return 1 if failed else 0
+
+
 def _apply_settings_change(path: Path, change: str, port: int | None) -> int:
     try:
         settings = load_settings(path)
@@ -183,6 +213,23 @@ def _build_parser() -> argparse.ArgumentParser:
     experiment.add_argument("--transcripts", type=Path, required=True, help="시나리오 세션 기록 폴더 (<프로젝트 폴더>/<세션>.jsonl)")
     experiment.add_argument("--port", type=_port, default=DEFAULT_PORT, help=f"포트 (기본 {DEFAULT_PORT})")
     experiment.set_defaults(handler=_experiment)
+
+    study = commands.add_parser("study", help="연구 설계 2의 실험 자료를 만든다.")
+    study.set_defaults(handler=lambda _: _print_help(study))
+    study_commands = study.add_subparsers(dest="study_command")
+    run = study_commands.add_parser("run", help="지시 변형으로 Claude Code를 실행해 실행 기록을 모은다.")
+    run.add_argument("--repo", required=True, help="원본 과제 저장소 (경로 또는 URL)")
+    run.add_argument("--commit", required=True, help="작업을 시작할 커밋")
+    run.add_argument("--instruction", type=Path, required=True, help="지시 파일 (UTF-8 텍스트)")
+    run.add_argument("--name", required=True, help="변형 이름 (영문자·숫자·_·-)")
+    run.add_argument("--out", type=Path, required=True, help="결과 폴더 (실험 모드의 --transcripts)")
+    run.add_argument("--runs", type=int, default=1, help="실행 회수 (기본 1)")
+    run.add_argument("--model", default=None, help="모델 (실험 내내 고정)")
+    run.add_argument("--max-budget-usd", type=float, default=None, help="회차마다 최대 비용")
+    run.add_argument("--timeout", type=float, default=STUDY_TIMEOUT_SECONDS, help=f"회차마다 최대 시간(초, 기본 {STUDY_TIMEOUT_SECONDS})")
+    run.add_argument("--workdir", type=Path, default=None, help="작업 사본을 둘 폴더 (기본: 임시 폴더/agentvis-study)")
+    run.add_argument("--claude", default="claude", help="Claude Code 실행 파일 (기본 claude)")
+    run.set_defaults(handler=_study_run)
 
     hooks = commands.add_parser("hooks", help="Claude Code 설정에 AgentVis hook을 설치하거나 제거한다.")
     hooks.set_defaults(handler=lambda _: _print_help(hooks))

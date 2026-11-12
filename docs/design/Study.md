@@ -1,0 +1,47 @@
+# 실험 자료 도구 설계
+
+이 문서는 [연구 설계 2](../research/StudyDesign.md#4-실험-자료)의 실험 자료를 만드는 도구를 설계한다. 오류를 심은 지시로 실행 기록을 만들고(M9-T2), 정답표를 검사하고(M9-T3), 기준선 텍스트 보기를 만든다(M9-T4). 도구는 `agentvis study` 하위 명령과 [agentvis/study](../../src/agentvis/study/__init__.py) 패키지다. 만든 자료는 [실험 모드](Cli.md#22-experiment)로 참가자에게 준다. 전체 문서 목록은 [문서 인덱스](../index.md)에서 확인한다.
+
+## 1. 자료의 모양
+
+한 과제(원본 과제)에서 지시의 변형 여러 개를 만들고, 변형마다 Claude Code를 여러 번 실행한다. 결과 폴더는 Claude Code 기록 루트와 같은 모양이라 그대로 실험 모드의 `--transcripts`가 된다.
+
+```text
+<결과 폴더>/
+  runs.jsonl                       # 실행마다 한 줄: 변형, 회차, 세션 ID, 버전, 비용 등
+  <변형 이름>/                     # 예: cal-e2 (실험 모드에서는 프로젝트 폴더)
+    <세션 ID>.jsonl                # 실행 기록
+    <세션 ID>/subagents/…          # 서브에이전트 기록(있으면)
+    <세션 ID>.diff                 # 실행이 끝난 뒤 작업 사본의 변경(주석용)
+```
+
+- 변형 이름은 영문자·숫자·`_`·`-`만 쓴다([STUDY_NAME_PATTERN](../../src/agentvis/study/runner.py#STUDY_NAME_PATTERN)). 폴더 이름이 되기 때문이다.
+- 결과 폴더는 연구자 컴퓨터에만 둔다. 공개 저장소에서 만든 과제라 보충 자료로 낼 수 있지만, 내기 전에 기록에 개인 경로·토큰이 없는지 확인한다.
+
+## 2. 실행 기록 생성 (M9-T2)
+
+`agentvis study run --repo <저장소> --commit <커밋> --instruction <지시 파일> --name <변형 이름> --out <결과 폴더> [--runs N] [--model M] [--max-budget-usd X] [--timeout S] [--workdir DIR] [--claude PATH]`
+
+명령 처리는 [_study_run](../../src/agentvis/cli.py#_study_run)이 하고, [run_variant](../../src/agentvis/study/runner.py#run_variant)가 회차마다 다음을 한다.
+
+1. **작업 사본**: `<workdir>/<변형 이름>-<회차>`를 지우고 `git clone --quiet <저장소>`한 뒤 `git checkout --quiet <커밋>`한다. 기본 `workdir`은 시스템 임시 폴더 아래 `agentvis-study`다. 경로가 기록의 `cwd`로 남으므로 개인 정보가 없는 경로를 쓴다.
+2. **실행**: [claude_command](../../src/agentvis/study/runner.py#claude_command)가 만든 명령을 작업 사본에서 실행한다.
+   - `claude -p <지시> --session-id <새 UUID> --output-format json --setting-sources project,local --strict-mcp-config --permission-mode acceptEdits --allowedTools Bash Read Edit Write Glob Grep`
+   - `--setting-sources project,local`: 사용자 설정(`~/.claude/settings.json`)을 읽지 않는다. 사용자 설정의 AgentVis hook이 실행 기록을 평소 데이터베이스로 보내지 않게 하고, 연구자의 개인 규칙이 실험 기록에 섞이지 않게 한다(I26). `--strict-mcp-config`로 사용자의 MCP 서버도 쓰지 않는다.
+   - 비대화형이라 권한을 물을 수 없으므로, 편집은 `acceptEdits`로, Bash는 `--allowedTools`로 허용한다. **Bash는 제한 없이 실행되므로, 신뢰할 수 있는 공개 저장소의 작업 사본에서만 돌리고, 가능하면 컨테이너나 별도 계정에서 돌린다.**
+   - `--model`과 `--max-budget-usd`를 주면 그대로 넘긴다. 모델은 실험 내내 고정한다.
+   - [STUDY_TIMEOUT_SECONDS](../../src/agentvis/study/runner.py#STUDY_TIMEOUT_SECONDS)(1,800초, `--timeout`으로 바꿈)가 지나면 멈추고, 그 회차는 `timed_out`으로 남긴다.
+3. **기록 옮기기**: [collect_transcript](../../src/agentvis/study/runner.py#collect_transcript)가 `~/.claude/projects/*/<세션 ID>.jsonl`과 같은 이름의 폴더(서브에이전트 기록)를 결과 폴더의 `<변형 이름>/` 아래로 **옮긴다**. 복사가 아니라 옮기는 이유는, 남겨 두면 평소 `agentvis serve`가 다음 시작 때 놓친 기록으로 읽어 연구자의 데이터베이스에 섞이기 때문이다.
+4. **변경 남기기**: 작업 사본에서 `git add -A` 뒤 `git diff --cached`를 `<세션 ID>.diff`로 저장한다. 빌드 부산물(`__pycache__`, `*.pyc`, `node_modules`, `.pytest_cache`)은 [DIFF_EXCLUDES](../../src/agentvis/study/runner.py#DIFF_EXCLUDES)로 뺀다. 주석자가 정답표를 만들 때 본다.
+5. **실행 정보**: `runs.jsonl`에 한 줄을 덧붙인다. 필드는 `name`, `run`, `session_id`, `repo`, `commit`, `model`, `claude_version`(`claude --version`), `started_at`, `ended_at`, `exit_code`, `timed_out`, `transcript`(결과 폴더 기준 경로, 없으면 null), 그리고 `claude`의 JSON 출력에서 `is_error`, `num_turns`, `total_cost_usd`, `duration_ms`다. 버전과 모델은 논문에 밝혀야 한다([제출 계획](../research/SubmissionPlan.md#5-제출-전-점검-목록)).
+
+- 기록 파일을 찾지 못하면(실행이 시작도 못 함) 그 회차의 `transcript`는 null이고, 명령은 끝에 실패 회차 수를 알리며 종료 코드 1로 끝난다. 다른 회차는 계속한다.
+- 실행은 [RunSpec](../../src/agentvis/study/runner.py#RunSpec)으로 묶고, Claude Code 호출은 바꿔 끼울 수 있는 함수로 받는다. 테스트는 가짜 호출로 기록 파일을 만들어 실제 Claude Code를 부르지 않는다.
+
+## 6. 테스트
+
+- [tests/test_study_runner.py](../../tests/test_study_runner.py) (M9-T2)
+  - 명령에 `-p`, 새 세션 ID, `--setting-sources project,local`, `--strict-mcp-config`, 허용 도구가 있고, 모델·예산을 주면 들어간다.
+  - 임시 git 저장소를 원본으로 두 회차를 돌리면, 가짜 호출이 기록 루트에 쓴 기록이 결과 폴더의 `<변형>/<세션 ID>.jsonl`로 옮겨지고 기록 루트에는 남지 않는다. 서브에이전트 폴더도 옮겨진다. 가짜 호출이 바꾼 파일이 `.diff`에 있고, `__pycache__`는 없다. `runs.jsonl`에 두 줄이 있고 필드가 맞다.
+  - 가짜 호출이 기록을 쓰지 않으면 그 회차의 `transcript`는 null이고 실패 회차로 센다.
+  - 변형 이름에 `/`나 `..`가 있으면 거부한다.
