@@ -92,7 +92,7 @@
 | `status` | `tool_call`과 `background_task`만 가진다. [도구 호출 상태](Analysis.md#5-도구-호출)와 같다. |
 | `step_ids` | 상세 보기를 위한 원천 단계 `id` 목록. 화면은 세션 상세의 단계를 이 `id`로 찾아 보여 준다. |
 | `generation_started_at`, `output_chars` | `model` 노드만 가진다. 아래 작성 구간(I38). 그 밖의 노드는 `None`이다. |
-| `marks` | 과업 표지 목록(M8-T6, [분석기의 테스트 사건과 완료 보고](Analysis.md#51-테스트-사건과-완료-보고)). 없으면 빈 목록이다. `tool_call` 노드: 테스트 실행이면 결과에 따라 `test_pass`·`test_fail`·`test_unknown` 중 하나와, 출력을 잘랐으면 `clipped`. 테스트 파일 변경이면 `test_edit`와, 추정이면 `test_edit_estimated`, 실패 직후면 `after_failure`. 할 일 도구의 완료 보고를 담은 호출이면 `completion`. `model` 노드: 단계 중 하나가 응답 글의 완료 보고이면 `completion`. 2.0.0부터 노드의 단계에 [지시 대조 신호](ReviewView.md#33-흐름-위의-표지와-흐림-r2r3r4-m10-t3m10-t5)가 있으면 그 종류마다 `signal_<종류>`(`signal_interpret`, `signal_outside` 등)를 더한다. |
+| `marks` | 과업 표지 목록(M8-T6, [분석기의 테스트 사건과 완료 보고](Analysis.md#51-테스트-사건과-완료-보고)). 없으면 빈 목록이다. `tool_call` 노드: 테스트 실행이면 결과에 따라 `test_pass`·`test_fail`·`test_unknown` 중 하나와, 출력을 잘랐으면 `clipped`. 테스트 파일 변경이면 `test_edit`와, 추정이면 `test_edit_estimated`, 실패 직후면 `after_failure`. 할 일 도구의 완료 보고를 담은 호출이면 `completion`. `model` 노드: 단계 중 하나가 응답 글의 완료 보고이면 `completion`. 2.0.0부터(M10-T3) 노드의 단계에 [지시 대조 신호](ReviewView.md#33-흐름-위의-표지와-흐림-r2r3r4-m10-t3m10-t5)가 있으면 그 종류마다 `signal_<종류>`(`signal_interpret`, `signal_outside` 등)를 더한다. |
 
 **막대 노드의 실행 구간**은 아래처럼 정한다.
 - 시작은 `PreToolUse` hook 시각이다. hook이 없으면 `tool_use` 기록 시각이다.

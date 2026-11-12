@@ -45,7 +45,7 @@ class TestOutcomeTest(unittest.TestCase):
 
 
 class FailedTestsTest(unittest.TestCase):
-    """@doc: docs/design/Analysis.md#9-테스트"""
+    """@doc: docs/design/ReviewView.md#5-테스트"""
 
     def test_names_from_each_runner(self) -> None:
         text = "FAILED tests/a.py::test_x - E\nFAILED tests/a.py::test_x - E\nFAIL: test_c (tests.t.T.test_c)\nERROR: test_b (tests.t.C)\n    --- FAIL: TestGo (0.00s)"

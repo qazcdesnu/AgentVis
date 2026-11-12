@@ -239,4 +239,5 @@ class MarkTest(unittest.TestCase):
         _say(s, "a4", "a3", "m3", {"type": "text", "text": "테스트를 고쳤습니다."})
         s.hook("Stop", prompt_id="p1")
         marks = {node.label.split()[0]: node.marks for node in _graph(s).nodes if node.marks}
-        self.assertEqual(marks, {"Bash": ["test_fail", "clipped"], "Write": ["test_edit", "after_failure"], "테스트를": ["completion"]})
+        # 2.0.0 adds the instruction review's signals: the failing run before any source edit is a reproduction.
+        self.assertEqual(marks, {"Bash": ["test_fail", "clipped", "signal_repro"], "Write": ["test_edit", "after_failure"], "테스트를": ["completion"]})
