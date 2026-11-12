@@ -60,12 +60,13 @@ class InteractionLog:
     @doc: docs/design/WebUI.md#92-api와-기록-파일
     """
 
-    def __init__(self, path: Path, participant: str) -> None:
+    def __init__(self, path: Path, participant: str, condition: str = "agentvis") -> None:
         self.path = path
         self.participant = participant
+        self.condition = condition
         self._lock = threading.Lock()
         path.parent.mkdir(parents=True, exist_ok=True)
-        self._write([{"type": "server_start", "participant": participant, "version": __version__}])
+        self._write([{"type": "server_start", "participant": participant, "version": __version__, "condition": condition}])
 
     def append(self, events: list[dict]) -> int:
         """Append checked events, one line each, and return how many were written.

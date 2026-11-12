@@ -125,11 +125,14 @@ def _experiment(args: argparse.Namespace) -> int:
             print(f"AgentVis 실험 모드: 참가자 {args.participant}")
             print(f"AgentVis 서버: http://{_HOST}:{args.port}")
             print(f"시나리오 세션 기록: {len(files)}개 파일")
-            log = InteractionLog(directory / "interactions.jsonl", args.participant)
+            condition = "baseline" if args.baseline else "agentvis"
+            print(f"조건: {'기준선 텍스트 보기' if args.baseline else 'AgentVis'}")
+            log = InteractionLog(directory / "interactions.jsonl", args.participant, condition)
             print(f"데이터 디렉터리: {directory}")
             print(f"화면 사용 기록: {log.path}")
             print(f"AgentVis 버전: {__version__}", flush=True)
-            _run_server(create_app(store, reader, collect_hooks=False, interaction_log=log), _HOST, args.port)
+            app = create_app(store, reader, collect_hooks=False, interaction_log=log, baseline=transcripts if args.baseline else None)
+            _run_server(app, _HOST, args.port)
         finally:
             reader.stop()
     return 0
@@ -240,6 +243,7 @@ def _build_parser() -> argparse.ArgumentParser:
     experiment = commands.add_parser("experiment", help="실험 모드: 시나리오 세션 기록만 읽어 참가자별로 저장하고 서버를 실행한다.")
     experiment.add_argument("participant", type=_participant, help="참가자 번호 (영문자·숫자·_·- 1~32자)")
     experiment.add_argument("--transcripts", type=Path, required=True, help="시나리오 세션 기록 폴더 (<프로젝트 폴더>/<세션>.jsonl)")
+    experiment.add_argument("--baseline", action="store_true", help="기준선 조건: AgentVis 대신 텍스트 기록 보기를 준다")
     experiment.add_argument("--port", type=_port, default=DEFAULT_PORT, help=f"포트 (기본 {DEFAULT_PORT})")
     experiment.set_defaults(handler=_experiment)
 

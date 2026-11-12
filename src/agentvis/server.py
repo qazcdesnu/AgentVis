@@ -7,6 +7,7 @@
 @doc: docs/design/WebUI.md#81-변경-알림-스트림
 @doc: docs/design/WebUI.md#92-api와-기록-파일
 @doc: docs/design/ReviewView.md#41-모델
+@doc: docs/design/WebUI.md#94-기준선-조건-m11-t1
 """
 
 import asyncio
@@ -17,7 +18,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.trustedhost import TrustedHostMiddleware
@@ -28,6 +29,8 @@ from agentvis import __version__
 from agentvis.analysis.catalog import get_session, get_tool_output, get_turn_graph, get_turn_review, list_projects, list_sessions
 from agentvis.collector import InvalidHookEvent, hook_event_to_raw
 from agentvis.interaction import InteractionLog, InvalidInteractions, parse_events
+from agentvis.study.baseline import render_index, render_transcript
+from agentvis.study.key import read_records
 from agentvis.store import EventStore
 from agentvis.transcript import TranscriptReader, paths_to_read
 
@@ -100,6 +103,7 @@ def create_app(
     reader: TranscriptReader | None = None,
     collect_hooks: bool = True,
     interaction_log: InteractionLog | None = None,
+    baseline: Path | None = None,
 ) -> FastAPI:
     """Build the FastAPI app that stores hook events in the given store, unless collect_hooks is off.
 
@@ -138,7 +142,11 @@ def create_app(
 
     @app.get("/api/experiment")
     def experiment() -> dict:
-        return {"participant": interaction_log.participant if interaction_log else None, "version": __version__}
+        return {
+            "participant": interaction_log.participant if interaction_log else None,
+            "version": __version__,
+            "condition": interaction_log.condition if interaction_log else None,
+        }
 
     @app.post("/api/interactions")
     async def interactions(request: Request) -> JSONResponse:
@@ -201,6 +209,21 @@ def create_app(
         if review is None:
             raise HTTPException(status_code=404, detail="세션 또는 턴 없음")
         return jsonable_encoder(review)
+
+    if baseline is not None:
+        # The baseline condition: plain transcript pages instead of AgentVis (WebUI.md section 9.4).
+        sessions = {path.stem: path for path in sorted(baseline.glob("*/*.jsonl"))}
+
+        @app.get("/", response_class=HTMLResponse)
+        def baseline_index() -> str:
+            return render_index(list(sessions))
+
+        @app.get("/baseline/{session_id}", response_class=HTMLResponse)
+        def baseline_page(session_id: str) -> str:
+            path = sessions.get(session_id)
+            if path is None:
+                raise HTTPException(status_code=404, detail="기록 없음")
+            return render_transcript(read_records(path), f"실행 기록 {list(sessions).index(session_id) + 1}", experiment=True)
 
     # Mounted last so the API routes above take precedence over static files.
     app.mount("/", _RevalidatedStaticFiles(directory=_WEB_DIR, html=True), name="web")
