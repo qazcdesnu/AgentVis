@@ -29,6 +29,7 @@ from agentvis.hook_settings import (
 )
 from agentvis.interaction import InteractionLog
 from agentvis.server import create_app
+from agentvis.study.baseline import write_baseline
 from agentvis.study.key import check_key, key_summary
 from agentvis.study.runner import STUDY_TIMEOUT_SECONDS, RunSpec, run_variant
 from agentvis.store import EventStore, data_dir, default_db_path, experiment_dir
@@ -176,6 +177,18 @@ def _study_check_key(args: argparse.Namespace) -> int:
     return 0
 
 
+def _study_baseline(args: argparse.Namespace) -> int:
+    """Write the baseline text view of every transcript in a scenario folder.
+
+    @doc: docs/design/Study.md#4-기준선-텍스트-기록-보기-m9-t4
+    """
+    written = write_baseline(args.folder, args.out)
+    for path in written:
+        print(path)
+    print(f"기준선 텍스트 보기 {len(written)}개")
+    return 0 if written else 1
+
+
 def _apply_settings_change(path: Path, change: str, port: int | None) -> int:
     try:
         settings = load_settings(path)
@@ -249,6 +262,10 @@ def _build_parser() -> argparse.ArgumentParser:
     check = study_commands.add_parser("check-key", help="시나리오 폴더의 정답표(key.json)를 검사한다.")
     check.add_argument("folder", type=Path, help="시나리오 폴더")
     check.set_defaults(handler=_study_check_key)
+    baseline = study_commands.add_parser("baseline", help="기준선 조건의 텍스트 기록 보기(HTML)를 만든다.")
+    baseline.add_argument("folder", type=Path, help="시나리오 폴더")
+    baseline.add_argument("--out", type=Path, required=True, help="HTML을 쓸 폴더")
+    baseline.set_defaults(handler=_study_baseline)
 
     hooks = commands.add_parser("hooks", help="Claude Code 설정에 AgentVis hook을 설치하거나 제거한다.")
     hooks.set_defaults(handler=lambda _: _print_help(hooks))

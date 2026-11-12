@@ -4,8 +4,10 @@
 """
 
 import json
+import os
 import re
 import shutil
+import stat
 import subprocess
 import tempfile
 import uuid
@@ -86,6 +88,12 @@ def _invoke(command: list[str], cwd: Path, timeout: float) -> subprocess.Complet
     return subprocess.run(command, cwd=cwd, capture_output=True, text=True, encoding="utf-8", timeout=timeout)
 
 
+def _force_remove(function: Callable, path: str, _: BaseException) -> None:
+    # Git leaves its object files read-only, which Windows refuses to delete.
+    os.chmod(path, stat.S_IWRITE)
+    function(path)
+
+
 def _git(*args: str, cwd: Path | None = None) -> str:
     result = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, encoding="utf-8", check=True)
     return result.stdout
@@ -132,9 +140,10 @@ def run_variant(
     out.mkdir(parents=True, exist_ok=True)
     records = []
     for run in range(1, runs + 1):
-        work = workdir / f"{spec.name}-{run}"
+        # One neutral path per task: the working directory shows in the transcript (Study.md section 2).
+        work = workdir / (Path(spec.repo.rstrip("/")).name.removesuffix(".git") or "repo")
         if work.exists():
-            shutil.rmtree(work)
+            shutil.rmtree(work, onexc=_force_remove)
         work.parent.mkdir(parents=True, exist_ok=True)
         _git("clone", "--quiet", spec.repo, str(work))
         _git("checkout", "--quiet", spec.commit, cwd=work)

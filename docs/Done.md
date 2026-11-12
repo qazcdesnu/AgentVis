@@ -6,6 +6,37 @@
 
 
 
+
+## M9-T4 기준선 텍스트 기록 보기 생성기
+
+- 시작일: 2026-11-13
+- 완료일: 2026-11-13
+- 근거 문서: [실험 자료 도구 설계의 기준선](design/Study.md#4-기준선-텍스트-기록-보기-m9-t4), [연구 설계 2의 기준선](research/StudyDesign.md#52-기준선)
+- 관련 이슈: I62
+
+### 계획
+- `agentvis study baseline`으로 시나리오 폴더의 기록마다 Claude Code 대화 화면 같은 시간 순서의 HTML 한 장을 만든다. 정보는 AgentVis와 같게(시각 포함) 두고, 검색은 브라우저 찾기로 한다.
+- M9-T3 브랜치 위에 쌓은 `m9-t4-baseline-view`에서 진행한다.
+
+### 진행 기록
+- 2026-11-13: 실행 기록 생성기(M9-T2)가 작업 사본을 `<변형 이름>-<회차>` 폴더에 만들어, 그 경로가 기록의 `cwd`로 남아 실험 화면에 오류 유형(예: `toy-e2-1`)이 보이는 문제를 찾았다. 같은 과제의 모든 회차가 `<workdir>/<저장소 이름>`에서 돌게 고쳤다.
+- 2026-11-13: M9-T2의 실제 기록으로 HTML을 만들어 헤드리스 Chrome으로 찍었다. 사용자 입력, 도구 호출과 결과(26줄 결과는 접힘), 생각(내용 없음, 접힘), 응답, Edit의 바꾸기 전·뒤가 차례로 보였다.
+
+### 결정 사항
+- 파일 이름과 제목에 변형 이름을 넣지 않고 세션 ID를 쓴다.
+- 스크립트 없이 HTML과 스타일만 쓴다. 모든 글을 이스케이프한다.
+
+### 변경 파일
+- `src/agentvis/study/baseline.py`(새 파일), `src/agentvis/study/key.py`, `src/agentvis/study/runner.py`, `src/agentvis/cli.py`
+- `tests/test_study_baseline.py`(새 파일), `tests/test_study_runner.py`
+- `docs/design/Study.md`, `docs/design/Cli.md`, `docs/Roadmap.md`, `docs/Ongoing.md`, `docs/Done.md`
+
+### 결과
+- `agentvis study baseline`으로 기준선 조건의 텍스트 기록 보기를 만들 수 있다. 실행 기록 생성기는 변형 이름이 경로로 새지 않게 같은 과제를 한 경로에서 돌린다.
+
+### 검증
+- check_docs, check_pointers, check_tasks, check_commits, check_web, 단위 테스트 통과(새 테스트 3개). 실제 기록으로 만든 HTML을 헤드리스 Chrome으로 찍어 확인했다.
+
 ## M9-T3 자극 정답표 형식과 검사기
 
 - 시작일: 2026-11-13

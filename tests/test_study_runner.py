@@ -50,10 +50,12 @@ class RunVariantTest(RepoTestCase):
         self.commit = _git(self.origin, "rev-parse", "HEAD")
         self.projects = self.root / "projects"
         self.out = self.root / "out"
+        self.cwds: list[Path] = []
 
     def fake_claude(self, write: bool = True):
         def invoke(command: list[str], cwd: Path, timeout: float) -> subprocess.CompletedProcess:
             session = command[command.index("--session-id") + 1]
+            self.cwds.append(cwd)
             (cwd / "calc.py").write_text("def add(a, b):\n    return a + b\n", encoding="utf-8")
             (cwd / "__pycache__").mkdir(exist_ok=True)
             (cwd / "__pycache__" / "calc.cpython-312.pyc").write_bytes(b"\x00binary")
@@ -83,6 +85,8 @@ class RunVariantTest(RepoTestCase):
             self.assertIn("+    return a + b", diff)
             self.assertNotIn("__pycache__", diff)
             self.assertEqual((record["claude_version"], record["num_turns"], record["exit_code"]), ("9.9.9", 3, 0))
+        # Every run of a task works in the same neutral folder, so the path does not name the variant.
+        self.assertEqual(self.cwds, [self.root / "work" / "origin"] * 2)
         # Nothing is left where `agentvis serve` would read it later.
         self.assertEqual(list(self.projects.glob("*/*.jsonl")), [])
         lines = (self.out / "runs.jsonl").read_text(encoding="utf-8").splitlines()
