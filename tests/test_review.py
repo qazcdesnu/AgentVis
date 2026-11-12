@@ -173,3 +173,26 @@ class EvidenceSignalTest(unittest.TestCase):
         self.call("Bash", "FAILED tests/t.py::test_code - x\n1 failed in 0.1s", command="pytest -q tests/t.py")
         self.call("Bash", "FAILED tests/t.py::test_code - x\n1 failed, 1 passed in 0.1s", command="pytest -q")
         self.assertEqual(self.signals("conflict"), [("통과로 바뀜: tests/t.py::test_code · 실패로 바뀜: tests/t.py::test_plain", 3)])
+
+
+class QuietStepTest(unittest.TestCase):
+    """@doc: docs/design/ReviewView.md#5-테스트"""
+
+    def test_quiet_steps_and_quiet_nodes(self) -> None:
+        s = _Session()
+        s.prompt("u1", "p1", "`invoice.py`를 고쳐 주세요.")
+        s.assistant("a1", "u1", {"type": "thinking", "thinking": ""})
+        s.assistant("a2", "a1", {"type": "tool_use", "id": "toolu_1", "name": "Read", "input": {"file_path": "/Users/me/app/invoice.py"}})
+        s.result("r1", "a2", "p1", "toolu_1", "code")
+        s.assistant("a3", "r1", {"type": "tool_use", "id": "toolu_2", "name": "Bash", "input": {"command": "ls"}})
+        s.result("r2", "a3", "p1", "toolu_2", "Exit code 1", is_error=True)
+        s.assistant("a4", "r2", {"type": "tool_use", "id": "toolu_3", "name": "Edit", "input": {"file_path": "/Users/me/app/discount.py"}})
+        s.result("r3", "a4", "p1", "toolu_3", "ok")
+        s.assistant("a5", "r3", {"type": "text", "text": "고쳤습니다."})
+        s.hook("Stop", prompt_id="p1")
+        view = s.build()
+        review = review_turn(view, 1)
+        names = {step.id: (step.tool_call.tool_name if step.tool_call else step.kind) for step in view.turns[0].steps}
+        self.assertEqual(sorted(names[step_id] for step_id in review.quiet_steps), ["Read", "thinking"])
+        quiet_nodes = sorted(node.label.split()[0] for node in build_turn_graph(view, 1).nodes if node.quiet)
+        self.assertEqual(quiet_nodes, ["Read", "생각"])

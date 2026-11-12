@@ -392,3 +392,8 @@ details > summary { cursor: pointer; list-style-position: outside; }
 .rv-kind { font-weight: 600; white-space: nowrap; }
 .rv-summary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rv-ref { color: var(--muted); text-align: right; }
+
+/* Quiet work (N9): dimmed in the graph, folded in the list. docs/design/ReviewView.md section 3.3. */
+.g-node.quiet { opacity: 0.35; }
+.quiet-run > details > summary { color: var(--muted); cursor: pointer; font-size: 12px; padding: 2px 0; }
+.overview-fold > summary { color: var(--muted); cursor: pointer; font-size: 12px; }
