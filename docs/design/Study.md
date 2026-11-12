@@ -24,7 +24,7 @@
 
 명령 처리는 [_study_run](../../src/agentvis/cli.py#_study_run)이 하고, [run_variant](../../src/agentvis/study/runner.py#run_variant)가 회차마다 다음을 한다.
 
-1. **작업 사본**: `<workdir>/<저장소 이름>`을 지우고 `git clone --quiet <저장소>`한 뒤 `git checkout --quiet <커밋>`한다. 기본 `workdir`은 시스템 임시 폴더 아래 `agentvis-study`다. 경로가 기록의 `cwd`로 남아 화면에 보이므로, 개인 정보가 없는 경로를 쓰고 **변형 이름을 넣지 않는다**. 같은 과제의 모든 변형과 회차가 같은 경로에서 돌아, 참가자가 경로로 오류 유형을 짐작하지 못한다(M9-T4에서 고침). 저장소 이름은 경로나 URL의 마지막 부분에서 `.git`을 뗀 것이다.
+1. **작업 사본**: `<workdir>/<저장소 이름>`을 지우고(git이 읽기 전용으로 둔 파일도 쓰기 권한을 주고 지운다. Windows는 읽기 전용 파일을 지우지 못한다) `git clone --quiet <저장소>`한 뒤 `git checkout --quiet <커밋>`한다. 기본 `workdir`은 시스템 임시 폴더 아래 `agentvis-study`다. 경로가 기록의 `cwd`로 남아 화면에 보이므로, 개인 정보가 없는 경로를 쓰고 **변형 이름을 넣지 않는다**. 같은 과제의 모든 변형과 회차가 같은 경로에서 돌아, 참가자가 경로로 오류 유형을 짐작하지 못한다(M9-T4에서 고침). 저장소 이름은 경로나 URL의 마지막 부분에서 `.git`을 뗀 것이다.
 2. **실행**: [claude_command](../../src/agentvis/study/runner.py#claude_command)가 만든 명령을 작업 사본에서 실행한다.
    - `claude -p <지시> --session-id <새 UUID> --output-format json --setting-sources project,local --strict-mcp-config --permission-mode acceptEdits --allowedTools Bash Read Edit Write Glob Grep`
    - `--setting-sources project,local`: 사용자 설정(`~/.claude/settings.json`)을 읽지 않는다. 사용자 설정의 AgentVis hook이 실행 기록을 평소 데이터베이스로 보내지 않게 하고, 연구자의 개인 규칙이 실험 기록에 섞이지 않게 한다(I26). `--strict-mcp-config`로 사용자의 MCP 서버도 쓰지 않는다.
