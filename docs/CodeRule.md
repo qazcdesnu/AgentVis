@@ -25,6 +25,7 @@
 | `src/` | 제품 코드. 패키지 구성과 기술 스택은 [시스템 구조](Architecture.md#7-코드-구성)를 따른다. |
 | `tools/` | 개발용 도구(검증 스크립트 등). [검증 도구](VerificationTools.md)에 규정된다. |
 | `tests/` | 자동 테스트. |
+| `study/` | 실험 자료의 원본(연습 과제 저장소, 지시 파일). 안내는 [수업 실험 미니 버전 자료 묶음](study/Kit.md)에 있다. 세션 기록과 참가자 데이터는 넣지 않는다. 테스트·검사 대상이 아니다. |
 | `.githooks/` | git hook. 커밋 메시지 검사([커밋 규칙](CommitRule.md#5-강제)). |
 | `.github/` | PR 템플릿과 CI([PR 규칙](PullRequestRule.md)). |
 | `.gitattributes` | 줄바꿈 고정과 저장소에 넣은 라이브러리의 변환 금지([운영체제 이식성](#31-운영체제-이식성)). |
