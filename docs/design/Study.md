@@ -38,6 +38,47 @@
 - 기록 파일을 찾지 못하면(실행이 시작도 못 함) 그 회차의 `transcript`는 null이고, 명령은 끝에 실패 회차 수를 알리며 종료 코드 1로 끝난다. 다른 회차는 계속한다.
 - 실행은 [RunSpec](../../src/agentvis/study/runner.py#RunSpec)으로 묶고, Claude Code 호출은 바꿔 끼울 수 있는 함수로 받는다. 테스트는 가짜 호출로 기록 파일을 만들어 실제 Claude Code를 부르지 않는다.
 
+## 3. 정답표 (M9-T3)
+
+결과 폴더 맨 위의 `key.json`이 정답표다. 시행(참가자에게 보일 기록 하나)마다 심은 오류와 에이전트의 대응을 적는다. 주석자 두 명이 따로 만든 뒤 맞춘 결과를 적는다([연구 설계 2의 U1](../research/StudyDesign.md#32-과업별-정의)).
+
+```json
+{
+  "version": 1,
+  "trials": [
+    {
+      "id": "toy-e2-1",
+      "use": "practice",
+      "variant": "toy-e2",
+      "session_id": "00cf17e0-…",
+      "error_type": "E2",
+      "original_text": "`discount.py`의 코드 조회",
+      "perturbed_text": "`invoice.py`의 `total`에서 `round` 처리",
+      "response": "worked_around",
+      "first_notice": "toolu_…",
+      "note": "주석 메모"
+    }
+  ]
+}
+```
+
+| 필드 | 뜻 | 규칙 |
+| --- | --- | --- |
+| `id` | 시행 이름 | 영문자·숫자·`_`·`-`, 정답표 안에서 겹치지 않는다 |
+| `use` | 쓰임 | `practice`(연습), `trial`(U1·U2 본 시행), `u3`(결정 지점에서 자른 U3용) |
+| `variant`, `session_id` | 기록 위치 | `<결과 폴더>/<variant>/<session_id>.jsonl`이 있어야 한다 |
+| `error_type` | 심은 오류 | `E1`, `E2`, `E3`, `none`(통제 시행) |
+| `original_text`, `perturbed_text` | 바꾼 곳 | `none`이 아니면 둘 다 있어야 하고, `perturbed_text`는 기록의 첫 사용자 입력(지시)에 그대로 들어 있어야 한다. U2의 위치 정답이다. `none`이면 둘 다 null이다 |
+| `response` | U1 대응 범주 | `followed`(알아채지 못하고 지시대로), `asked`(알아채고 물음), `worked_around`(알아채고 말없이 또는 설명하며 우회), `noticed_then_followed`(흔적은 있으나 결국 지시대로) |
+| `first_notice` | U1 처음 알아챈 단계 | 기록의 도구 호출 ID(`toolu_…`)나 기록 줄의 `uuid`. `followed`이면 null, 아니면 기록에 있어야 한다 |
+| `note` | 주석 메모 | 자유 |
+
+[check_key](../../src/agentvis/study/key.py#check_key)`(folder) -> list[str]`가 위 규칙을 검사해 문제 목록을 돌려준다. `agentvis study check-key <결과 폴더>`([_study_check_key](../../src/agentvis/cli.py#_study_check_key))는 문제를 한 줄씩 출력하고 있으면 종료 코드 1로 끝난다. 문제가 없으면 [key_summary](../../src/agentvis/study/key.py#key_summary)가 만든 **오류 유형 × 대응 범주 표**(쓰임별 시행 수)를 출력한다. 자극 세트가 고르게 짜였는지 보기 위해서다([연구 설계 2의 4.3](../research/StudyDesign.md#43-실행-기록-만들기)).
+
+- 범주 값은 [ERROR_TYPES](../../src/agentvis/study/key.py#ERROR_TYPES), [RESPONSES](../../src/agentvis/study/key.py#RESPONSES), [USES](../../src/agentvis/study/key.py#USES)에 있다.
+- 지시는 기록의 첫 `user` 줄에서 읽는다([instruction_text](../../src/agentvis/study/key.py#instruction_text)). 내용이 문자열이면 그대로, 블록 목록이면 `text` 블록을 이어 붙인다.
+- 이 정답표는 참가자에게 보이지 않는다. 실험 모드 서버는 `key.json`을 읽지 않는다.
+
 ## 6. 테스트
 
 - [tests/test_study_runner.py](../../tests/test_study_runner.py) (M9-T2)
@@ -45,3 +86,8 @@
   - 임시 git 저장소를 원본으로 두 회차를 돌리면, 가짜 호출이 기록 루트에 쓴 기록이 결과 폴더의 `<변형>/<세션 ID>.jsonl`로 옮겨지고 기록 루트에는 남지 않는다. 서브에이전트 폴더도 옮겨진다. 가짜 호출이 바꾼 파일이 `.diff`에 있고, `__pycache__`는 없다. `runs.jsonl`에 두 줄이 있고 필드가 맞다.
   - 가짜 호출이 기록을 쓰지 않으면 그 회차의 `transcript`는 null이고 실패 회차로 센다.
   - 변형 이름에 `/`나 `..`가 있으면 거부한다.
+- [tests/test_study_key.py](../../tests/test_study_key.py) (M9-T3)
+  - 올바른 정답표는 문제가 없고, 요약 표에 오류 유형 × 대응 범주의 시행 수가 나온다.
+  - 기록 파일이 없거나, `id`가 겹치거나, 범주 값이 틀리거나, `perturbed_text`가 지시에 없거나, `none`인데 바꾼 곳이 있거나, `followed`인데 `first_notice`가 있거나, `first_notice`가 기록에 없으면 각각 문제로 나온다.
+  - JSON이 아니거나 `trials`가 목록이 아니면 문제 하나로 끝난다.
+  - `study check-key`가 문제가 있으면 1, 없으면 0으로 끝난다.
