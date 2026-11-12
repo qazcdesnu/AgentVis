@@ -208,7 +208,7 @@ function drawNodes(content, placed, height, onSelect) {
   for (const item of placed.values()) {
     const { node } = item;
     const marks = node.marks || [];
-    const element = group.append("g").attr("class", `g-node kind-${node.kind} status-${node.status || "none"}${node.approximate ? " approximate" : ""}${item.open ? " open" : ""}${marks.includes("after_failure") ? " after-failure" : ""}`).attr("data-id", node.id);
+    const element = group.append("g").attr("class", `g-node kind-${node.kind} status-${node.status || "none"}${node.approximate ? " approximate" : ""}${item.open ? " open" : ""}${marks.includes("after_failure") ? " after-failure" : ""}${node.quiet && !item.open ? " quiet" : ""}`).attr("data-id", node.id);
     if (marks.length) {
       const top = item.isBar ? item.y - BAR_HEIGHT / 2 - 2 : item.y - POINT_RADIUS - 3;
       element.append("text").attr("class", `g-mark${marks.includes("test_fail") ? " fail" : ""}`).attr("x", item.isBar ? item.x0 : item.x0 - POINT_RADIUS).attr("y", top).text(markText(marks));
@@ -268,10 +268,11 @@ const LEGEND = [
   ["notification", "알림", "작업 알림, 하위 에이전트 보고 같은 시스템 메시지입니다."],
   ["mark-completion", "완료 보고", "에이전트가 무엇을 완료했다고 보고한 응답(마지막 응답의 완료 문장, 추정)이나 할 일 도구의 완료 항목입니다."],
   ["mark-run", "테스트 실행 결과(출력 요약 기준)", "테스트 실행의 통과·실패를 출력의 요약으로 정했습니다. 막대 색(종료 코드)과 다르면 출력을 잘라 결과를 가린 실행입니다."],
+  ["mark-quiet", "정상 작업(흐림)", "실패도 지시 대조 신호도 없는 작업입니다. 지우지 않고 흐리게 그립니다. 누르면 또렷해집니다."],
   ["mark-signal", "지시 대조 신호", "지시 대조 상자의 신호가 든 노드입니다(추정). ❝ 해석 · ? 질문 · ↗ 지시 밖 · ◇ 재현 · ✕ 남은 실패 · ⇄ 충돌"],
   ["mark-edit", "테스트 파일 변경", "테스트 파일을 바꾼 호출입니다. [테스트?]는 Bash 명령에서 추정했고, 굵은 테두리는 테스트 실패 직후의 변경입니다."],
 ];
-const LEGEND_MARK = { "mark-completion": ["⚑", ""], "mark-run": ["✓ ✕", ""], "mark-edit": ["[테스트]", ""], "mark-signal": ["❝↗", ""] };
+const LEGEND_MARK = { "mark-completion": ["⚑", ""], "mark-run": ["✓ ✕", ""], "mark-edit": ["[테스트]", ""], "mark-signal": ["❝↗", ""], "mark-quiet": ["흐림", ""] };
 
 // One-line legend above the graph (FlowGraph.md section 6.3, I38). Swatches reuse the graph's own sizes and classes,
 // so a symbol looks the same in the legend and in the graph.

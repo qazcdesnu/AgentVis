@@ -12,6 +12,39 @@
 
 
 
+
+## M10-T5 정상 작업 접기
+
+- 시작일: 2026-11-13
+- 완료일: 2026-11-13
+- 근거 문서: [지시 대조 보기 설계의 흐름 위 표지와 흐림](design/ReviewView.md#33-흐름-위의-표지와-흐림-r2r3r4-m10-t3m10-t5), [규칙의 N9](design/ReviewView.md#42-규칙)
+- 관련 이슈: I62
+
+### 계획
+- 지시 대조 모델에 정상 단계(N9: 신호도 실패도 없는 도구 호출·생각·응답, 마지막 응답 제외)를 더한다.
+- 그래프에서는 정상 노드(`quiet`)를 흐리게, 목록 보기에서는 정상 단계 3개 이상의 연속을 한 줄로 접는다. 턴이 하나인 세션의 세션 전체 흐름 상자는 접어 둔다.
+- M10-T4 브랜치 위에 쌓은 `m10-t5-fold-normal-work`에서 진행한다.
+
+### 진행 기록
+- 2026-11-13: 목록 보기가 지시 대조 모델을 쓰도록, 세션을 그릴 때 지시 대조를 먼저 불러오게 바꿨다. 불러오지 못하면 접지 않고 1.1.0처럼 그린다.
+- 2026-11-13: 세션 전체 흐름의 턴 시퀀스는 폭에 맞춰 그리므로, 접힌 상자를 펼칠 때 그리게 했다.
+- 2026-11-13: 연습 과제 기록을 헤드리스 Chrome으로 찍어 세션 전체 흐름이 "턴이 하나라 접어 두었습니다"로 접힌 것과 신호 목록을 확인했다. 이 기록은 짧아 정상 단계가 3개 이상 이어지지 않아 목록 접기는 보이지 않았다. 긴 기록에서의 확인은 M10-T6에서 한다.
+
+### 결정 사항
+- 정상 노드는 지우지 않고 불투명도 0.35로 흐리게 한다. 고른 노드는 흐리지 않는다.
+
+### 변경 파일
+- `src/agentvis/analysis/review.py`, `src/agentvis/analysis/graph.py`
+- `src/agentvis/web/app.js`, `src/agentvis/web/graph.js`, `src/agentvis/web/style.css`
+- `tests/test_review.py`
+- `docs/design/ReviewView.md`, `docs/design/FlowGraph.md`, `docs/design/WebUI.md`, `docs/Roadmap.md`, `docs/Ongoing.md`, `docs/Done.md`
+
+### 결과
+- 신호도 실패도 없는 정상 작업이 그래프에서 흐리게, 목록에서 접혀 보인다. 턴이 하나인 세션은 세션 전체 흐름이 접혀 있다.
+
+### 검증
+- check_docs, check_pointers, check_tasks, check_commits, check_web, 단위 테스트 통과(새 테스트 1개). 헤드리스 Chrome으로 세션 전체 흐름 접힘을 확인했다.
+
 ## M10-T4 어긋난 증거 모으기
 
 - 시작일: 2026-11-13

@@ -370,6 +370,25 @@ def _conflicts(steps: list[Step], sentences: list[Sentence], root: str | None) -
     return signals
 
 
+# Steps that can sit quietly: routine work, never a person's message, a notice or the final report.
+_QUIET_KINDS = {"tool_call", "thinking", "text"}
+
+
+def _quiet_steps(turn: Turn, steps: list[Step], signals: list[Signal]) -> list[int]:
+    """N9: steps with no failure and no signal, which the screen folds or dims."""
+    loud = {signal.step_id for signal in signals}
+    texts = [step for step in turn.steps if step.kind == "text"]
+    if texts:
+        loud.add(texts[-1].id)
+    quiet = []
+    for step in steps:
+        call = step.tool_call
+        failed = call is not None and (call.status in ("error", "interrupted") or (call.test_run or {}).get("result") == "fail")
+        if step.kind in _QUIET_KINDS and step.id not in loud and not failed:
+            quiet.append(step.id)
+    return quiet
+
+
 def review_turn(view: SessionView, index: int) -> Review | None:
     """The instruction review of the turn with the given index, or None if there is no such turn.
 
@@ -384,4 +403,4 @@ def review_turn(view: SessionView, index: int) -> Review | None:
                + _reproductions(steps, sentences, turn.prompt, view.project) + _remaining_failures(steps, sentences, view.project)
                + _conflicts(steps, sentences, view.project))
     signals.sort(key=lambda signal: (signal.at or "", signal.step_id))
-    return Review(turn=index, sentences=sentences, signals=signals)
+    return Review(turn=index, sentences=sentences, signals=signals, quiet_steps=_quiet_steps(turn, steps, signals))

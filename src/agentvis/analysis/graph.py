@@ -53,6 +53,7 @@ class Node:
     generation_started_at: datetime | None = None
     output_chars: int | None = None
     marks: list[str] = field(default_factory=list)
+    quiet: bool = False
 
 
 @dataclass
@@ -289,11 +290,13 @@ def _mark_signals(graph: FlowGraph, session: SessionView, index: int) -> None:
     kinds: dict[int, list[str]] = {}
     for signal in review.signals if review else []:
         kinds.setdefault(signal.step_id, []).append(f"signal_{signal.kind}")
+    quiet = set(review.quiet_steps) if review else set()
     for node in graph.nodes:
         for step_id in node.step_ids:
             for mark in kinds.get(step_id, []):
                 if mark not in node.marks:
                     node.marks.append(mark)
+        node.quiet = node.kind in ("tool_call", "model") and bool(node.step_ids) and quiet.issuperset(node.step_ids)
 
 
 def build_turn_graph(session: SessionView, index: int) -> FlowGraph | None:

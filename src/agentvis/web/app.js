@@ -206,9 +206,40 @@ function testFacts(call) {
   return lines;
 }
 
-function renderSteps(steps) {
+// Runs of at least FOLD_MIN quiet steps fold into one line (ReviewView.md section 3.3, N9).
+const FOLD_MIN = 3;
+
+function quietRun(run, selected) {
+  const item = el("li", "step quiet-run");
+  const details = el("details");
+  const seconds = Math.max(0, Math.round((new Date(run[run.length - 1].at) - new Date(run[0].at)) / 1000));
+  const span = seconds < 60 ? `${seconds}초` : `${Math.floor(seconds / 60)}분 ${seconds % 60}초`;
+  details.append(el("summary", null, `정상 작업 ${run.length}단계 · ${span}`));
+  details.open = run.some((step) => String(step.id) === String(selected));
+  const inner = el("ol", "steps");
+  for (const step of run) inner.append(renderStep(step));
+  details.append(inner);
+  item.append(details);
+  return item;
+}
+
+function renderSteps(steps, quiet = null, selected = null) {
   const list = el("ol", "steps");
-  for (const step of steps) list.append(renderStep(step));
+  let run = [];
+  const flush = () => {
+    if (run.length >= FOLD_MIN) list.append(quietRun(run, selected));
+    else for (const step of run) list.append(renderStep(step));
+    run = [];
+  };
+  for (const step of steps) {
+    if (quiet && quiet.has(step.id)) {
+      run.push(step);
+      continue;
+    }
+    flush();
+    list.append(renderStep(step));
+  }
+  flush();
   return list;
 }
 
@@ -526,14 +557,27 @@ function pickTurn(view, index, step) {
   updateHash({ live: "off", turn: index, step });
 }
 
-// Box between the turn picker and the flow: the instruction review (ReviewView.md section 2).
-async function renderTurnReview(state, view, turn) {
-  const container = el("div", "review");
-  try {
-    if (!cache.reviews.has(turn.index)) {
+// The instruction review of a turn, fetched once per session load; null when it cannot be read.
+async function reviewOf(view, turn) {
+  if (!cache.reviews.has(turn.index)) {
+    try {
       cache.reviews.set(turn.index, await getJSON(`/api/sessions/${encodeURIComponent(view.session_id)}/turns/${turn.index}/review`));
+    } catch {
+      cache.reviews.set(turn.index, null);
     }
-    renderReview(container, turn.prompt, cache.reviews.get(turn.index), state, {
+  }
+  return cache.reviews.get(turn.index);
+}
+
+// Box between the turn picker and the flow: the instruction review (ReviewView.md section 2).
+function renderTurnReview(state, view, turn, review) {
+  const container = el("div", "review");
+  if (!review) {
+    container.append(el("p", "empty", "지시 대조를 불러오지 못했습니다."));
+    return container;
+  }
+  try {
+    renderReview(container, turn.prompt, review, state, {
       onSentence: (sentence) => updateHash({ sentence }),
       onStep: (stepId) => updateHash({ live: "off", turn: turn.index, step: String(stepId) }),
     });
@@ -548,10 +592,11 @@ function followControl() {
 }
 
 // Box 4, list view: the chosen turn's steps (WebUI.md section 7.5).
-function renderTurnSteps(view, turn) {
+function renderTurnSteps(view, turn, review = null, selected = null) {
   const wrapper = el("div", "turn-steps");
   if (turn === view.turns[0] && view.preamble.length) wrapper.append(el("div", "label", "첫 턴 앞의 단계"), renderSteps(view.preamble));
-  wrapper.append(turn.steps.length ? renderSteps(turn.steps) : el("p", "empty", "보여 줄 단계가 없습니다."));
+  const quiet = review ? new Set(review.quiet_steps) : null;
+  wrapper.append(turn.steps.length ? renderSteps(turn.steps, quiet, selected) : el("p", "empty", "보여 줄 단계가 없습니다."));
   return wrapper;
 }
 
@@ -606,28 +651,42 @@ async function loadSession(state) {
     const { view, turns } = cache;
     const header = renderSessionInfo(view);
     const overview = el("div", "overview");
-    const boxes = [box("세션 정보", header, "session"), box("세션 전체 흐름", overview, "session")];
+    // A single-turn session has nothing to sequence, so its overview starts folded (ReviewView.md section 3.3).
+    const single = view.turns.length === 1;
+    let overviewBody = overview;
+    if (single) {
+      overviewBody = el("details", "overview-fold");
+      overviewBody.append(el("summary", null, "턴이 하나라 접어 두었습니다"), overview);
+      overviewBody.open = overviewOpen;
+      overviewBody.addEventListener("toggle", () => {
+        overviewOpen = overviewBody.open;
+        if (overviewBody.open) drawOverview();
+      });
+    }
+    const boxes = [box("세션 정보", header, "session"), box("세션 전체 흐름", overviewBody, "session")];
     const turn = view.turns.length ? chosenTurn(state, view) : null;
     shownTurn = turn ? turn.index : null;
     shownStep = state.live && turn ? latestMainStep(turn) : state.step;
     if (turn) {
-      const flow = state.view === "list" ? renderTurnSteps(view, turn) : await renderTurnGraph(state, view, turn);
+      const review = await reviewOf(view, turn);
+      const flow = state.view === "list" ? renderTurnSteps(view, turn, review, shownStep) : await renderTurnGraph(state, view, turn);
       boxes.push(
         box("턴 선택", renderTurnPicker(view, turn), "turn first"),
-        box("지시 대조", await renderTurnReview(state, view, turn), "turn"),
+        box("지시 대조", renderTurnReview(state, view, turn, review), "turn"),
         box(`턴 #${turn.index} 작업 흐름`, flow, "turn", viewToggle(state)),
       );
     } else {
       boxes.push(box("턴 선택", el("p", "empty", "턴이 없습니다."), "turn first"));
     }
     container.replaceChildren(...boxes);
-    // The strip fits the detail width, so draw it after it is attached.
-    renderOverview(overview, turns, {
+    // The strip fits the detail width, so draw it after it is attached and visible.
+    const drawOverview = () => renderOverview(overview, turns, {
       selected: turn ? turn.index : null,
       width: state.width,
       onSelect: (picked, stepId) => pickTurn(view, picked.index, stepId === null || stepId === undefined ? null : String(stepId)),
       onWidth: (width) => updateHash({ width: width === "time" ? "time" : null }),
     });
+    if (!single || overviewOpen) drawOverview();
     // Only a newly chosen step scrolls the list; a live redraw leaves the scroll where it is.
     // Only a newly chosen step scrolls the list, except while following, which keeps the newest step in sight.
     const focusId = state.live && turn ? latestMainStep(turn) : state.step;
@@ -690,6 +749,8 @@ function box(title, content, scope, controls = null) {
 
 // The last session detail and its turn graphs, reused while only the selection in the hash changes (WebUI.md section 7.4).
 let cache = { view: null, turns: [], graphs: new Map(), reviews: new Map() };
+// Whether a folded single-turn overview was opened; kept while the page stays open.
+let overviewOpen = false;
 let shown = { project: undefined, session: undefined };
 // Zoom and scroll of each drawn graph, by session, turn and time axis, kept across live redraws (WebUI.md section 8.2).
 const graphViews = new Map();
