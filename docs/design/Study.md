@@ -164,6 +164,27 @@
   - `--replace`가 기록·`runs.jsonl`·`.diff`·`key.json`에 적용되고, 바꾼 뒤 남은 개인 정보가 없으면 종료 코드 0이다.
   - 바꾸지 않은 홈 경로와 이메일은 찾아서 보고하고 종료 코드 1이다. 허용한 주소와 이름은 보고하지 않는다.
   - 결과 폴더가 이미 있으면 종료 코드 1이고 그 폴더를 건드리지 않는다.
+- [tests/test_study_logs.py](../../tests/test_study_logs.py) (M11-T4)
+  - 시행 시작·끝으로 걸린 초를 내고, 시행 안의 누름·키·찾기·스크롤·화면 바뀜을 세며, 시행 단추와 시행 밖 사건은 세지 않는다. 누른 요소가 종류별로 묶인다.
+  - 서버를 다시 띄우면 `run`이 오르고, 끝이 없는 시행은 초가 비어 있다. 폴더 인자는 그 아래 기록 파일을 모두 읽고, `--csv`가 같은 줄을 쓴다.
 - [tests/test_study_score.py](../../tests/test_study_score.py) (M11-T3)
   - E2 시행에 지시 밖 신호가 있으면 유형 적중이고, 통제 시행에 증거 신호가 없으면 오경보가 0이다. 알아챔 거리가 단계 순서의 차이로 나온다.
   - 정답표에 문제가 있으면 점수를 내지 않고 종료 코드 1이다. `--json`이 지표를 담는다.
+
+## 7. 화면 사용 기록 요약 (M11-T4)
+
+실험 서버는 블록마다 `<데이터 디렉터리>/experiments/<참가자>-<블록>/interactions.jsonl`을 남긴다([웹 UI 설계 9절](WebUI.md#9-실험-모드)). `agentvis study log-summary [파일이나 폴더 …] [--csv <파일>]`([summarize_logs](../../src/agentvis/study/logs.py#summarize_logs), 처리는 [_study_log_summary](../../src/agentvis/cli.py#_study_log_summary))이 시행마다 한 줄로 요약한다. 인자가 없으면 데이터 디렉터리의 `experiments/*/interactions.jsonl`을 모두 읽고, 폴더를 주면 그 아래의 `interactions.jsonl`을 모두 읽는다.
+
+| 열 | 뜻 |
+| --- | --- |
+| `participant`, `block` | 서버 시작 줄의 참가자 번호, 기록 파일이 든 폴더 이름 |
+| `condition`, `version` | 서버 시작 줄의 조건(`agentvis`·`baseline`)과 AgentVis 버전 |
+| `run` | 그 파일에서 몇 번째 서버 실행인가(서버를 다시 띄우면 시행 번호가 1로 돌아가므로 함께 쓴다) |
+| `trial`, `start`, `end`, `seconds` | 시행 번호, `trial_start`·`trial_end`의 브라우저 시각, 걸린 초. 끝이 없으면 `end`와 `seconds`가 비어 있다 |
+| `clicks`, `keys`, `finds`, `scrolls`, `views` | 시행 동안의 `click`, `key`, `find`, `scroll`, `hash`(화면 상태 바뀜) 수. 시행 단추 누름은 세지 않는다 |
+| `elements` | 시행 동안 누른 화면 요소의 종류별 수(많은 것부터). 종류는 [ELEMENT_KINDS](../../src/agentvis/study/logs.py#ELEMENT_KINDS)로 정한다: 누른 요소의 클래스 앞부분으로 지시 문장(`rv-sentence`·`rv-chip`), 신호 목록(`rv-signal`), 그래프 노드(`g-node`), 단계 목록(`step`), 턴 시퀀스·배지(`ov-`), 기준선 기록 링크 등을 가른다. 맞는 종류가 없으면 `<태그>`다. 2.1.0 전의 기록은 SVG 요소의 클래스를 남기지 않아(화면 사용 기록의 결함, M11-T4에서 고침) SVG 태그(`g`, `rect` 등)를 그래프 노드로 본다 |
+
+- 출력은 열 이름 줄과 시행 줄의 표다. `--csv`면 같은 내용을 CSV 파일로 쓴다([write_csv](../../src/agentvis/study/logs.py#write_csv), 분석용). 요소 종류는 [element_kind](../../src/agentvis/study/logs.py#element_kind)가 정한다.
+- 시행 밖의 사건은 세지 않는다.
+
+

@@ -32,6 +32,7 @@ from agentvis.interaction import InteractionLog
 from agentvis.server import create_app
 from agentvis.study.baseline import write_baseline
 from agentvis.study.key import check_key, key_summary
+from agentvis.study.logs import COLUMNS, summarize_logs, write_csv
 from agentvis.study.score import format_score, score_folder
 from agentvis.study.scrub import scrub_folder
 from agentvis.study.runner import STUDY_TIMEOUT_SECONDS, RunSpec, run_variant
@@ -195,6 +196,26 @@ def _study_baseline(args: argparse.Namespace) -> int:
     return 0 if written else 1
 
 
+def _study_log_summary(args: argparse.Namespace) -> int:
+    """Summarize the experiment server's screen usage logs, one row per trial.
+
+    @doc: docs/design/Study.md#7-화면-사용-기록-요약-m11-t4
+    """
+    paths = args.paths or [data_dir() / "experiments"]
+    rows = summarize_logs([path for path in paths if path.exists()])
+    if not rows:
+        print("오류: 시행이 든 화면 사용 기록이 없음", file=sys.stderr)
+        return 1
+    if args.csv:
+        write_csv(rows, args.csv)
+        print(f"시행 {len(rows)}개를 썼음: {args.csv}")
+        return 0
+    print("\t".join(COLUMNS))
+    for row in rows:
+        print("\t".join("" if row[column] is None else str(row[column]) for column in COLUMNS))
+    return 0
+
+
 def _study_score(args: argparse.Namespace) -> int:
     """Match the instruction review's signals with a scenario folder's answer key.
 
@@ -309,6 +330,10 @@ def _build_parser() -> argparse.ArgumentParser:
     check = study_commands.add_parser("check-key", help="시나리오 폴더의 정답표(key.json)를 검사한다.")
     check.add_argument("folder", type=Path, help="시나리오 폴더")
     check.set_defaults(handler=_study_check_key)
+    logs = study_commands.add_parser("log-summary", help="실험 서버의 화면 사용 기록을 시행마다 한 줄로 요약한다.")
+    logs.add_argument("paths", type=Path, nargs="*", help="interactions.jsonl 파일이나 그것을 담은 폴더 (기본: 데이터 디렉터리의 experiments)")
+    logs.add_argument("--csv", type=Path, default=None, help="CSV 파일로 쓰기")
+    logs.set_defaults(handler=_study_log_summary)
     score = study_commands.add_parser("score", help="지시 대조 신호를 정답표와 맞춰 규칙의 정확도를 잰다.")
     score.add_argument("folder", type=Path, help="시나리오 폴더 (key.json 포함)")
     score.add_argument("--json", action="store_true", help="JSON으로 출력")
