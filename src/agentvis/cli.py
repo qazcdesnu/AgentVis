@@ -29,6 +29,7 @@ from agentvis.hook_settings import (
 )
 from agentvis.interaction import InteractionLog
 from agentvis.server import create_app
+from agentvis.study.key import check_key, key_summary
 from agentvis.study.runner import STUDY_TIMEOUT_SECONDS, RunSpec, run_variant
 from agentvis.store import EventStore, data_dir, default_db_path, experiment_dir
 from agentvis.transcript import TranscriptReader, default_projects_dir, find_unread_transcripts
@@ -160,6 +161,21 @@ def _study_run(args: argparse.Namespace) -> int:
     return 1 if failed else 0
 
 
+def _study_check_key(args: argparse.Namespace) -> int:
+    """Check a scenario folder's answer key and print its balance table.
+
+    @doc: docs/design/Study.md#3-정답표-m9-t3
+    """
+    problems = check_key(args.folder)
+    for problem in problems:
+        print(problem)
+    if problems:
+        print(f"정답표 문제 {len(problems)}건")
+        return 1
+    print(key_summary(args.folder))
+    return 0
+
+
 def _apply_settings_change(path: Path, change: str, port: int | None) -> int:
     try:
         settings = load_settings(path)
@@ -230,6 +246,9 @@ def _build_parser() -> argparse.ArgumentParser:
     run.add_argument("--workdir", type=Path, default=None, help="작업 사본을 둘 폴더 (기본: 임시 폴더/agentvis-study)")
     run.add_argument("--claude", default="claude", help="Claude Code 실행 파일 (기본 claude)")
     run.set_defaults(handler=_study_run)
+    check = study_commands.add_parser("check-key", help="시나리오 폴더의 정답표(key.json)를 검사한다.")
+    check.add_argument("folder", type=Path, help="시나리오 폴더")
+    check.set_defaults(handler=_study_check_key)
 
     hooks = commands.add_parser("hooks", help="Claude Code 설정에 AgentVis hook을 설치하거나 제거한다.")
     hooks.set_defaults(handler=lambda _: _print_help(hooks))
