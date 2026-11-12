@@ -64,4 +64,17 @@ export async function startInteractionLog() {
     if (document.visibilityState === "hidden") flush(true);
   });
   setInterval(() => flush(), FLUSH_MS);
+  // Trial boundaries go out at once, so a task's time comes straight from the log (WebUI.md section 9.1).
+  const trial = document.getElementById("trial");
+  let number = 1;
+  let running = false;
+  trial.hidden = false;
+  trial.addEventListener("click", () => {
+    record(running ? "trial_end" : "trial_start", { trial: number });
+    if (running) number += 1;
+    running = !running;
+    trial.textContent = `시행 ${number} ${running ? "끝" : "시작"}`;
+    trial.classList.toggle("running", running);
+    flush();
+  });
 }

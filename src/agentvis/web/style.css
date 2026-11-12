@@ -64,6 +64,8 @@ body {
 
 .top h1 { font-size: 18px; margin: 0; }
 .top .subtitle { color: var(--muted); }
+.top .trial { font-size: 12px; }
+.top .trial.running { border-color: currentColor; font-weight: 600; }
 .top .experiment { font-size: 12px; padding: 2px 8px; border: 1px solid currentColor; border-radius: 10px; color: var(--muted); }
 .top .live { margin-left: auto; font-size: 12px; }
 .top button#refresh { margin-left: 0; }
