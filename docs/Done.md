@@ -21,6 +21,33 @@
 
 
 
+
+## M11-T5 다른 코딩 에이전트 기록과 정보 항목 대응표
+
+- 시작일: 2026-11-13
+- 완료일: 2026-11-13
+- 근거 문서: [수업 이후 학회 제출 계획](research/SubmissionPlan.md#3-우리-연구에-주는-의미), [과업과 데이터 추상화 2](design/TaskAbstraction2.md#3-새-정보-항목)
+- 관련 이슈: I64
+
+### 계획
+- Codex CLI, OpenHands, SWE-agent, Cursor 에이전트의 기록 위치와 형식을 조사하고, 정보 항목(D·N)마다 얻을 수 있는지 표로 정리한다. 연구 설계 2의 일반성에 주는 의미를 적는다.
+- M11-T4 브랜치 위에 쌓은 `m11-t5-agent-mapping`에서 진행한다. 문서만 바꾼다.
+
+### 진행 기록
+- 2026-11-13: 웹 검색으로 찾은 출처는 대부분 공식 문서가 아니라 커뮤니티 역공학 글, 제3자 도구 소스, 데이터셋 설명이었다. 확인 수준을 표에 함께 적고, 실제 기록으로 확인하는 일을 문서의 "확인할 것"에 남겼다. Cursor 에이전트는 형식이 공개되지 않아 대상에서 뺐다.
+
+### 결정 사항
+- 다른 에이전트를 읽는 변환기는 만들지 않는다. 일반성은 지시 대조 규칙의 입력(지시, 응답, 도구 호출, 출력, 바뀐 파일, 시각)이 다른 에이전트에도 있다는 것으로 주장하고, 실제로 보여야 하면 Codex CLI 변환기부터 만든다.
+
+### 변경 파일
+- `docs/research/AgentLogMapping.md`(새 파일), `docs/research/SubmissionPlan.md`, `docs/index.md`, `docs/Roadmap.md`, `docs/Ongoing.md`, `docs/Done.md`
+
+### 결과
+- [대응표](research/AgentLogMapping.md)에 네 에이전트의 기록 형식과 정보 항목별 대응, 확인 수준이 있다. 세 과업에 필요한 정보는 Codex CLI와 OpenHands에도 있다. 실제 기록 확인은 남았다.
+
+### 검증
+- check_docs, check_pointers, check_tasks, check_commits, check_web, 단위 테스트 통과. 문서만 바꿨다. CI 세 OS는 PR에서 확인한다.
+
 ## M11-T4 화면 사용 기록 요약
 
 - 시작일: 2026-11-13
