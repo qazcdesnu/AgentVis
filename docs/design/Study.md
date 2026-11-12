@@ -16,7 +16,7 @@
 ```
 
 - 변형 이름은 영문자·숫자·`_`·`-`만 쓴다([STUDY_NAME_PATTERN](../../src/agentvis/study/runner.py#STUDY_NAME_PATTERN)). 폴더 이름이 되기 때문이다.
-- 결과 폴더는 연구자 컴퓨터에만 둔다. 공개 저장소에서 만든 과제라 보충 자료로 낼 수 있지만, 내기 전에 기록에 개인 경로·토큰이 없는지 확인한다. 비대화형 기록에는 계정 식별자(`session-owner` 줄의 `accountUuid`, `organizationUuid`)가 들어 있으므로(2026-11-13 실측) 공개하기 전에 그 줄을 지운다.
+- 결과 폴더는 연구자 컴퓨터에만 둔다. 공개 저장소에서 만든 과제라 보충 자료로 낼 수 있지만, 내기 전에 [공개용 익명화](#5-공개용-익명화-m11-t2)(`study scrub`)로 사본을 만들어 그 사본을 낸다. 비대화형 기록에는 계정 식별자, 이메일, 홈 경로가 화면에 쓰지 않는 줄에 들어 있다(2026-11-13 실측).
 
 ## 2. 실행 기록 생성 (M9-T2)
 
@@ -101,6 +101,20 @@
 - 모든 글은 HTML로 이스케이프한다(`html.escape`). 기록은 신뢰할 수 없는 데이터다([웹 UI 설계의 보안](WebUI.md#4-보안)).
 - 파일 하나로 끝나도록 스타일을 안에 넣고, 스크립트와 외부 자원은 쓰지 않는다. 실험 서버가 기준선 조건으로 줄 때(M11-T1, `experiment=True`)만 머리줄과 화면 사용 기록 스크립트(같은 서버의 `/interaction.js`)를 넣는다.
 
+## 5. 공개용 익명화 (M11-T2)
+
+비대화형 실행 기록에는 화면에 쓰지 않는 기록 줄이 함께 남는다. 2026-11-13 연습 과제 기록 실측: `session-owner`(계정·조직 식별자), `api-request-blob`·`api-request-shape`(시스템 프롬프트 전체: 사용자 이메일, 홈 디렉터리 경로), `attachment`의 `prompt_snapshot`·`session_context`(이메일, 경로), `cost-state`, `last-prompt` 등. AgentVis는 이 줄을 읽지 않으므로([기록 변환](Transcript.md#3-기록-변환)) 참가자 화면에는 나오지 않지만, 보충 자료로 기록 파일을 공개하면 함께 나간다.
+
+`agentvis study scrub <결과 폴더> --out <폴더> [--replace 옛글=새글 …]`([scrub_folder](../../src/agentvis/study/scrub.py#scrub_folder), 처리는 [_study_scrub](../../src/agentvis/cli.py#_study_scrub))는 공개용 사본을 만든다.
+
+1. **줄 고르기**: 세션 기록(`*/*.jsonl`, 서브에이전트 기록 포함)에서 AgentVis가 읽는 줄만 남긴다. 판정은 기록 리더와 같은 `record_to_raw`([기록 변환](Transcript.md#3-기록-변환))다. 화면이 쓰는 정보는 그대로이고 나머지는 모두 빠진다.
+2. **필드 지우기**: 남은 줄에서도 [SCRUB_KEYS](../../src/agentvis/study/scrub.py#SCRUB_KEYS)(`accountUuid`, `organizationUuid`, `userEmail`)를 어디에 있든 지운다.
+3. **글 바꾸기**: `--replace`로 준 쌍을 기록, `runs.jsonl`, `.diff`의 글에 차례로 적용한다(예: `--replace /Users/alice=/home/study`). `key.json`과 서브에이전트 메타 파일도 같은 바꾸기를 거쳐 옮긴다.
+4. **남은 개인 정보 찾기**: [personal_findings](../../src/agentvis/study/scrub.py#personal_findings)가 결과 폴더의 모든 글 파일에서 이메일 주소(`noreply@anthropic.com`과 `example.com`·`example.org` 주소는 뺌)와 홈 디렉터리 경로(`/Users/<이름>`, `/home/<이름>`, `C:\Users\<이름>`. 이름이 `study`·`runner`·`runneradmin`이면 뺌)를 찾는다. 찾은 것마다 `파일:줄: 종류: 글`을 출력하고, 하나라도 있으면 종료 코드 1이다. 없으면 `개인 정보로 보이는 글 없음`을 출력한다.
+
+- 입력 폴더는 바꾸지 않는다. 결과 폴더가 이미 있으면 지우지 않고 오류로 끝난다(종료 코드 1).
+- 이 검사는 흔한 모양만 찾는다. 공개 전에 사람이 한 번 더 훑어본다.
+
 ## 6. 테스트
 
 - [tests/test_study_runner.py](../../tests/test_study_runner.py) (M9-T2)
@@ -119,3 +133,8 @@
   - 기록의 `<script>` 같은 글은 이스케이프되어 태그로 나오지 않는다.
   - `study baseline`이 결과 폴더의 세션마다 `<세션 ID>.html`을 만들고, 파일에 변형 이름이 없다.
 - `tests/test_study_runner.py` (M9-T4 추가분): 같은 과제의 회차가 모두 `<workdir>/<저장소 이름>`에서 돈다.
+- [tests/test_study_scrub.py](../../tests/test_study_scrub.py) (M11-T2)
+  - 화면이 읽지 않는 줄(`session-owner`, `api-request-blob`, `prompt_snapshot` 첨부)은 빠지고 사용자 입력·응답·도구 결과 줄은 남으며, 남은 줄의 `userEmail` 같은 필드가 지워진다.
+  - `--replace`가 기록·`runs.jsonl`·`.diff`·`key.json`에 적용되고, 바꾼 뒤 남은 개인 정보가 없으면 종료 코드 0이다.
+  - 바꾸지 않은 홈 경로와 이메일은 찾아서 보고하고 종료 코드 1이다. 허용한 주소와 이름은 보고하지 않는다.
+  - 결과 폴더가 이미 있으면 종료 코드 1이고 그 폴더를 건드리지 않는다.
