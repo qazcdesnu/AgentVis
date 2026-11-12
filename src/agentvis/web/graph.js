@@ -2,7 +2,7 @@
 // Spec: docs/design/FlowGraph.md section 6. Session text is untrusted: only ever use .text().
 
 const LABEL_WIDTH = 180;
-const ROW_HEIGHT = 26;
+const ROW_HEIGHT = 30;
 const LANE_PADDING = 6;
 const PX_PER_SECOND = 40;
 const MIN_GAP = 6;
@@ -21,6 +21,22 @@ const BREAK_LABEL_SPACING = 56;
 const STATUS_SYMBOL = { success: "✓", error: "✕", interrupted: "⏸", running: "●", unfinished: "?" };
 const LANE_KIND = { main: "주", subagent: "서브", background_agent: "백그라운드", background_shell: "백그라운드" };
 const BAR_KINDS = new Set(["tool_call", "background_task"]);
+const RUN_MARK = { test_pass: "테스트 ✓", test_fail: "테스트 ✕", test_unknown: "테스트 ?" };
+const MARK_TITLE = {
+  test_pass: "테스트 실행: 통과", test_fail: "테스트 실행: 실패", test_unknown: "테스트 실행: 결과 모름",
+  clipped: "출력을 파이프로 잘라 종료 코드로는 결과를 알 수 없음", test_edit: "테스트 파일 변경",
+  test_edit_estimated: "Bash 명령에서 추정한 테스트 파일 변경", after_failure: "테스트 실패 직후의 변경", completion: "완료 보고",
+};
+
+// Task mark text above a node (FlowGraph.md section 6.3, M8-T6).
+function markText(marks) {
+  const parts = [];
+  const run = marks.find((mark) => RUN_MARK[mark]);
+  if (run) parts.push(RUN_MARK[run] + (marks.includes("clipped") ? " · 출력 자름" : ""));
+  if (marks.includes("test_edit")) parts.push(marks.includes("test_edit_estimated") ? "[테스트?]" : "[테스트]");
+  if (marks.includes("completion")) parts.push("⚑");
+  return parts.join(" ");
+}
 
 function time(value) {
   return value ? new Date(value).getTime() : null;
@@ -133,6 +149,7 @@ function nodeTitle(node) {
   parts.push(`시각: ${formatClock(start)}${finish && finish !== start ? ` ~ ${formatClock(finish)}` : ""}`);
   if (finish && finish !== start) parts.push(`실행 시간: ${formatDuration(finish - start)} (${finish - start}ms)`);
   if (node.approximate) parts.push(node.kind === "model" ? "시작 시각 근사(생각이 끝난 시각 − 걸린 시간)" : "시각 근사(hook 없음)");
+  for (const mark of node.marks || []) parts.push(MARK_TITLE[mark] || mark);
   return parts.join("\n");
 }
 
@@ -184,7 +201,12 @@ function drawNodes(content, placed, height, onSelect) {
   const group = content.append("g").attr("class", "g-nodes");
   for (const item of placed.values()) {
     const { node } = item;
-    const element = group.append("g").attr("class", `g-node kind-${node.kind} status-${node.status || "none"}${node.approximate ? " approximate" : ""}${item.open ? " open" : ""}`).attr("data-id", node.id);
+    const marks = node.marks || [];
+    const element = group.append("g").attr("class", `g-node kind-${node.kind} status-${node.status || "none"}${node.approximate ? " approximate" : ""}${item.open ? " open" : ""}${marks.includes("after_failure") ? " after-failure" : ""}`).attr("data-id", node.id);
+    if (marks.length) {
+      const top = item.isBar ? item.y - BAR_HEIGHT / 2 - 2 : item.y - POINT_RADIUS - 3;
+      element.append("text").attr("class", `g-mark${marks.includes("test_fail") ? " fail" : ""}`).attr("x", item.isBar ? item.x0 : item.x0 - POINT_RADIUS).attr("y", top).text(markText(marks));
+    }
     if (node.kind === "user_message") {
       content.insert("line", ".g-edges").attr("class", "g-guide").attr("x1", item.x0).attr("x2", item.x0).attr("y1", TOP_MARGIN).attr("y2", height);
     }
@@ -238,7 +260,11 @@ const LEGEND = [
   ["prompt", "턴 시작 지시", "에이전트가 쉬고 있을 때 사람이 보내 이 턴을 시작한 메시지입니다."],
   ["user", "작업 중 사용자 메시지", "에이전트가 일하는 도중에 사람이 보낸 메시지입니다. 세로 점선은 그 순간 각 줄(에이전트)이 무엇을 하고 있었는지 보여 줍니다."],
   ["notification", "알림", "작업 알림, 하위 에이전트 보고 같은 시스템 메시지입니다."],
+  ["mark-completion", "완료 보고", "에이전트가 무엇을 완료했다고 보고한 응답(마지막 응답의 완료 문장, 추정)이나 할 일 도구의 완료 항목입니다."],
+  ["mark-run", "테스트 실행 결과(출력 요약 기준)", "테스트 실행의 통과·실패를 출력의 요약으로 정했습니다. 막대 색(종료 코드)과 다르면 출력을 잘라 결과를 가린 실행입니다."],
+  ["mark-edit", "테스트 파일 변경", "테스트 파일을 바꾼 호출입니다. [테스트?]는 Bash 명령에서 추정했고, 굵은 테두리는 테스트 실패 직후의 변경입니다."],
 ];
+const LEGEND_MARK = { "mark-completion": ["⚑", ""], "mark-run": ["✓ ✕", ""], "mark-edit": ["[테스트]", ""] };
 
 // One-line legend above the graph (FlowGraph.md section 6.3, I38). Swatches reuse the graph's own sizes and classes,
 // so a symbol looks the same in the legend and in the graph.
@@ -258,7 +284,10 @@ function renderLegend() {
     else if (kind === "thinking") bar("g-node kind-model", "g-thinking");
     else if (kind === "writing") bar("g-node kind-model", "g-writing");
     else if (kind === "approximate") bar("g-node kind-model approximate", "g-thinking");
-    else if (kind === "wave") svg.append("path").attr("class", "g-break").attr("d", wavePath(LEGEND_WIDTH / 2, 0, LEGEND_HEIGHT));
+    else if (LEGEND_MARK[kind]) {
+      svg.attr("width", kind === "mark-edit" ? LEGEND_WIDTH * 2 : LEGEND_WIDTH);
+      svg.append("text").attr("class", "g-mark").attr("x", 1).attr("y", mid).attr("dy", "0.35em").text(LEGEND_MARK[kind][0]);
+    } else if (kind === "wave") svg.append("path").attr("class", "g-break").attr("d", wavePath(LEGEND_WIDTH / 2, 0, LEGEND_HEIGHT));
     else if (kind === "user") {
       svg.append("line").attr("class", "g-guide").attr("x1", LEGEND_WIDTH / 2).attr("x2", LEGEND_WIDTH / 2).attr("y1", 0).attr("y2", LEGEND_HEIGHT);
       svg.append("g").attr("class", "g-node kind-user_message").append("path")
@@ -414,7 +443,9 @@ export function renderGraph(container, graph, onSelect, options = {}) {
     // Real-time proportion can be very wide, so it always starts fitted (section 6.1).
     if (scroller.clientWidth) setZoom(mode === "real" ? fitZoom() : Math.max(fitZoom(), 0.15));
   }
-  const initial = initialId === null ? null : graph.nodes.find((node) => node.id === String(initialId));
+  // A step inside a model node (e.g. its second text block) selects the node holding it (WebUI.md section 7.5).
+  const initial = initialId === null ? null : graph.nodes.find((node) => node.id === String(initialId))
+    || graph.nodes.find((node) => (node.step_ids || []).includes(Number(initialId))) || null;
   if (initial) {
     selected = initial.id;
     highlight();

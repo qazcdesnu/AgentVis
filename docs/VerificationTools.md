@@ -65,7 +65,7 @@ uv run python -m unittest discover -s tests -t .   # 도구 자체의 테스트
 - [check_entry](../tools/check_docs.py#check_entry): `ENTRY_DOC`이 존재하고 `INDEX_DOC`으로 가는 링크를 가지는지 검사한다.
 - [check_readme](../tools/check_docs.py#check_readme): `README_DOC`이 존재하고 `INDEX_DOC`과 `ENTRY_DOC`으로 가는 링크를 모두 가지는지 검사한다([문서 작업 규칙의 형식](DocumentationRule.md#2-형식)). 링크 자체는 `README_DOC`도 [find_doc_files](../tools/doclib.py#find_doc_files)에 들어가므로 `check_links`가 검사한다.
 - [find_orphans](../tools/check_docs.py#find_orphans): `INDEX_DOC`에서 문서 간 링크를 따라 너비 우선 탐색을 하고, 도달하지 못한 `docs/` 아래 문서를 고아 문서로 보고한다. `INDEX_DOC`이 없으면 그 자체를 문제로 보고한다.
-- [check_tildes](../tools/check_docs.py#check_tildes): 모든 문서에서 `\`를 붙이지 않은 물결표를 찾는다([문서 작업 규칙의 형식](DocumentationRule.md#2-형식), I54). 코드 블록(`` ``` `` 사이), 인라인 코드, 링크 주소(`](…)`), `http://`·`https://` URL 안의 물결표는 건너뛴다. 물결표가 있는 줄마다 문제 하나를 낸다.
+- [check_tildes](../tools/check_docs.py#check_tildes): 모든 문서에서 `\`를 붙이지 않은 물결표를 찾는다([문서 작업 규칙의 형식](DocumentationRule.md#2-형식), I54). 코드 블록(`` ``` `` 사이), 인라인 코드, 링크 주소(`](…)`), `http://`·`https://` URL 안의 물결표와 줄머리의 진행 중 표시(`- [~] `, H7)는 건너뛴다. 물결표가 있는 줄마다 문제 하나를 낸다.
 - [main](../tools/check_docs.py#main): 다섯 검사를 실행하고 결과를 [1. 실행 방법](#1-실행-방법)의 형식으로 출력한다.
 
 ## 4. 포인터 검사기

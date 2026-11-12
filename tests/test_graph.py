@@ -223,3 +223,20 @@ class LaneTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class MarkTest(unittest.TestCase):
+    """@doc: docs/design/FlowGraph.md#8-테스트"""
+
+    def test_nodes_carry_test_and_completion_marks(self) -> None:
+        s = _Session()
+        s.prompt("u1", "p1", "테스트 고쳐")
+        _say(s, "a1", "u1", "m1", _tool("Bash", "toolu_1", command="pytest -q | tail -1"))
+        s.result("r1", "a1", "p1", "toolu_1", "1 failed in 0.1s")
+        _say(s, "a2", "r1", "m2", _tool("Write", "toolu_2", file_path="/Users/me/app/tests/test_a.py"))
+        s.result("r2", "a2", "p1", "toolu_2", "ok")
+        _say(s, "a3", "r2", "m3", {"type": "thinking", "thinking": ""})
+        _say(s, "a4", "a3", "m3", {"type": "text", "text": "테스트를 고쳤습니다."})
+        s.hook("Stop", prompt_id="p1")
+        marks = {node.label.split()[0]: node.marks for node in _graph(s).nodes if node.marks}
+        self.assertEqual(marks, {"Bash": ["test_fail", "clipped"], "Write": ["test_edit", "after_failure"], "테스트를": ["completion"]})

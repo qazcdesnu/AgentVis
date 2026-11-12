@@ -51,6 +51,7 @@ class Node:
     step_ids: list[int] = field(default_factory=list)
     generation_started_at: datetime | None = None
     output_chars: int | None = None
+    marks: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -112,6 +113,24 @@ def _model_label(thinking: int | None, generation_ms: float) -> str:
     return " · ".join(parts) or "생각"
 
 
+def _call_marks(call: ToolCall, reported: set[int], step_id: int) -> list[str]:
+    """Task marks of a tool call node (FlowGraph.md 3.2, M8-T6)."""
+    marks = []
+    if call.test_run is not None:
+        marks.append({"pass": "test_pass", "fail": "test_fail"}.get(call.test_run["result"], "test_unknown"))
+        if call.test_run["clipped"]:
+            marks.append("clipped")
+    if call.test_edit is not None:
+        marks.append("test_edit")
+        if call.test_edit["estimated"]:
+            marks.append("test_edit_estimated")
+        if call.test_edit["after_failure"]:
+            marks.append("after_failure")
+    if step_id in reported:
+        marks.append("completion")
+    return marks
+
+
 def _output_chars(steps: list[Step]) -> int:
     texts = [step.text or "" for step in steps if step.kind == "text"]
     inputs = [json.dumps(step.tool_call.input, ensure_ascii=False) for step in steps if step.tool_call is not None]
@@ -124,6 +143,7 @@ class _GraphBuilder:
         self.turn = turn
         self.session_ended = session_ended
         self.by_id: dict[str, Node] = {}
+        self.reported = {report["step_id"] for report in turn.completion_reports}
 
     def node(self, node: Node) -> Node:
         self.graph.nodes.append(node)
@@ -188,7 +208,8 @@ class _GraphBuilder:
         step_ids = [step.id for step in (model_steps or tool_steps)]
         model = self.node(Node(node_id, lane.id, "model", start, end if generating else anchor, label,
                                approximate=bool(thinking) or (generating and not thought), step_ids=step_ids,
-                               generation_started_at=generation_start if generating else None, output_chars=_output_chars(stage)))
+                               generation_started_at=generation_start if generating else None, output_chars=_output_chars(stage),
+                               marks=["completion"] if self.reported.intersection(step_ids) else []))
         for tool in tools:
             self.link([model.id], tool)
         return [model.id], tools or [model.id]
@@ -206,7 +227,7 @@ class _GraphBuilder:
         assert call is not None
         start = call.started_at or step.at
         node = self.node(Node(str(step.id), lane.id, "tool_call", start, call.ended_at, _tool_label(call), call.status,
-                              call.approximate, [step.id]))
+                              call.approximate, [step.id], marks=_call_marks(call, self.reported, step.id)))
         background = call.background
         if background is not None and background["kind"] == "shell":
             self.background_shell(lane, node, call)

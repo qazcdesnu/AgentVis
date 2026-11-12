@@ -83,7 +83,8 @@ def check_readme(root: Path) -> list[Problem]:
 
 
 # Spans where a tilde is literal: inline code, link destinations and bare URLs.
-_TILDE_SAFE = re.compile(r"`+[^`]*`+|\]\([^)]*\)|https?://\S+")
+# The in-progress task marker "- [~]" is required by the task rule and holds a single tilde (H7).
+_TILDE_SAFE = re.compile(r"`+[^`]*`+|\]\([^)]*\)|https?://\S+|^\s*- \[~\] ")
 _BARE_TILDE = re.compile(r"(?<!\\)~")
 
 

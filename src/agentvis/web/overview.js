@@ -8,11 +8,16 @@ const CELL_GAP = 2;
 const MIN_TIMED_WIDTH = 6;
 const MIN_LABEL_WIDTH = 28;
 const FAILURE = new Set(["error", "interrupted"]);
+const COMPACT_TITLE = "대화가 길어져 Claude Code가 앞 대화를 요약문으로 바꾼 턴입니다. 이 뒤로 에이전트는 앞의 세부 내용을 요약으로만 기억합니다.";
+// `step` names the step to select along with the turn (WebUI.md section 7.3).
 const BADGES = [
-  { key: "failure", label: "실패한 턴", match: (turn) => turn.failed },
+  { key: "failure", label: "실패한 턴", match: (turn) => turn.failed, step: (turn) => turn.firstFailure },
   { key: "user", label: "작업 중 사용자 메시지가 있는 턴", match: (turn) => turn.userMessages > 0 },
-  { key: "compact", label: "대화 요약이 일어난 턴", title: "대화가 길어져 Claude Code가 앞 대화를 요약문으로 바꾼 턴입니다. 이 뒤로 에이전트는 앞의 세부 내용을 요약으로만 기억합니다.", match: (turn) => turn.compacts > 0 },
+  { key: "compact", label: "대화 요약이 일어난 턴", title: COMPACT_TITLE, match: (turn) => turn.compacts > 0 },
+  { key: "completion", label: "완료 보고가 있는 턴", title: "에이전트가 무엇을 완료했다고 보고한 턴입니다. 마지막 응답의 완료 문장(추정)과 할 일 도구의 완료 항목입니다.", match: (turn) => turn.reports.length > 0, step: (turn) => turn.reports[0].step_id },
+  { key: "testEdit", label: "테스트 파일을 바꾼 턴", title: "에이전트가 테스트 파일을 바꾼 턴입니다. 테스트 실패 직후의 변경은 목록에서 굵게 보입니다.", match: (turn) => turn.testEdits.length > 0, step: (turn) => turn.testEdits[0].stepId },
 ];
+const LIST_OPEN = { reports: false, edits: false };
 
 let keyHandler = null;
 
@@ -35,9 +40,21 @@ export function promptLine(text) {
   return prompt.trim().split("\n")[0];
 }
 
+// Every tool call step of a turn, inside subagents too.
+function toolSteps(steps, found = []) {
+  for (const step of steps || []) {
+    if (step.tool_call) found.push(step);
+    toolSteps(step.substeps, found);
+    toolSteps(step.tool_call?.subagent, found);
+  }
+  return found;
+}
+
 // One summary per turn (WebUI.md section 7.1).
 export function summarizeTurns(view) {
   return view.turns.map((turn) => {
+    const testEdits = toolSteps(turn.steps).filter((step) => step.tool_call.test_edit)
+      .map((step) => ({ stepId: step.id, ...step.tool_call.test_edit }));
     const steps = turn.steps;
     const end = turn.ended_at || (steps.length ? steps[steps.length - 1].at : turn.started_at);
     const firstFailure = steps.find((step) => step.kind === "tool_call" && step.tool_call && FAILURE.has(step.tool_call.status));
@@ -52,6 +69,8 @@ export function summarizeTurns(view) {
       userMessages: steps.filter((step) => step.kind === "user_message").length,
       compacts: steps.filter((step) => step.kind === "compact").length,
       duration: Math.max(0, new Date(end).getTime() - new Date(turn.started_at).getTime()),
+      reports: turn.completion_reports || [],
+      testEdits,
     };
   });
 }
@@ -115,15 +134,20 @@ function drawStrip(box, turns, options, info) {
       group.append("text").attr("class", turn.failed ? "ov-cell-label failed" : "ov-cell-label").attr("x", x + 4)
         .attr("y", SYMBOL_ROW + CELL_HEIGHT / 2).attr("dy", "0.35em").text(label.slice(0, fits));
     }
-    if (turn.userMessages) {
-      svg.append("text").attr("class", "ov-symbol ov-symbol-user").attr("x", x + w / 2).attr("y", SYMBOL_ROW - 3).attr("text-anchor", "middle").text("◆");
-    }
+    // Symbols above the cell: ◆ work-time user message, ⚑ completion report, side by side (WebUI.md section 7.2).
+    const symbols = [];
+    if (turn.userMessages) symbols.push(["ov-symbol-user", "◆"]);
+    if (turn.reports.length) symbols.push(["ov-symbol-report", "⚑"]);
+    symbols.forEach(([className, symbol], k) => {
+      const offset = (k - (symbols.length - 1) / 2) * 11;
+      svg.append("text").attr("class", `ov-symbol ${className}`).attr("x", x + w / 2 + offset).attr("y", SYMBOL_ROW - 3).attr("text-anchor", "middle").text(symbol);
+    });
     if (turn.compacts) {
       svg.append("line").attr("class", "ov-compact").attr("x1", x - CELL_GAP / 2).attr("x2", x - CELL_GAP / 2).attr("y1", 0).attr("y2", height);
       svg.append("text").attr("class", "ov-compact-label").attr("x", x + 2).attr("y", 10).text("대화 요약")
-        .append("title").text(BADGES[2].title);
+        .append("title").text(COMPACT_TITLE);
     }
-    group.on("click", () => options.onSelect(turn, false));
+    group.on("click", () => options.onSelect(turn, null));
     group.on("mouseenter", () => { info.textContent = turnText(turn); });
   });
   svg.on("mouseleave", () => { info.textContent = turnText(selected); });
@@ -150,7 +174,7 @@ function renderBadges(turns, options) {
       button.disabled = shown.length === 0;
       button.addEventListener("click", () => {
         const target = pick();
-        if (target) options.onSelect(target, badge.key === "failure");
+        if (target) options.onSelect(target, badge.step ? badge.step(target) : null);
       });
       group.append(button);
     }
@@ -165,13 +189,54 @@ function bindKeys(jumps, onSelect) {
     if (event.key !== "[" && event.key !== "]") return;
     if (event.target.closest && event.target.closest("input, select, textarea")) return;
     const target = event.key === "]" ? jumps.failure.next() : jumps.failure.previous();
-    if (target) onSelect(target, true);
+    if (target) onSelect(target, target.firstFailure);
   };
   document.addEventListener("keydown", keyHandler);
 }
 
-// Draws badges, strip and footer into `container`. `options`: selected (turn index), width ("equal" | "time"),
-// onSelect(turn, toFailure) where toFailure asks to also select the turn's first failed step, onWidth(width).
+const RUN_RESULT = { pass: "통과", fail: "실패", unknown: "결과 모름" };
+
+function listRow(turn, stepId, parts, className, options) {
+  const row = el("button", `ov-list-row${className ? ` ${className}` : ""}`);
+  row.type = "button";
+  row.append(el("span", "ov-list-turn", `#${turn.index}`));
+  for (const [text, partClass] of parts) row.append(el("span", partClass, text));
+  row.addEventListener("click", () => options.onSelect(turn, stepId));
+  return row;
+}
+
+// Session-level lists of completion reports and test file changes (WebUI.md section 7.6, E11, E12).
+function renderLists(turns, options) {
+  const lists = el("div", "ov-lists");
+  const reports = turns.flatMap((turn) => turn.reports.map((report) => [turn, report]));
+  const edits = turns.flatMap((turn) => turn.testEdits.map((edit) => [turn, edit]));
+  const make = (key, title, items, row) => {
+    const details = el("details", "ov-list");
+    details.open = LIST_OPEN[key];
+    details.addEventListener("toggle", () => { LIST_OPEN[key] = details.open; });
+    details.append(el("summary", null, `${title} (${items.length})`));
+    const body = el("div", "ov-list-body");
+    if (!items.length) body.append(el("p", "empty", "없음"));
+    for (const item of items) body.append(row(...item));
+    details.append(body);
+    lists.append(details);
+  };
+  make("reports", "완료 보고 목록", reports, (turn, report) => listRow(turn, report.step_id, [
+    [report.source === "todo" ? `☑ ${report.text}` : report.text, "ov-list-text"],
+    [report.source === "todo" ? "할 일(확정)" : "응답 글(추정)", report.source === "todo" ? "ov-list-source" : "ov-list-source estimated"],
+  ], null, options));
+  make("edits", "테스트 파일 변경 목록", edits, (turn, edit) => {
+    const previous = edit.previous_run;
+    const before = previous ? `직전 테스트: ${RUN_RESULT[previous.result] || "결과 모름"}${previous.summary ? `(${previous.summary})` : ""}` : "직전 테스트: 없음";
+    const parts = [[`${edit.after_failure ? "✕ 뒤 " : ""}${edit.paths.join(", ")}`, "ov-list-text"], [before, "ov-list-source"]];
+    if (edit.estimated) parts.push(["Bash에서 추정", "ov-list-source estimated"]);
+    return listRow(turn, String(edit.stepId), parts, edit.after_failure ? "after-failure" : null, options);
+  });
+  return lists;
+}
+
+// Draws badges, strip, footer and lists into `container`. `options`: selected (turn index), width ("equal" | "time"),
+// onSelect(turn, stepId) where stepId names a step to select with the turn or is null, onWidth(width).
 export function renderOverview(container, turns, options) {
   container.replaceChildren();
   if (!turns.length) {
@@ -192,7 +257,7 @@ export function renderOverview(container, turns, options) {
   }
   const info = el("span", "ov-info", turnText(turns.find((turn) => turn.index === options.selected)));
   footer.append(toggle, info);
-  container.append(bar, box, footer);
+  container.append(bar, box, footer, renderLists(turns, options));
   bindKeys(jumps, options.onSelect);
   drawStrip(box, turns, options, info);
   let width = box.clientWidth;

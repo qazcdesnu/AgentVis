@@ -25,7 +25,7 @@ class CheckDocsTest(RepoTestCase):
 
     def test_bare_tildes_are_reported_but_escaped_code_and_url_tildes_are_not(self) -> None:
         # GitHub renders text between two bare tildes as strikethrough (I54).
-        self.write("docs/Rule.md", "# Rule\n\nQ1~Q6 and Q3~Q5\n\nT1\\~T6, `a~b`, [p](https://x.org/~me), https://y.org/~you\n\n```\nls ~/x\n```\n")
+        self.write("docs/Rule.md", "# Rule\n\nQ1~Q6 and Q3~Q5\n\nT1\\~T6, `a~b`, [p](https://x.org/~me), https://y.org/~you\n\n- [~] M1-T1 진행 중\n\n```\nls ~/x\n```\n")
         problems = check_tildes(self.root)
         self.assertEqual([(problem.path.name, problem.line) for problem in problems], [("Rule.md", 3)])
 
