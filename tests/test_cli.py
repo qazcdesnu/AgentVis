@@ -115,6 +115,59 @@ class ServeTest(RepoTestCase):
         self.assertEqual(self.closed, 1)
 
 
+class ExperimentTest(RepoTestCase):
+    """@doc: docs/design/Cli.md#4-테스트"""
+
+    def setUp(self) -> None:
+        super().setUp()
+        patcher = mock.patch.dict(os.environ, {"AGENTVIS_HOME": str(self.root / "home")})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.scenario = self.root / "scenario"
+        record = {"type": "user", "uuid": "u1", "sessionId": "s1", "promptId": "p1", "cwd": "/work/app",
+                  "timestamp": "2026-10-31T01:00:00.000Z", "message": {"role": "user", "content": "테스트 고쳐"}}
+        session = self.write("scenario/-work-app/s1.jsonl", json.dumps(record, ensure_ascii=False) + "\n")
+        # An old file still belongs to the scenario.
+        os.utime(session, (946684800, 946684800))
+        self.database = self.root / "home" / "experiments" / "P01" / "agentvis.db"
+        self.stored: list[int] = []
+
+    def fake_run(self, app: FastAPI, host: str, port: int) -> None:
+        with EventStore(self.database) as store:
+            self.stored.append(len(store.events()))
+
+    def run_main(self, *args: str) -> tuple[int, str, str]:
+        output, errors = io.StringIO(), io.StringIO()
+        with redirect_stdout(output), redirect_stderr(errors), mock.patch("agentvis.cli._run_server", self.fake_run):
+            code = main(list(args))
+        return code, output.getvalue(), errors.getvalue()
+
+    def test_reads_every_scenario_transcript_into_the_participant_store(self) -> None:
+        code, output, _ = self.run_main("experiment", "P01", "--transcripts", str(self.scenario))
+        self.assertEqual(code, 0)
+        self.assertEqual(self.stored, [1])
+        self.assertIn("AgentVis 실험 모드: 참가자 P01", output)
+        self.assertIn("시나리오 세션 기록: 1개 파일", output)
+        self.assertIn(f"데이터 디렉터리: {self.database.parent}", output)
+        self.assertIn(f"AgentVis 버전: {__version__}", output)
+        self.assertFalse((self.root / "home" / "agentvis.db").exists())
+
+    def test_participant_numbers_cannot_leave_the_directory(self) -> None:
+        for participant in ("../P01", "a/b", "P 01", "x" * 33, ""):
+            with self.subTest(participant=participant), self.assertRaises(SystemExit) as exit_info:
+                self.run_main("experiment", participant, "--transcripts", str(self.scenario))
+            self.assertEqual(exit_info.exception.code, 2)
+
+    def test_missing_or_empty_folders_are_errors(self) -> None:
+        (self.root / "empty").mkdir()
+        for folder in (self.root / "absent", self.root / "empty"):
+            with self.subTest(folder=folder):
+                code, _, errors = self.run_main("experiment", "P01", "--transcripts", str(folder))
+                self.assertEqual(code, 1)
+                self.assertIn("오류:", errors)
+        self.assertFalse(self.database.exists())
+
+
 class HooksCommandTest(RepoTestCase):
     """@doc: docs/design/Cli.md#4-테스트"""
 

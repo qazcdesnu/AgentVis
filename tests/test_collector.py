@@ -85,6 +85,13 @@ class CollectorAppTest(RepoTestCase):
         self.assertEqual(stored[0].payload, _FAILURE)
         self.assertIsNone(stored[1].prompt_id)
 
+    def test_experiment_app_answers_hooks_without_storing(self) -> None:
+        client = TestClient(create_app(self.store, collect_hooks=False), base_url="http://127.0.0.1:8765")
+        response = client.post("/hooks", content=_FAILURE.encode(), headers={"Content-Type": "application/json"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, b"{}")
+        self.assertEqual(self.store.events(), [])
+
     def test_invalid_body_gets_400_and_is_not_stored(self) -> None:
         for body in (b"not json", b"[]", b'{"session_id": "s1"}'):
             with self.subTest(body=body):

@@ -188,6 +188,15 @@ class ReadNewRecordsTest(RepoTestCase):
         self.assertCountEqual(found, [self.path.resolve(), new.resolve(), agent.resolve(), meta.resolve()])
         self.assertEqual(found.index(meta.resolve()), found.index(agent.resolve()) + 1)
 
+    def test_find_everything_ignores_age_and_an_empty_store(self) -> None:
+        # Experiment mode reads a whole scenario folder into a new store (I59).
+        old = self.projects / "-Users-me-app" / "s0.jsonl"
+        old.parent.mkdir(parents=True, exist_ok=True)
+        old.write_bytes(_PROMPT)
+        os.utime(old, (946684800, 946684800))
+        self.assertEqual(find_unread_transcripts(self.store, self.projects), [])
+        self.assertEqual(find_unread_transcripts(self.store, self.projects, everything=True), [old.resolve()])
+
 
 class SubagentTest(RepoTestCase):
     """@doc: docs/design/Transcript.md#6-테스트"""

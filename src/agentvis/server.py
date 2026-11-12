@@ -81,8 +81,8 @@ def _rejection(request: Request) -> JSONResponse | None:
     return None
 
 
-def create_app(store: EventStore, reader: TranscriptReader | None = None) -> FastAPI:
-    """Build the FastAPI app that stores hook events in the given store.
+def create_app(store: EventStore, reader: TranscriptReader | None = None, collect_hooks: bool = True) -> FastAPI:
+    """Build the FastAPI app that stores hook events in the given store, unless collect_hooks is off.
 
     @doc: docs/design/Collector.md#2-http-엔드포인트
     @doc: docs/design/FlowGraph.md#5-조회-api
@@ -103,6 +103,9 @@ def create_app(store: EventStore, reader: TranscriptReader | None = None) -> Fas
             event = hook_event_to_raw(body, datetime.now(UTC))
         except InvalidHookEvent as error:
             return JSONResponse({"error": str(error)}, status_code=400)
+        if not collect_hooks:
+            # Experiment mode shows only the scenario transcripts (Cli.md section 2.2).
+            return JSONResponse({})
         await run_in_threadpool(store.append, event)
         if reader is not None:
             for path in paths_to_read(json.loads(event.payload)):

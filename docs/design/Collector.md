@@ -29,7 +29,7 @@
 
 ## 2. HTTP 엔드포인트
 
-[create_app](../../src/agentvis/server.py#create_app)`(store: EventStore, reader: TranscriptReader | None = None) -> FastAPI`가 앱을 만든다. `reader`가 있으면 hook 이벤트를 저장한 뒤 [기록 리더 설계 4.1](Transcript.md#41-hook-이벤트를-받을-때-m2-t3)에 따라 읽기를 요청한다(M2-T3). M1에서 제공하는 경로는 다음과 같다.
+[create_app](../../src/agentvis/server.py#create_app)`(store: EventStore, reader: TranscriptReader | None = None, collect_hooks: bool = True) -> FastAPI`가 앱을 만든다. `reader`가 있으면 hook 이벤트를 저장한 뒤 [기록 리더 설계 4.1](Transcript.md#41-hook-이벤트를-받을-때-m2-t3)에 따라 읽기를 요청한다(M2-T3). `collect_hooks=False`이면([실험 모드](Cli.md#22-experiment), I59) `POST /hooks`는 요청 검증만 하고 저장·읽기 요청 없이 `{}`를 돌려준다. 참가자 컴퓨터의 Claude Code를 방해하지 않으면서 실험 데이터에 섞이지 않게 하기 위해서다. M1에서 제공하는 경로는 다음과 같다.
 
 | 경로 | 동작 | 응답 |
 | --- | --- | --- |
@@ -65,4 +65,5 @@
 - 쿼리 문자열(`?client=agentvis`)이 붙은 요청도 같게 처리된다.
 - `POST /hooks`의 성공 응답 본문은 정확히 `{}`다.
 - `GET /health`가 `{"status": "ok"}`를 돌려준다.
+- `collect_hooks=False`인 앱은 올바른 hook에 `{}`를 돌려주되 저장하지 않는다(I59).
 - 요청 검증: `Host`가 허용 목록 밖이면 `400`, `Origin`이 있으면 `403`, `Content-Type`이 `text/plain`이거나 없으면 `415`를 받고, 어느 경우도 저장되지 않는다. `Host: localhost:<포트>`와 `Content-Type: application/json; charset=utf-8`은 통과한다. 앱 테스트의 `TestClient`는 `base_url="http://127.0.0.1:8765"`로 실제 hook과 같은 `Host`를 쓴다.
