@@ -8,6 +8,7 @@
 """
 
 import argparse
+import json
 import re
 import subprocess
 import sys
@@ -31,6 +32,7 @@ from agentvis.interaction import InteractionLog
 from agentvis.server import create_app
 from agentvis.study.baseline import write_baseline
 from agentvis.study.key import check_key, key_summary
+from agentvis.study.score import format_score, score_folder
 from agentvis.study.scrub import scrub_folder
 from agentvis.study.runner import STUDY_TIMEOUT_SECONDS, RunSpec, run_variant
 from agentvis.store import EventStore, data_dir, default_db_path, experiment_dir
@@ -193,6 +195,22 @@ def _study_baseline(args: argparse.Namespace) -> int:
     return 0 if written else 1
 
 
+def _study_score(args: argparse.Namespace) -> int:
+    """Match the instruction review's signals with a scenario folder's answer key.
+
+    @doc: docs/design/Study.md#31-신호-규칙-정확도-m11-t3
+    """
+    problems = check_key(args.folder)
+    if problems:
+        for problem in problems:
+            print(problem)
+        print(f"정답표 문제 {len(problems)}건: 점수를 내지 않음")
+        return 1
+    score = score_folder(args.folder)
+    print(json.dumps(score, ensure_ascii=False, indent=2) if args.json else format_score(score))
+    return 0
+
+
 def _replacement(value: str) -> tuple[str, str]:
     old, separator, new = value.partition("=")
     if not separator or not old:
@@ -291,6 +309,10 @@ def _build_parser() -> argparse.ArgumentParser:
     check = study_commands.add_parser("check-key", help="시나리오 폴더의 정답표(key.json)를 검사한다.")
     check.add_argument("folder", type=Path, help="시나리오 폴더")
     check.set_defaults(handler=_study_check_key)
+    score = study_commands.add_parser("score", help="지시 대조 신호를 정답표와 맞춰 규칙의 정확도를 잰다.")
+    score.add_argument("folder", type=Path, help="시나리오 폴더 (key.json 포함)")
+    score.add_argument("--json", action="store_true", help="JSON으로 출력")
+    score.set_defaults(handler=_study_score)
     scrub = study_commands.add_parser("scrub", help="공개용으로 실험 자료의 개인 정보를 지운 사본을 만든다.")
     scrub.add_argument("folder", type=Path, help="시나리오 폴더")
     scrub.add_argument("--out", type=Path, required=True, help="사본을 쓸 폴더 (없어야 함)")

@@ -157,12 +157,16 @@ def split_instruction(text: str) -> list[Sentence]:
     return sentences
 
 
-def _walk(steps: list[Step] | None) -> Iterator[Step]:
+def walk_steps(steps: list[Step] | None) -> Iterator[Step]:
+    """Every step of a turn: its steps, their substeps and subagent steps, in recorded order.
+
+    @doc: docs/design/ReviewView.md#42-규칙
+    """
     for step in steps or []:
         yield step
-        yield from _walk(step.substeps)
+        yield from walk_steps(step.substeps)
         if step.tool_call is not None:
-            yield from _walk(step.tool_call.subagent)
+            yield from walk_steps(step.tool_call.subagent)
 
 
 def _agent_sentences(text: str) -> list[str]:
@@ -398,7 +402,7 @@ def review_turn(view: SessionView, index: int) -> Review | None:
     if turn is None:
         return None
     sentences = split_instruction(turn.prompt)
-    steps = list(_walk(turn.steps))
+    steps = list(walk_steps(turn.steps))
     signals = (_interpretations(steps, sentences) + _questions(turn, steps, sentences) + _outside(steps, sentences, view.project)
                + _reproductions(steps, sentences, turn.prompt, view.project) + _remaining_failures(steps, sentences, view.project)
                + _conflicts(steps, sentences, view.project))
