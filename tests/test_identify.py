@@ -5,7 +5,7 @@
 
 import unittest
 
-from agentvis.analysis.identify import completion_sentences, is_test_path, test_command, test_outcome, written_paths
+from agentvis.analysis.identify import completion_sentences, failed_tests, is_test_path, test_command, test_outcome, written_paths
 
 
 class TestCommandTest(unittest.TestCase):
@@ -42,6 +42,15 @@ class TestOutcomeTest(unittest.TestCase):
 
     def test_any_failing_summary_wins(self) -> None:
         self.assertEqual(test_outcome("Ran 3 tests in 0s\n\nFAILED (errors=1)\n...\n5 passed in 1s")[0], "fail")
+
+
+class FailedTestsTest(unittest.TestCase):
+    """@doc: docs/design/Analysis.md#9-테스트"""
+
+    def test_names_from_each_runner(self) -> None:
+        text = "FAILED tests/a.py::test_x - E\nFAILED tests/a.py::test_x - E\nFAIL: test_c (tests.t.T.test_c)\nERROR: test_b (tests.t.C)\n    --- FAIL: TestGo (0.00s)"
+        self.assertEqual(failed_tests(text), ["tests/a.py::test_x", "tests.t.T.test_c", "tests.t.C.test_b", "TestGo"])
+        self.assertEqual(failed_tests("Ran 3 tests\n\nOK"), [])
 
 
 class TestPathTest(unittest.TestCase):

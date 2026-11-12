@@ -131,3 +131,45 @@ class InterpretationSignalTest(unittest.TestCase):
         graph = build_turn_graph(self.s.build(), 1)
         marks = {node.label.split()[0]: node.marks for node in graph.nodes if node.marks}
         self.assertEqual(marks, {"Edit": ["signal_outside"]})
+
+
+class EvidenceSignalTest(unittest.TestCase):
+    """@doc: docs/design/ReviewView.md#5-테스트"""
+
+    def setUp(self) -> None:
+        self.s = _Session()
+        self.s.prompt("u1", "p1", "`total`이 `KeyError`로 죽습니다. `invoice.py`를 고쳐 주세요. `test_plain`이 깨지면 안 됩니다.")
+        self.n = 0
+
+    def call(self, name: str, output: str = "ok", **data: object) -> None:
+        self.n += 1
+        parent = f"r{self.n - 1}" if self.n > 1 else "u1"
+        self.s.assistant(f"a{self.n}", parent, {"type": "tool_use", "id": f"toolu_{self.n}", "name": name, "input": data})
+        self.s.result(f"r{self.n}", f"a{self.n}", "p1", f"toolu_{self.n}", output)
+
+    def signals(self, kind: str) -> list[tuple]:
+        return [(s.summary, s.sentence) for s in _review(self.s).signals if s.kind == kind]
+
+    def test_reproductions_before_the_first_source_edit(self) -> None:
+        self.call("Bash", "FAIL: test_code (tests.t.T.test_code)\nTypeError: x\nRan 2 tests in 0s\n\nFAILED (failures=1)", command="python -m unittest")
+        self.call("Bash", "Ran 2 tests in 0s\n\nOK", command="python -m unittest")
+        self.call("Edit", file_path="/Users/me/app/invoice.py", old_string="a", new_string="b")
+        self.call("Bash", "Ran 2 tests in 0s\n\nOK", command="python -m unittest")
+        self.assertEqual(self.signals("repro"), [("다른 오류: Ran 2 tests · FAILED (failures=1)", 1), ("재현 안 됨: Ran 2 tests · OK", 1)])
+
+    def test_failures_remaining_after_the_named_file_changed(self) -> None:
+        self.call("Edit", file_path="/Users/me/app/discount.py", old_string="a", new_string="b")
+        self.call("Bash", "1 failed in 0.1s", command="pytest -q")
+        self.call("Edit", file_path="/Users/me/app/invoice.py", old_string="a", new_string="b")
+        self.call("Bash", "FAILED tests/t.py::test_code - x\n1 failed in 0.1s", command="pytest -q")
+        self.call("Edit", file_path="/Users/me/app/invoice.py", old_string="b", new_string="c")
+        self.call("Bash", "2 passed in 0.1s", command="pytest -q")
+        self.assertEqual(self.signals("remaining_failure"), [("invoice.py 고친 뒤 실패: 1 failed", 2)])
+
+    def test_conflicting_test_results(self) -> None:
+        self.call("Bash", "FAILED tests/t.py::test_code - x\n1 failed, 1 passed in 0.1s", command="pytest -q")
+        self.call("Edit", file_path="/Users/me/app/invoice.py", old_string="a", new_string="b")
+        self.call("Bash", "FAILED tests/t.py::test_plain - y\n1 failed, 1 passed in 0.1s", command="pytest   -q")
+        self.call("Bash", "FAILED tests/t.py::test_code - x\n1 failed in 0.1s", command="pytest -q tests/t.py")
+        self.call("Bash", "FAILED tests/t.py::test_code - x\n1 failed, 1 passed in 0.1s", command="pytest -q")
+        self.assertEqual(self.signals("conflict"), [("통과로 바뀜: tests/t.py::test_code · 실패로 바뀜: tests/t.py::test_plain", 3)])

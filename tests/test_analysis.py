@@ -301,7 +301,7 @@ class TaskMarkTest(unittest.TestCase):
         calls = [step.tool_call for step in s.build().turns[0].steps]
         # The summary lies past the 2,000-character preview; piping hides the exit code (Analysis.md 5.1).
         self.assertEqual(calls[0].status, "success")
-        self.assertEqual(calls[0].test_run, {"result": "fail", "summary": "2 failed, 68 passed", "basis": "output", "clipped": True})
+        self.assertEqual(calls[0].test_run, {"result": "fail", "summary": "2 failed, 68 passed", "basis": "output", "clipped": True, "failed": []})
         self.assertEqual((calls[1].test_run["result"], calls[1].test_run["basis"]), ("unknown", None))
         self.assertEqual((calls[2].test_run["result"], calls[2].test_run["basis"]), ("fail", "exit_code"))
         self.assertIsNone(calls[3].test_run)

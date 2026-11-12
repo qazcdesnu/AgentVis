@@ -32,6 +32,9 @@ _UNITTEST_TAIL = re.compile(r"(?m)^(OK(?: \([^)]*\))?|FAILED \((?:failures|error
 _GO = re.compile(r"(?m)^(?:(ok|FAIL)\s+\S+|--- (FAIL):)")
 _CARGO = re.compile(r"test result: (ok|FAILED)\.([^\n]*)")
 _JS = re.compile(r"(?m)^\s*Tests:?\s+(\d[^\n]*)$")
+_FAILED_TEST = re.compile(
+    r"(?m)^(?:FAILED|ERROR) (\S+::\S+)|^(?:FAIL|ERROR): (\w+) \(([\w.]+)\)|^\s*--- FAIL: (\S+)"
+)
 _DONE = re.compile(
     r"완료(?:했|됐|되었|하였|입니다|함)|통과(?:했|합니다|함|됐|되었|하였)|모두 통과"
     r"|고쳤|수정했|추가했|구현했|만들었|바꿨|반영했|해결했|작성했|마쳤|끝냈|올렸|커밋했|합쳤|옮겼|지웠|삭제했|넣었|등록했|정리했"
@@ -91,6 +94,20 @@ def test_outcome(text: str) -> tuple[str | None, str | None]:
     failures = [item for item in found if item[1] == "fail"]
     _, result, summary = max(failures or found, key=lambda item: item[0])
     return result, summary
+
+
+def failed_tests(text: str) -> list[str]:
+    """Names of the failing tests a run's whole output lists (pytest, unittest, go), in order, without repeats.
+
+    @doc: docs/design/ReviewView.md#42-규칙
+    """
+    names = []
+    for match in _FAILED_TEST.finditer(text):
+        pytest, unit_name, unit_where, go = match.groups()
+        name = pytest or go or (unit_where if unit_where.endswith(unit_name) else f"{unit_where}.{unit_name}")
+        if name not in names:
+            names.append(name)
+    return names
 
 
 def is_test_path(path: str, root: str | None = None) -> bool:

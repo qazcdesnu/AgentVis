@@ -37,6 +37,8 @@ _SEGMENT = re.compile(r"\s*(?:&&|\|\||;|\||\n)\s*")
 _CONTEXT_SUFFIXES = {".md", ".txt", ".rst", ".toml", ".cfg", ".ini", ".json", ".yaml", ".yml", ".lock"}
 _FILE_TOOLS = {"Read": "read", "Edit": "edit", "MultiEdit": "edit", "Write": "edit", "NotebookEdit": "edit"}
 _SUMMARY_CHARS = 160
+_ERROR_NAME = re.compile(r"\b\w*(?:Error|Exception)\b")
+_REPRO_RESULT = {"fail": "재현됨", "pass": "재현 안 됨", "unknown": "결과 모름", None: "결과 모름"}
 
 
 @dataclass
@@ -280,6 +282,94 @@ def _outside(steps: list[Step], sentences: list[Sentence], root: str | None) -> 
     ]
 
 
+def _source_edits(step: Step, root: str | None) -> list[str]:
+    """Project-relative source files (not tests, docs or configs) that one tool call changes."""
+    edits = []
+    for path, action, _ in _touched_files(step):
+        relative = relative_path(path, root)
+        if action == "edit" and not is_test_path(relative) and PurePosixPath(relative).suffix not in _CONTEXT_SUFFIXES:
+            edits.append(relative)
+    return edits
+
+
+def _run(step: Step) -> dict | None:
+    return step.tool_call.test_run if step.tool_call is not None else None
+
+
+def _output(step: Step) -> str:
+    call = step.tool_call
+    return f"{call.result or ''}\n{call.error or ''}" if call is not None else ""
+
+
+def _symptom_sentence(sentences: list[Sentence]) -> int | None:
+    # Issues describe the symptom first.
+    return sentences[0].index if sentences else None
+
+
+def _reproductions(steps: list[Step], sentences: list[Sentence], prompt: str, root: str | None) -> list[Signal]:
+    """N6: test runs before the first source edit, with whether they reproduced the reported symptom."""
+    errors = set(_ERROR_NAME.findall(prompt))
+    signals = []
+    for step in steps:
+        if _source_edits(step, root):
+            break
+        run = _run(step)
+        if run is None:
+            continue
+        outcome = _REPRO_RESULT[run.get("result")]
+        if run.get("result") == "fail" and errors and not any(error in _output(step) for error in errors):
+            outcome = "다른 오류"
+        summary = f"{outcome}: {run.get('summary') or '요약 없음'}"
+        signals.append(Signal("repro", step.id, _at(step), summary, _symptom_sentence(sentences),
+                              {"outcome": outcome, "result": run.get("result"), "expected_errors": sorted(errors)}))
+    return signals
+
+
+def _sentence_of_file(path: str, sentences: list[Sentence]) -> int | None:
+    for sentence in sentences:
+        if _inside(path, [sentence]):
+            return sentence.index
+    return None
+
+
+def _remaining_failures(steps: list[Step], sentences: list[Sentence], root: str | None) -> list[Signal]:
+    """N7: a failing test run right after the agent changed a file the instruction pointed at."""
+    signals, pending = [], []
+    for step in steps:
+        pending += [path for path in _source_edits(step, root) if _inside(path, sentences) and path not in pending]
+        run = _run(step)
+        if run is None or not pending:
+            continue
+        if run.get("result") == "fail":
+            files = ", ".join(pending)
+            signals.append(Signal("remaining_failure", step.id, _at(step), f"{files} 고친 뒤 실패: {run.get('summary') or ''}".strip(),
+                                  _sentence_of_file(pending[0], sentences), {"files": list(pending), "failed": run.get("failed", [])}))
+        pending = []
+    return signals
+
+
+def _conflicts(steps: list[Step], sentences: list[Sentence], root: str | None) -> list[Signal]:
+    """N8: between two runs of the same command with an edit between, one test starts passing as another starts failing."""
+    signals, last, edited = [], {}, False
+    for step in steps:
+        edited = edited or bool(_source_edits(step, root))
+        run = _run(step)
+        if run is None or run.get("result") not in ("pass", "fail"):
+            continue
+        command = " ".join(str(step.tool_call.input.get("command", "")).split())
+        before = last.get(command)
+        failed = set(run.get("failed", [])) if run.get("result") == "fail" else set()
+        if before is not None and edited:
+            fixed, broken = sorted(before - failed), sorted(failed - before)
+            if fixed and broken:
+                names = [name.split("::")[-1].split(".")[-1] for name in fixed + broken]
+                sentence = next((s.index for s in sentences if any(t.kind == "test" and t.text.split("::")[-1] in names for t in s.targets)), None)
+                summary = f"통과로 바뀜: {', '.join(fixed)} · 실패로 바뀜: {', '.join(broken)}"
+                signals.append(Signal("conflict", step.id, _at(step), _short(summary), sentence, {"fixed": fixed, "broken": broken}))
+        last[command], edited = failed, False
+    return signals
+
+
 def review_turn(view: SessionView, index: int) -> Review | None:
     """The instruction review of the turn with the given index, or None if there is no such turn.
 
@@ -290,6 +380,8 @@ def review_turn(view: SessionView, index: int) -> Review | None:
         return None
     sentences = split_instruction(turn.prompt)
     steps = list(_walk(turn.steps))
-    signals = _interpretations(steps, sentences) + _questions(turn, steps, sentences) + _outside(steps, sentences, view.project)
+    signals = (_interpretations(steps, sentences) + _questions(turn, steps, sentences) + _outside(steps, sentences, view.project)
+               + _reproductions(steps, sentences, turn.prompt, view.project) + _remaining_failures(steps, sentences, view.project)
+               + _conflicts(steps, sentences, view.project))
     signals.sort(key=lambda signal: (signal.at or "", signal.step_id))
     return Review(turn=index, sentences=sentences, signals=signals)
