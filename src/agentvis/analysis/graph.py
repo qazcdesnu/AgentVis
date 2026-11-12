@@ -7,6 +7,7 @@ import json
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
+from agentvis.analysis.review import review_turn
 from agentvis.analysis.session import SessionView, Step, ToolCall, Turn
 
 _LABEL_CHARS = 80
@@ -282,6 +283,19 @@ class _GraphBuilder:
         self.lane(lane, substeps, [])
 
 
+def _mark_signals(graph: FlowGraph, session: SessionView, index: int) -> None:
+    """Add the instruction review's signal kinds to the nodes that hold their steps (ReviewView.md 3.3)."""
+    review = review_turn(session, index)
+    kinds: dict[int, list[str]] = {}
+    for signal in review.signals if review else []:
+        kinds.setdefault(signal.step_id, []).append(f"signal_{signal.kind}")
+    for node in graph.nodes:
+        for step_id in node.step_ids:
+            for mark in kinds.get(step_id, []):
+                if mark not in node.marks:
+                    node.marks.append(mark)
+
+
 def build_turn_graph(session: SessionView, index: int) -> FlowGraph | None:
     """Compute the flow graph of the turn with the given 1-based index.
 
@@ -305,6 +319,7 @@ def build_turn_graph(session: SessionView, index: int) -> FlowGraph | None:
             edges.append(edge)
     graph.edges = edges
     graph.nodes.sort(key=lambda node: node.started_at)
+    _mark_signals(graph, session, index)
     if turn.state != "running":
         # Work resumed after Stop by a background task notification stays in this turn.
         main_times = [time for node in graph.nodes if node.lane == main.id for time in (node.started_at, node.ended_at) if time]

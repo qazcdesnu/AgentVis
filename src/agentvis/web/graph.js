@@ -1,6 +1,8 @@
 // Flow graph of one turn drawn with D3 (global `d3` from vendor/d3-7.9.0.min.js).
 // Spec: docs/design/FlowGraph.md section 6. Session text is untrusted: only ever use .text().
 
+import { SIGNAL_KIND } from "./review.js";
+
 const LABEL_WIDTH = 180;
 const ROW_HEIGHT = 30;
 const LANE_PADDING = 6;
@@ -28,13 +30,17 @@ const MARK_TITLE = {
   test_edit_estimated: "Bash 명령에서 추정한 테스트 파일 변경", after_failure: "테스트 실패 직후의 변경", completion: "완료 보고",
 };
 
-// Task mark text above a node (FlowGraph.md section 6.3, M8-T6).
+for (const [kind, [, name]] of Object.entries(SIGNAL_KIND)) MARK_TITLE[`signal_${kind}`] = `지시 대조 신호(추정): ${name}`;
+
+// Task mark text above a node (FlowGraph.md section 6.3, M8-T6), then instruction review signals (ReviewView.md 3.3).
 function markText(marks) {
   const parts = [];
   const run = marks.find((mark) => RUN_MARK[mark]);
   if (run) parts.push(RUN_MARK[run] + (marks.includes("clipped") ? " · 출력 자름" : ""));
   if (marks.includes("test_edit")) parts.push(marks.includes("test_edit_estimated") ? "[테스트?]" : "[테스트]");
   if (marks.includes("completion")) parts.push("⚑");
+  const signals = Object.entries(SIGNAL_KIND).filter(([kind]) => marks.includes(`signal_${kind}`)).map(([, [symbol]]) => symbol);
+  if (signals.length) parts.push(signals.join(""));
   return parts.join(" ");
 }
 
@@ -262,9 +268,10 @@ const LEGEND = [
   ["notification", "알림", "작업 알림, 하위 에이전트 보고 같은 시스템 메시지입니다."],
   ["mark-completion", "완료 보고", "에이전트가 무엇을 완료했다고 보고한 응답(마지막 응답의 완료 문장, 추정)이나 할 일 도구의 완료 항목입니다."],
   ["mark-run", "테스트 실행 결과(출력 요약 기준)", "테스트 실행의 통과·실패를 출력의 요약으로 정했습니다. 막대 색(종료 코드)과 다르면 출력을 잘라 결과를 가린 실행입니다."],
+  ["mark-signal", "지시 대조 신호", "지시 대조 상자의 신호가 든 노드입니다(추정). ❝ 해석 · ? 질문 · ↗ 지시 밖 · ◇ 재현 · ✕ 남은 실패 · ⇄ 충돌"],
   ["mark-edit", "테스트 파일 변경", "테스트 파일을 바꾼 호출입니다. [테스트?]는 Bash 명령에서 추정했고, 굵은 테두리는 테스트 실패 직후의 변경입니다."],
 ];
-const LEGEND_MARK = { "mark-completion": ["⚑", ""], "mark-run": ["✓ ✕", ""], "mark-edit": ["[테스트]", ""] };
+const LEGEND_MARK = { "mark-completion": ["⚑", ""], "mark-run": ["✓ ✕", ""], "mark-edit": ["[테스트]", ""], "mark-signal": ["❝↗", ""] };
 
 // One-line legend above the graph (FlowGraph.md section 6.3, I38). Swatches reuse the graph's own sizes and classes,
 // so a symbol looks the same in the legend and in the graph.

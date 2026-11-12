@@ -27,7 +27,8 @@ function el(tag, className, text) {
 function formatClock(iso) {
   if (!iso) return "";
   const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? "" : date.toLocaleTimeString("ko-KR", { hour12: false });
+  if (Number.isNaN(date.getTime())) return "";
+  return [date.getHours(), date.getMinutes(), date.getSeconds()].map((part) => String(part).padStart(2, "0")).join(":");
 }
 
 // One sentence of the instruction, its targets marked inside the original wording.
