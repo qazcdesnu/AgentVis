@@ -77,24 +77,32 @@
 
 ## 4. 분석기: 지시 대조 모델
 
-`review_turn(view, turn_index) -> Review | None`(M10-T2에서 만든다)이 고른 턴의 지시 대조 모델을 만든다. 입력은 1.1.0 분석기의 세션 모델([분석기 설계](Analysis.md))이다. 규칙은 모두 추정이며, 아래는 [정보 항목](TaskAbstraction2.md#3-새-정보-항목)의 판정 방법을 구현 수준으로 정한 것이다.
+[review_turn](../../src/agentvis/analysis/review.py#review_turn)`(view, turn_index) -> Review | None`이 고른 턴의 지시 대조 모델을 만든다. 입력은 1.1.0 분석기의 세션 모델([분석기 설계](Analysis.md))이다. 규칙은 모두 추정이며, 아래는 [정보 항목](TaskAbstraction2.md#3-새-정보-항목)의 판정 방법을 구현 수준으로 정한 것이다.
 
 ### 4.1 모델
 
 | 필드 | 뜻 |
 | --- | --- |
-| `turn` | 턴 순번 |
+| `turn` | 턴 순번. 모델은 [Review](../../src/agentvis/analysis/review.py#Review), 문장은 [Sentence](../../src/agentvis/analysis/review.py#Sentence), 대상은 [Target](../../src/agentvis/analysis/review.py#Target), 신호는 [Signal](../../src/agentvis/analysis/review.py#Signal)이다 |
 | `sentences` | N1. `{index, text, start, end, targets}` 목록. `start`·`end`는 지시 원문에서의 글자 위치, `targets`는 N2 `{text, kind, start, end}`(`kind`: `path`, `symbol`, `test`, `command`) |
 | `signals` | N3\~N8. `{kind, step_id, at, summary, sentence, detail}` 목록, 시간 순서. `kind`는 `interpret`, `ask`, `outside`, `repro`, `remaining_failure`, `conflict`. `sentence`는 연결된 문장 번호 또는 null. `detail`은 종류마다 근거(원문 문장, 파일 경로, 테스트 이름 등) |
 | `quiet_steps` | N9. 정상 구간에 든 단계 ID 목록 |
 
-API는 `GET /api/sessions/{id}/turns/{index}/review`다. 턴이 없으면 `404`다.
+API는 `GET /api/sessions/{id}/turns/{index}/review`다([get_turn_review](../../src/agentvis/analysis/catalog.py#get_turn_review), 경로는 [서버 앱](../../src/agentvis/server.py#create_app)). 세션이나 턴이 없으면 `404`다.
 
-### 4.2 규칙 (M10-T2\~M10-T5에서 구현하며 채운다)
+### 4.2 규칙
 
+M10-T2\~M10-T5에서 구현하며 채운다.
+
+- 문장 나누기와 대상 찾기는 [split_instruction](../../src/agentvis/analysis/review.py#split_instruction)이 한다.
 - **N1 문장 나누기**: 코드 블록(```` ``` ````)은 한 문장으로 둔다. 그 밖에서는 줄바꿈과 문장 끝(`.`, `?`, `!` 뒤 공백, 또는 한국어 종결 `다.`·`요.`)에서 나눈다. 백틱 안의 마침표에서는 나누지 않는다.
 - **N2 대상**: 백틱 안의 글을 대상으로 한다. 경로 모양(`/`가 있거나 확장자로 끝남)이면 `path`, `test_`로 시작하거나 `Test`로 시작하는 이름이면 `test`, 공백이 있고 첫 낱말이 명령 모양이면 `command`, 그 밖은 `symbol`이다. `symbol`의 함수 호출 모양 `f(...)`은 이름 `f`만 쓴다.
 
 ## 5. 테스트
 
-M10-T2\~M10-T6에서 구현하며 채운다.
+- [tests/test_review.py](../../tests/test_review.py) (M10-T2)
+  - 문장 나누기: 문장 끝에서 나누고, 숫자 안의 마침표(`90.0`)와 백틱 안의 마침표에서는 나누지 않고, 코드 블록은 한 문장이며, 빈 줄은 문장이 아니다. 문장의 `start`·`end`로 원문을 자르면 문장 글과 같다.
+  - 대상: 경로(`invoice.py`), 함수 호출 모양(`total([100.0])` → `total`), 테스트 이름(`test_x`, `a::b`), 명령(`python3 -m unittest …`), 그 밖의 이름을 가른다. 대상의 위치로 원문을 자르면 백틱 안의 글이다.
+  - `review_turn`은 없는 턴에 None을 돌려준다.
+  - API: `GET /api/sessions/{id}/turns/{index}/review`가 문장과 대상을 돌려주고, 없는 턴은 `404`다.
+- 화면은 헤드리스 Chrome으로 실험 모드 서버를 열어 확인한다(M10-T6에서 전체 확인).

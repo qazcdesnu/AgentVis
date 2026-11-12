@@ -4,6 +4,7 @@
 import { renderGraph } from "./graph.js";
 import { startInteractionLog } from "./interaction.js";
 import { promptLine, renderOverview, summarizeTurns } from "./overview.js";
+import { renderReview } from "./review.js";
 
 const STATUS = {
   success: ["✓", "성공"],
@@ -67,6 +68,7 @@ function readHash() {
     width: params.get("width") === "time" ? "time" : "equal",
     scale: params.get("scale") === "real" ? "real" : "compress",
     live: params.get("live") !== "off",
+    sentence: Number(params.get("sentence")) || null,
   };
 }
 
@@ -524,6 +526,23 @@ function pickTurn(view, index, step) {
   updateHash({ live: "off", turn: index, step });
 }
 
+// Box between the turn picker and the flow: the instruction review (ReviewView.md section 2).
+async function renderTurnReview(state, view, turn) {
+  const container = el("div", "review");
+  try {
+    if (!cache.reviews.has(turn.index)) {
+      cache.reviews.set(turn.index, await getJSON(`/api/sessions/${encodeURIComponent(view.session_id)}/turns/${turn.index}/review`));
+    }
+    renderReview(container, turn.prompt, cache.reviews.get(turn.index), state, {
+      onSentence: (sentence) => updateHash({ sentence }),
+      onStep: (stepId) => updateHash({ live: "off", turn: turn.index, step: String(stepId) }),
+    });
+  } catch (error) {
+    showError(container, error);
+  }
+  return container;
+}
+
 function followControl() {
   return readHash().live ? el("div", "meta follow", "● 최신 턴과 최신 노드를 따라가는 중") : el("span");
 }
@@ -593,7 +612,11 @@ async function loadSession(state) {
     shownStep = state.live && turn ? latestMainStep(turn) : state.step;
     if (turn) {
       const flow = state.view === "list" ? renderTurnSteps(view, turn) : await renderTurnGraph(state, view, turn);
-      boxes.push(box("턴 선택", renderTurnPicker(view, turn), "turn first"), box(`턴 #${turn.index} 작업 흐름`, flow, "turn", viewToggle(state)));
+      boxes.push(
+        box("턴 선택", renderTurnPicker(view, turn), "turn first"),
+        box("지시 대조", await renderTurnReview(state, view, turn), "turn"),
+        box(`턴 #${turn.index} 작업 흐름`, flow, "turn", viewToggle(state)),
+      );
     } else {
       boxes.push(box("턴 선택", el("p", "empty", "턴이 없습니다."), "turn first"));
     }
@@ -666,7 +689,7 @@ function box(title, content, scope, controls = null) {
 }
 
 // The last session detail and its turn graphs, reused while only the selection in the hash changes (WebUI.md section 7.4).
-let cache = { view: null, turns: [], graphs: new Map() };
+let cache = { view: null, turns: [], graphs: new Map(), reviews: new Map() };
 let shown = { project: undefined, session: undefined };
 // Zoom and scroll of each drawn graph, by session, turn and time axis, kept across live redraws (WebUI.md section 8.2).
 const graphViews = new Map();
@@ -681,7 +704,7 @@ async function render(force = false) {
   shown = { project: state.project, session: state.session };
   const tasks = [];
   if (changed) {
-    cache = { view: null, turns: [], graphs: new Map() };
+    cache = { view: null, turns: [], graphs: new Map(), reviews: new Map() };
     tasks.push(loadProjects(state.project), loadSessions(state.project, state.session));
   }
   tasks.push(loadSession(state));
@@ -752,7 +775,7 @@ async function refreshSession() {
   try {
     do {
       refreshAgain = false;
-      cache = { view: null, turns: [], graphs: new Map() };
+      cache = { view: null, turns: [], graphs: new Map(), reviews: new Map() };
       await loadSession(readHash());
     } while (refreshAgain);
   } finally {

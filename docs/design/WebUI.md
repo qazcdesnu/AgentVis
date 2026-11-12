@@ -71,6 +71,7 @@
   | 1 | 세션 정보 | 제목, 진행 요약, 정보 줄(아래) | 세션 |
   | 2 | 세션 전체 흐름 | [개요 띠와 이동 배지](#7-세션-개요-띠와-이동-배지) | 세션 |
   | 3 | 턴 선택 | 턴 고르기 상자(순번, 지시 첫 줄, 실패 수), 고른 턴의 정보(시작 시각, 상태, 도구 호출 수, 실패 수), 여러 줄 지시의 전문(접힘) | 턴 |
+  | 3.5 | 지시 대조 | 고른 턴의 지시(문장 번호, 지시가 가리킨 대상)와 규칙으로 찾은 신호 목록. 2.0.0에서 더했다([지시 대조 보기 설계](ReviewView.md#2-배치)) | 턴 |
   | 4 | `턴 #n 작업 흐름` | 제목 줄 오른쪽의 `흐름 그래프 \| 목록` 단추, 고른 턴의 [작업 흐름 그래프](FlowGraph.md#6-화면)와 노드 상세, 또는 고른 턴의 단계 목록([3절](#3-턴과-단계-표시)) | 턴 |
 
   **세션 정보 상자**(I47):
@@ -169,6 +170,7 @@
 | [src/agentvis/web/style.css](../../src/agentvis/web/style.css) | 배치, 단계 종류·상태 색, 밝은·어두운 테마(`prefers-color-scheme`) |
 | `src/agentvis/web/overview.js` | 세션 개요 띠와 이동 배지([7절](#7-세션-개요-띠와-이동-배지)) |
 | `src/agentvis/web/graph.js` | 작업 흐름 그래프 그리기([작업 흐름 그래프 설계의 화면](FlowGraph.md#6-화면)) |
+| `src/agentvis/web/review.js` | 지시 대조 상자([지시 대조 보기 설계](ReviewView.md#3-요소와-인코딩)) |
 | `src/agentvis/web/interaction.js` | 실험 모드의 화면 사용 기록([9절](#9-실험-모드)) |
 | `src/agentvis/web/vendor/` | 저장소에 넣은 외부 라이브러리([1.1절](#11-저장소에-넣은-라이브러리)) |
 
@@ -176,7 +178,7 @@
 
 ## 6. 테스트
 
-- [tests/test_api.py](../../tests/test_api.py)에서 `TestClient`로 `GET /`가 `index.html`을, `/app.js`·`/style.css`·`/graph.js`·`/overview.js`·`/interaction.js`·저장소에 넣은 D3가 정적 파일을 돌려주고, 그 응답에 `Cache-Control: no-cache`가 있으며 같은 파일을 `If-None-Match`로 다시 물으면 `304`이고(H5), 조회 API 경로가 정적 파일 연결에 가려지지 않음을 확인한다.
+- [tests/test_api.py](../../tests/test_api.py)에서 `TestClient`로 `GET /`가 `index.html`을, `/app.js`·`/style.css`·`/graph.js`·`/overview.js`·`/review.js`·`/interaction.js`·저장소에 넣은 D3가 정적 파일을 돌려주고, 그 응답에 `Cache-Control: no-cache`가 있으며 같은 파일을 `If-None-Match`로 다시 물으면 `304`이고(H5), 조회 API 경로가 정적 파일 연결에 가려지지 않음을 확인한다.
 - 화면 동작(그리기, 접고 펴기, 해시 상태)은 자동 테스트 도구를 두지 않고, 실제 서버를 띄워 브라우저로 확인한 결과를 완료 기록에 남긴다. 화면이 커지면 브라우저 자동 테스트를 설계한다.
 
 ## 7. 세션 개요 띠와 이동 배지

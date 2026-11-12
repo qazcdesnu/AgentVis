@@ -6,6 +6,7 @@
 @doc: docs/design/WebUI.md#5-파일-구성
 @doc: docs/design/WebUI.md#81-변경-알림-스트림
 @doc: docs/design/WebUI.md#92-api와-기록-파일
+@doc: docs/design/ReviewView.md#41-모델
 """
 
 import asyncio
@@ -24,7 +25,7 @@ from starlette.responses import Response
 from starlette.types import Scope
 
 from agentvis import __version__
-from agentvis.analysis.catalog import get_session, get_tool_output, get_turn_graph, list_projects, list_sessions
+from agentvis.analysis.catalog import get_session, get_tool_output, get_turn_graph, get_turn_review, list_projects, list_sessions
 from agentvis.collector import InvalidHookEvent, hook_event_to_raw
 from agentvis.interaction import InteractionLog, InvalidInteractions, parse_events
 from agentvis.store import EventStore
@@ -193,6 +194,13 @@ def create_app(
         if graph is None:
             raise HTTPException(status_code=404, detail="세션 또는 턴 없음")
         return jsonable_encoder(graph)
+
+    @app.get("/api/sessions/{session_id}/turns/{index}/review")
+    def turn_review(session_id: str, index: int) -> dict:
+        review = get_turn_review(store, session_id, index)
+        if review is None:
+            raise HTTPException(status_code=404, detail="세션 또는 턴 없음")
+        return jsonable_encoder(review)
 
     # Mounted last so the API routes above take precedence over static files.
     app.mount("/", _RevalidatedStaticFiles(directory=_WEB_DIR, html=True), name="web")

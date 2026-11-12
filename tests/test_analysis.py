@@ -132,6 +132,26 @@ class TurnTest(unittest.TestCase):
         self.assertEqual((view.project, view.project_from_hook), ("/Users/me/app/sub", True))
 
 
+class SdkPromptTest(unittest.TestCase):
+    """@doc: docs/design/Analysis.md#9-테스트"""
+
+    def test_non_interactive_prompts_start_turns(self) -> None:
+        # `claude -p` records the prompt with no origin and an sdk entrypoint (H8).
+        s = _Session()
+        s.record(type="user", uuid="u1", parentUuid=None, promptId="p1", entrypoint="sdk-cli",
+                 message={"role": "user", "content": "`invoice.py`를 고쳐 주세요."})
+        s.assistant("a1", "u1", {"type": "tool_use", "id": "toolu_1", "name": "Bash", "input": {"command": "ls"}})
+        s.result("r1", "a1", "p1", "toolu_1", "invoice.py")
+        # A user record with neither an origin nor an sdk entrypoint is not a prompt.
+        s.record(type="user", uuid="u2", parentUuid="r1", promptId="p2", message={"role": "user", "content": "?"})
+        view = s.build()
+        self.assertEqual([turn.prompt for turn in view.turns], ["`invoice.py`를 고쳐 주세요."])
+        self.assertEqual(view.turns[0].tool_call_count, 1)
+        self.assertEqual(view.turns[0].state, "running")
+        s.record(type="assistant", uuid="a2", parentUuid="r1", message={"content": [{"type": "text", "text": "고쳤습니다."}], "stop_reason": "end_turn"})
+        self.assertEqual(s.build().turns[0].state, "ended")
+
+
 class ToolCallTest(unittest.TestCase):
     """@doc: docs/design/Analysis.md#9-테스트"""
 

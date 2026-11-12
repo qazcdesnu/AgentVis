@@ -32,6 +32,8 @@
 
 **턴의 시작**: `user` 세션 기록 중 `origin.kind`가 `human`이고 내용이 도구 결과가 아닌 기록. 그 기록의 `promptId`가 턴 ID다. 2026-10-31 실측: 이 세션의 사람 입력 43개가 모두 이 조건으로 구분되었다(`promptSource`는 `typed` 또는 `suggestion_accepted`).
 
+비대화형 실행(`claude -p`, SDK)의 기록은 사람 입력에 `origin`이 없고 `entrypoint`가 `sdk-`로 시작한다(2026-11-13 실측, Claude Code 2.1.321, `sdk-cli`). `origin`이 없고 `isMeta`가 아니며 `entrypoint`가 `sdk-`로 시작하고 `promptId`가 있는 `user` 기록도 턴의 시작으로 본다(H8). 실험 자료가 이 방식으로 만들어진다([실행 기록 생성](Study.md#2-실행-기록-생성-m9-t2)).
+
 **턴에 속하는 기록**
 
 | 기록 | 귀속 방법 |
@@ -51,7 +53,7 @@
 | `started_at`, `ended_at` | 시작 기록 시각, `Stop` hook 시각(없으면 그 턴의 `turn_duration` 기록 시각, 그것도 없으면 마지막 단계 시각) |
 | `state` | `running`(`Stop` hook도 `turn_duration` 기록도 아직 없고 세션이 끝나지 않음), `ended`, `failed`(`StopFailure`) |
 
-**턴 끝 신호**(H6): `Stop` hook과 세션 기록의 `turn_duration` 기록([실측](../DataSource.md#38-hook-전달-실패와-턴-끝-기록))은 둘 다 턴이 끝났다는 신호다. 서버가 꺼져 있어 `Stop` hook을 받지 못해도 세션 기록을 나중에 읽으면 턴이 끝난 것으로 보정된다. `turn_duration` 기록은 단계로 만들지 않고, `promptId`가 없으므로 부모를 따라 턴을 찾는다(턴에 속하는 기록의 규칙과 같다). 둘 다 있으면 끝 시각은 `Stop` hook 시각이다.
+**턴 끝 신호**(H6): `Stop` hook과 세션 기록의 `turn_duration` 기록([실측](../DataSource.md#38-hook-전달-실패와-턴-끝-기록))은 둘 다 턴이 끝났다는 신호다. 서버가 꺼져 있어 `Stop` hook을 받지 못해도 세션 기록을 나중에 읽으면 턴이 끝난 것으로 보정된다. `turn_duration` 기록은 단계로 만들지 않고, `promptId`가 없으므로 부모를 따라 턴을 찾는다(턴에 속하는 기록의 규칙과 같다). 둘 다 있으면 끝 시각은 `Stop` hook 시각이다. 비대화형 실행(H8)의 턴에는 둘 다 없으므로, 그 턴에서는 `stop_reason`이 `end_turn`인 `assistant` 기록도 턴 끝 신호로 본다. 대화형 턴에는 이 규칙을 쓰지 않는다(1.1.0의 동작을 바꾸지 않기 위해서다).
 | `steps` | 단계 목록(4절), 시각 순 |
 
 턴은 [Turn](../../src/agentvis/analysis/session.py#Turn)으로 나타낸다. 세션 기록에 아직 사람 입력 기록이 없는 턴은 hook의 `UserPromptSubmit`(`prompt`)으로 만든다.
@@ -206,6 +208,7 @@
 
 [tests/test_analysis.py](../../tests/test_analysis.py)에서 실측 형태의 원시 이벤트 목록으로 확인한다. 원시 이벤트는 실제 변환 경로(`record_to_raw`, `hook_event_to_raw`)로 만든다. 조회 API는 [tests/test_api.py](../../tests/test_api.py)에서 `TestClient`로 확인한다.
 
+- 비대화형 실행 기록의 사람 입력(`origin` 없음, `entrypoint`가 `sdk-cli`)도 턴을 시작하고, `origin`도 `sdk` 진입점도 없는 `user` 기록은 턴을 시작하지 않는다. 비대화형 턴은 `end_turn` 응답이 오면 끝난다(H8).
 - 사람 입력만 턴을 시작하고, 하위 에이전트 보고·작업 알림·메타 기록은 턴을 만들지 않는다.
 - `promptId`가 없는 기록이 `parentUuid`를 따라 올바른 턴에 들어간다.
 - 도구 호출이 세션 기록과 hook 이벤트에서 하나로 합쳐지고, 상태 표의 각 경우가 구분된다. 세션 기록이 아직 없는 실행 중 도구는 hook만으로 `running`이 된다.
