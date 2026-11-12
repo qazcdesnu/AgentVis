@@ -31,6 +31,7 @@ from agentvis.interaction import InteractionLog
 from agentvis.server import create_app
 from agentvis.study.baseline import write_baseline
 from agentvis.study.key import check_key, key_summary
+from agentvis.study.scrub import scrub_folder
 from agentvis.study.runner import STUDY_TIMEOUT_SECONDS, RunSpec, run_variant
 from agentvis.store import EventStore, data_dir, default_db_path, experiment_dir
 from agentvis.transcript import TranscriptReader, default_projects_dir, find_unread_transcripts
@@ -192,6 +193,30 @@ def _study_baseline(args: argparse.Namespace) -> int:
     return 0 if written else 1
 
 
+def _replacement(value: str) -> tuple[str, str]:
+    old, separator, new = value.partition("=")
+    if not separator or not old:
+        raise argparse.ArgumentTypeError(f"'옛글=새글' 꼴이어야 함: {value!r}")
+    return old, new
+
+
+def _study_scrub(args: argparse.Namespace) -> int:
+    """Write the publishable copy of a scenario folder and report what still looks personal.
+
+    @doc: docs/design/Study.md#5-공개용-익명화-m11-t2
+    """
+    try:
+        findings = scrub_folder(args.folder, args.out, args.replace or [])
+    except FileExistsError as error:
+        print(f"오류: {error}", file=sys.stderr)
+        return 1
+    print(f"공개용 사본: {args.out}")
+    for finding in findings:
+        print(finding)
+    print(f"개인 정보로 보이는 글 {len(findings)}개" if findings else "개인 정보로 보이는 글 없음")
+    return 1 if findings else 0
+
+
 def _apply_settings_change(path: Path, change: str, port: int | None) -> int:
     try:
         settings = load_settings(path)
@@ -266,6 +291,11 @@ def _build_parser() -> argparse.ArgumentParser:
     check = study_commands.add_parser("check-key", help="시나리오 폴더의 정답표(key.json)를 검사한다.")
     check.add_argument("folder", type=Path, help="시나리오 폴더")
     check.set_defaults(handler=_study_check_key)
+    scrub = study_commands.add_parser("scrub", help="공개용으로 실험 자료의 개인 정보를 지운 사본을 만든다.")
+    scrub.add_argument("folder", type=Path, help="시나리오 폴더")
+    scrub.add_argument("--out", type=Path, required=True, help="사본을 쓸 폴더 (없어야 함)")
+    scrub.add_argument("--replace", type=_replacement, action="append", help="글 바꾸기 '옛글=새글' (여러 번 줄 수 있음)")
+    scrub.set_defaults(handler=_study_scrub)
     baseline = study_commands.add_parser("baseline", help="기준선 조건의 텍스트 기록 보기(HTML)를 만든다.")
     baseline.add_argument("folder", type=Path, help="시나리오 폴더")
     baseline.add_argument("--out", type=Path, required=True, help="HTML을 쓸 폴더")

@@ -18,6 +18,36 @@
 
 
 
+
+## M11-T2 실험 자료 익명화
+
+- 시작일: 2026-11-13
+- 완료일: 2026-11-13
+- 근거 문서: [실험 자료 도구 설계의 공개용 익명화](design/Study.md#5-공개용-익명화-m11-t2)
+- 관련 이슈: I64
+
+### 계획
+- `agentvis study scrub`으로 시나리오 폴더의 공개용 사본을 만든다. AgentVis가 읽는 줄만 남기고, 계정 필드를 지우고, 경로를 바꾸고, 남은 개인 정보를 찾아 알린다.
+- M11-T1 브랜치 위에 쌓은 `m11-t2-scrub`에서 진행한다.
+
+### 진행 기록
+- 2026-11-13: 연습 과제의 실제 기록을 훑어 개인 정보가 있는 곳을 쟀다. 계정 식별자(`session-owner`)뿐 아니라 시스템 프롬프트 전체가 담긴 `api-request-blob`·`api-request-shape`와 `prompt_snapshot`·`session_context` 첨부에 사용자 이메일과 홈 경로가 있었다. 모두 AgentVis가 읽지 않는 줄이라, 기록 리더와 같은 판정(`record_to_raw`)으로 읽는 줄만 남기기로 했다.
+- 2026-11-13: 실제 기록에 돌리자 줄 수가 66개에서 15개로 줄고 개인 정보로 보이는 글이 없었다. 정답표 검사가 그대로 통과했고, 지시 대조 신호가 익명화 전과 같았다.
+
+### 결정 사항
+- 결과 폴더가 이미 있으면 덮어쓰지 않고 멈춘다. 원본과 사본을 헷갈려 원본을 덮는 일을 막는다.
+
+### 변경 파일
+- `src/agentvis/study/scrub.py`(새 파일), `src/agentvis/cli.py`
+- `tests/test_study_scrub.py`(새 파일)
+- `docs/design/Study.md`, `docs/design/Cli.md`, `docs/study/Kit.md`, `docs/Roadmap.md`, `docs/Ongoing.md`, `docs/Done.md`
+
+### 결과
+- `agentvis study scrub`으로 실험 자료의 공개용 사본(화면이 읽는 줄만, 계정 필드 없음, 경로 바꿈)을 만들고 남은 개인 정보를 검사할 수 있다. 화면과 지시 대조 결과는 원본과 같다.
+
+### 검증
+- check_docs, check_pointers, check_tasks, check_commits, check_web, 단위 테스트 통과(새 테스트 3개). 연습 과제의 실제 기록에 돌려 개인 정보가 없고 신호가 같음을 확인했다. CI 세 OS는 PR에서 확인한다.
+
 ## M11-T1 기준선 조건의 실험 서버
 
 - 시작일: 2026-11-13

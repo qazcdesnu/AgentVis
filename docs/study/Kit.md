@@ -51,6 +51,7 @@ uv run agentvis study run --repo /tmp/practice-repo --commit <커밋> \
 2. 결과 폴더에 `key.json`을 쓴다([정답표 형식](../design/Study.md#3-정답표-m9-t3)). 시행마다 `use`를 `practice`, `trial`, `u3` 중 하나로 적는다.
 3. `uv run agentvis study check-key <결과 폴더>`가 문제 없이 균형 표를 출력할 때까지 고친다.
 4. `uv run agentvis study baseline <결과 폴더> --out <기준선 폴더>`로 기준선 HTML을 만든다.
+5. 보충 자료로 공개할 때는 `uv run agentvis study scrub <결과 폴더> --out <공개 폴더> --replace <홈 경로>=/home/study`로 사본을 만들고, "개인 정보로 보이는 글 없음"이 나온 사본만 낸다. 원본 결과 폴더는 공개하지 않는다.
 
 ## 2. 시행 구성
 
