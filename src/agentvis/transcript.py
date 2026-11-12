@@ -184,13 +184,15 @@ def read_subagent_meta(store: EventStore, path: Path, projects_dir: Path) -> boo
     return store.append_batch([event]) == 1
 
 
-def find_unread_transcripts(store: EventStore, projects_dir: Path) -> list[Path]:
+def find_unread_transcripts(store: EventStore, projects_dir: Path, everything: bool = False) -> list[Path]:
     """Return the transcripts that grew or appeared while the server was not reading them.
+
+    With everything, every transcript without a cursor counts as unread, whatever its age.
 
     @doc: docs/design/Transcript.md#42-서버가-시작될-때-m2-t4
     """
     started = store.first_received_at()
-    if started is None:
+    if started is None and not everything:
         return []
     root = projects_dir.resolve()
     found: list[Path] = []
@@ -205,7 +207,7 @@ def find_unread_transcripts(store: EventStore, projects_dir: Path) -> list[Path]
             moved = (cursor.device, cursor.inode) != (str(status.st_dev), str(status.st_ino))
             unread = moved or status.st_size != cursor.offset
         else:
-            unread = datetime.fromtimestamp(status.st_mtime, UTC) >= started
+            unread = everything or datetime.fromtimestamp(status.st_mtime, UTC) >= started
         if not unread:
             continue
         found.append(resolved)

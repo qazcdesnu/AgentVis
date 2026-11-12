@@ -74,7 +74,7 @@
 
 ### 4.2 서버가 시작될 때 (M2-T4)
 
-[find_unread_transcripts](../../src/agentvis/transcript.py#find_unread_transcripts)`(store, projects_dir) -> list[Path]`가 기록 루트의 세션·서브에이전트 기록 중 다음 파일을 찾아 돌려준다.
+[find_unread_transcripts](../../src/agentvis/transcript.py#find_unread_transcripts)`(store, projects_dir, everything=False) -> list[Path]`가 기록 루트의 세션·서브에이전트 기록 중 다음 파일을 찾아 돌려준다.
 
 - 찾는 파일: `<기록 루트>/*/*.jsonl`(세션 기록)과 `<기록 루트>/*/*/subagents/agent-*.jsonl`(서브에이전트 기록). 경로는 실제 경로로 바꿔 커서(경로 문자열이 키)와 비교한다.
 - 커서가 있고, 파일 크기가 커서 위치와 다르거나 파일 식별자가 다른 파일
@@ -83,6 +83,8 @@
 - 줄바꿈 없는 마지막 줄을 남긴 파일은 크기가 커서 위치와 계속 달라 서버를 켤 때마다 다시 고른다. 읽어도 새로 저장되는 것이 없으므로 그대로 둔다.
 
 `agentvis serve`는 기록 리더를 시작한 뒤 찾은 파일을 모두 [TranscriptReader.request](../../src/agentvis/transcript.py#TranscriptReader.request)로 넘기고, 찾은 파일 수를 출력한다. 읽기는 기록 리더의 작업 스레드가 하므로 서버 시작을 늦추지 않는다.
+
+`everything=True`이면 수정 시각과 수집 시작 시각을 보지 않고, 커서가 없는 파일을 모두 고른다. [실험 모드](Cli.md#22-experiment)가 시나리오 기록 폴더 전체를 읽을 때 쓴다(I59). 커서가 있는 파일의 판정은 같다.
 
 이렇게 하면 서버가 꺼진 동안 시작하고 끝난 세션도 찾는다. 수집 시작 전의 지난 세션은 자동으로 읽지 않고 [4.3 지난 세션 가져오기](#43-지난-세션-가져오기-m2-t5)로만 읽는다. 사용자가 원하지 않은 과거 기록을 모두 쌓지 않기 위해서다.
 

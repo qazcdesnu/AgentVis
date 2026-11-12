@@ -145,6 +145,17 @@ git config core.hooksPath .githooks
 3. Claude Code로 평소처럼 작업합니다.
 4. 브라우저에서 `http://127.0.0.1:8765/`를 엽니다. 화면은 실시간으로 갱신되고, 맨 위 `● 실시간 따라가기`가 켜져 있으면 진행 중인 세션의 최신 턴과 노드를 따라갑니다([3.7절](#37-화면-사용법)).
 
+**유저 스터디 실험 모드**: 참가자에게는 실험용 시나리오 세션만 보여 줍니다. hook 설치는 필요 없습니다.
+
+```sh
+uv run agentvis experiment P01 --transcripts <시나리오 기록 폴더>
+```
+
+- 시나리오 기록 폴더는 Claude Code 기록 루트와 같은 모양(`<폴더>/<프로젝트 폴더>/<세션>.jsonl`)이어야 합니다.
+- `~/.claude/projects`는 읽지 않고, hook 이벤트도 저장하지 않으므로 참가자의 개인 세션이 섞이지 않습니다.
+- 데이터는 참가자마다 `~/.agentvis/experiments/<참가자>/`에 따로 저장됩니다. 시작할 때 출력되는 AgentVis 버전을 실험 기록에 적습니다.
+- 상세는 [CLI 설계의 experiment](docs/design/Cli.md#22-experiment)에 있습니다.
+
 ### 3.6 꼭 알아야 할 점
 
 - **hook은 전역 설정을 바꿉니다.** `hooks install`은 Claude Code 사용자 설정 파일에 hook 14개를 추가합니다. 그래서 이 컴퓨터의 **모든 프로젝트**에서 Claude Code를 쓸 때마다 이벤트가 서버로 갑니다.

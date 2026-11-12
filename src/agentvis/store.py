@@ -135,6 +135,14 @@ def default_db_path() -> Path:
     return data_dir() / "agentvis.db"
 
 
+def experiment_dir(participant: str) -> Path:
+    """Return a participant's data directory for experiment mode; does not create it.
+
+    @doc: docs/design/Store.md#1-데이터-디렉터리
+    """
+    return data_dir() / "experiments" / participant
+
+
 def _to_text(moment: datetime) -> str:
     return moment.astimezone(UTC).isoformat()
 

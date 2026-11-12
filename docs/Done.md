@@ -2,6 +2,38 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## I59 실험 모드: 시나리오 세션 기록만 읽고 참가자별로 저장
+
+- 시작일: 2026-11-12
+- 완료일: 2026-11-12
+- 근거 문서: [CLI 설계의 experiment](design/Cli.md#22-experiment), [이벤트 저장소 설계](design/Store.md#1-데이터-디렉터리), [기록 리더 설계](design/Transcript.md#42-서버가-시작될-때-m2-t4), [수집기 설계](design/Collector.md#2-http-엔드포인트)
+- 관련 이슈: I26, I61
+
+### 계획
+- `agentvis experiment <참가자> --transcripts DIR` 명령을 설계 문서에 먼저 적고 구현한다.
+- `DIR`의 세션 기록만 모두 읽고(수정 시각 무시), 참가자별 데이터 디렉터리에 저장하고, hook 이벤트는 저장하지 않는다.
+- I58 브랜치 위에 쌓은 `i59-experiment-mode`에서 진행한다.
+
+### 진행 기록
+- 2026-11-12: 놓친 기록 찾기(`find_unread_transcripts`)는 빈 저장소에서 아무것도 고르지 않고 수집 시작 전 파일도 건너뛴다. 실험 모드는 새 저장소에 시나리오 폴더 전체를 읽어야 하므로 `everything` 옵션을 더했다. M2-T5(`agentvis import`)는 만들지 않고 이 명령으로 실험 자료를 읽는다.
+- 2026-11-12: 이 저장소의 세션 기록 하나를 임시 시나리오 폴더에 복사해 실제로 띄웠다. 세션 목록에 그 세션만 보였고, hook을 보내도 `{}`만 돌려받고 저장되지 않았다. 데이터는 `<AGENTVIS_HOME>/experiments/P01/`에 생겼다.
+
+### 결정 사항
+- 가져오기 명령 대신 서버 실행 방식(`experiment`)으로 만들었다. 참가자 컴퓨터에서 한 명령으로 띄우고, 평소 데이터와 섞이지 않게 하는 것이 목적이라서다.
+- 참가자 번호는 경로 이름이 되므로 영문자·숫자·`_`·`-` 1\~32자만 받는다.
+- 서버를 시작하기 전에 읽기가 끝나기를 기다린다(최대 300초). 참가자가 처음 화면을 열 때 세션이 모두 보여야 하기 때문이다.
+
+### 변경 파일
+- `src/agentvis/cli.py`, `src/agentvis/server.py`, `src/agentvis/store.py`, `src/agentvis/transcript.py`
+- `tests/test_cli.py`, `tests/test_collector.py`, `tests/test_transcript.py`
+- `docs/design/Cli.md`, `docs/design/Store.md`, `docs/design/Transcript.md`, `docs/design/Collector.md`, `docs/Issue.md`, `docs/Done.md`, `README.md`
+
+### 결과
+- 참가자 컴퓨터에서 `agentvis experiment P01 --transcripts <폴더>`로 시나리오 세션만 보이는 서버를 띄울 수 있다. 참가자마다 데이터가 따로 남고, 시작할 때 도구 버전을 출력한다.
+
+### 검증
+- `check_docs`, `check_pointers`, `check_tasks`, `check_commits`, `check_web`, 단위 테스트 통과. 임시 폴더로 실제 실행해 확인했다.
+
 ## I58 수업 실험의 T4를 식별 과업으로 좁힘
 
 - 시작일: 2026-11-12
