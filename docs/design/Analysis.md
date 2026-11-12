@@ -137,7 +137,7 @@
 
 - 한 명령에 요약이 여럿이면 하나라도 실패면 실패이고, 아니면 마지막 요약을 쓴다.
 - 출력에 요약이 없으면 종료 코드로 정한다(`basis`가 `exit_code`). 상태가 `error`면 실패, `success`면 통과다. 단, `clipped`이면 종료 코드를 믿을 수 없어 `unknown`이다. 아직 끝나지 않은 호출은 `None`이다.
-- `test_run`은 `{"result": "pass" | "fail" | "unknown" | None, "summary": 요약 글 또는 None, "basis": "output" | "exit_code" | None, "clipped": bool}`이다. 테스트 실행이 아닌 호출은 `None`이다.
+- `test_run`은 `{"result": "pass" | "fail" | "unknown" | None, "summary": 요약 글 또는 None, "basis": "output" | "exit_code" | None, "clipped": bool, "failed": [실패한 테스트 이름]}`이다. 테스트 실행이 아닌 호출은 `None`이다. `failed`는 2.0.0에서 더했다. 자르기 전 출력 전체에서 [failed_tests](../../src/agentvis/analysis/identify.py#failed_tests)로 뽑는다(pytest의 `FAILED a::b`, unittest의 `FAIL: name (where)`, go의 `--- FAIL: Name`). [지시 대조의 충돌 신호](ReviewView.md#42-규칙)에 쓴다.
 
 **테스트 파일 변경**(`test_edit`): 파일 경로가 테스트 파일인지 [is_test_path](../../src/agentvis/analysis/identify.py#is_test_path)`(path, root) -> bool`로 본다.
 - 경로를 프로젝트 경로(`root`) 기준 상대 경로로 바꾼 뒤 본다([relative_path](../../src/agentvis/analysis/identify.py#relative_path)). 화면에 보이는 경로도 이 상대 경로다. 프로젝트가 `test/` 같은 이름의 폴더 아래 있어도 모든 파일이 테스트가 되지 않게 하기 위해서다.

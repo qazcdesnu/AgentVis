@@ -8,7 +8,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from agentvis.analysis.identify import completion_sentences, is_test_path, relative_path, test_command, test_outcome, written_paths
+from agentvis.analysis.identify import completion_sentences, failed_tests, is_test_path, relative_path, test_command, test_outcome, written_paths
 from agentvis.store import RawEvent
 
 # @doc: docs/design/Analysis.md#5-도구-호출
@@ -155,7 +155,8 @@ def _note_test_output(call: "ToolCall", text: str) -> None:
         return
     result, summary = test_outcome(text)
     if result is not None or call.test_run is None:
-        call.test_run = {"result": result, "summary": summary, "basis": "output" if result else None, "clipped": shape["clipped"]}
+        call.test_run = {"result": result, "summary": summary, "basis": "output" if result else None, "clipped": shape["clipped"],
+                         "failed": failed_tests(text)}
 
 
 def _block(record: dict) -> dict:

@@ -11,6 +11,37 @@
 
 
 
+
+## M10-T4 어긋난 증거 모으기
+
+- 시작일: 2026-11-13
+- 완료일: 2026-11-13
+- 근거 문서: [지시 대조 보기 설계의 규칙](design/ReviewView.md#42-규칙), [과업과 데이터 추상화 2의 N6\~N8](design/TaskAbstraction2.md#3-새-정보-항목)
+- 관련 이슈: I62
+
+### 계획
+- N6 재현 시도와 결과, N7 지시가 가리킨 파일을 고친 뒤 남은 실패, N8 충돌하는 테스트 결과를 신호로 낸다.
+- N8을 위해 테스트 실행 출력 전체에서 실패한 테스트 이름을 뽑아 `test_run.failed`에 둔다.
+- M10-T3 브랜치 위에 쌓은 `m10-t4-evidence-signals`에서 진행한다.
+
+### 진행 기록
+- 2026-11-13: 연습 과제의 두 기록 모두 첫 편집 전에 테스트를 돌려 실패를 보았다(`재현됨`). E2 기록은 지시가 가리킨 `invoice.py`를 고치지 않아 남은 실패 신호가 없고, 충돌도 없었다. N7·N8은 단위 테스트로 확인했다. 실제 기록에서의 확인은 팀이 만드는 E2·E3 자극으로 한다.
+- 2026-11-13: 원본 지시 기록에도 `재현됨` 신호가 하나 생긴다. 재현 신호는 잘못의 표시가 아니라 증상이 실제로 나타났는지의 증거라 그대로 둔다.
+
+### 결정 사항
+- 충돌은 같은 명령의 두 실행만 비교한다. 좁힌 실행(`-k`, 파일 하나)과 비교하면 실행하지 않은 테스트가 통과로 바뀐 것처럼 보이기 때문이다.
+
+### 변경 파일
+- `src/agentvis/analysis/review.py`, `src/agentvis/analysis/identify.py`, `src/agentvis/analysis/session.py`
+- `tests/test_review.py`, `tests/test_identify.py`, `tests/test_analysis.py`
+- `docs/design/ReviewView.md`, `docs/design/Analysis.md`, `docs/Roadmap.md`, `docs/Ongoing.md`, `docs/Done.md`
+
+### 결과
+- 신호 목록에 재현 시도와 결과(`◇`), 지시가 가리킨 파일을 고친 뒤 남은 실패(`✕`), 충돌하는 테스트 결과(`⇄`)가 더해졌다. 테스트 실행은 실패한 테스트 이름을 함께 가진다.
+
+### 검증
+- check_docs, check_pointers, check_tasks, check_commits, check_web, 단위 테스트 통과(새 테스트 4개). 연습 과제의 실제 기록에서 재현 신호를 확인했다.
+
 ## M10-T3 에이전트 해석 표시
 
 - 시작일: 2026-11-13
