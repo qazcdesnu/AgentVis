@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from agentvis.analysis.graph import FlowGraph, build_turn_graph
+from agentvis.analysis.review import Review, review_turn
 from agentvis.analysis.session import SessionView, Step, ToolCall, build_session
 from agentvis.store import EventStore
 
@@ -89,6 +90,15 @@ def get_turn_graph(store: EventStore, session_id: str, index: int) -> FlowGraph 
     """
     view = get_session(store, session_id)
     return build_turn_graph(view, index) if view is not None else None
+
+
+def get_turn_review(store: EventStore, session_id: str, index: int) -> Review | None:
+    """Return the instruction review of one turn, or None if the session or turn does not exist.
+
+    @doc: docs/design/ReviewView.md#41-모델
+    """
+    view = get_session(store, session_id)
+    return review_turn(view, index) if view is not None else None
 
 
 def list_projects(store: EventStore) -> list[ProjectView]:

@@ -371,3 +371,24 @@ details > summary { cursor: pointer; list-style-position: outside; }
 .test-facts { color: var(--text); }
 .report-note { margin: 4px 0; padding: 4px 8px; border-left: 3px solid var(--text); background: var(--hover); font-size: 12px; }
 .report-note ul { margin: 2px 0 0 16px; padding: 0; }
+
+/* Instruction review box: docs/design/ReviewView.md section 3. */
+.review .rv-head { font-size: 11px; font-weight: 600; color: var(--muted); margin: 6px 0 4px; }
+.review .rv-head:first-child { margin-top: 0; }
+.rv-instruction { white-space: pre-wrap; line-height: 1.7; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; max-height: 18em; overflow: auto; }
+.rv-sentence { cursor: pointer; border-radius: 3px; }
+.rv-sentence:hover { background: color-mix(in srgb, var(--accent, #3b82f6) 10%, transparent); }
+.rv-sentence.selected { background: color-mix(in srgb, var(--accent, #3b82f6) 18%, transparent); }
+.rv-number { color: var(--muted); margin-right: 2px; font-size: 0.9em; }
+.rv-target { text-decoration: underline; text-underline-offset: 2px; font-size: 0.95em; }
+.rv-chip { font-size: 11px; padding: 0 6px; margin-left: 4px; border-radius: 9px; border: 1px solid currentColor; background: transparent; color: inherit; cursor: pointer; }
+.rv-estimated { font-weight: 400; border: 1px solid var(--line); border-radius: 8px; padding: 0 5px; }
+.rv-clear { font-size: 11px; padding: 0 6px; }
+.rv-signals { list-style: none; margin: 0; padding: 0; max-height: 16em; overflow: auto; }
+.rv-signal { display: grid; grid-template-columns: 5.5em 6.5em 1fr 1.6em; gap: 8px; padding: 2px 4px; border-radius: 4px; cursor: pointer; align-items: baseline; }
+.rv-signal:hover, .rv-signal:focus { background: color-mix(in srgb, var(--accent, #3b82f6) 10%, transparent); outline: none; }
+.rv-signal.selected { background: color-mix(in srgb, var(--accent, #3b82f6) 18%, transparent); }
+.rv-time { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12px; }
+.rv-kind { font-weight: 600; white-space: nowrap; }
+.rv-summary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rv-ref { color: var(--muted); text-align: right; }

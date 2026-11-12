@@ -9,6 +9,41 @@
 
 
 
+
+## M10-T2 지시 패널
+
+- 시작일: 2026-11-13
+- 완료일: 2026-11-13
+- 근거 문서: [지시 대조 보기 설계](design/ReviewView.md#31-지시-패널-r1-n1n2-m10-t2), [분석기 설계의 턴](design/Analysis.md#3-턴)
+- 관련 이슈: I62, H8
+
+### 계획
+- 분석기에 지시 대조 모델(`analysis/review.py`)을 만들고 N1 문장 나누기와 N2 대상 찾기를 구현한다. API `GET /api/sessions/{id}/turns/{index}/review`를 더한다.
+- 화면에 턴 선택과 작업 흐름 사이의 "지시 대조" 상자를 더한다(`web/review.js`). 문장 번호, 대상 밑줄, 문장 누르기로 신호 거르기(해시 `sentence=`), 신호 목록(이 단계에서는 비어 있음).
+- M10-T1 브랜치 위에 쌓은 `m10-t2-instruction-panel`에서 진행한다.
+
+### 진행 기록
+- 2026-11-13: 연습 과제의 실제 기록을 실험 모드로 열어 헤드리스 Chrome으로 찍자 턴 0개, 도구 0개로 보였다. `claude -p` 기록의 사람 입력에는 `origin`이 없고 `entrypoint`가 `sdk-cli`라 분석기가 턴으로 보지 않았다. H8로 등록하고 이 작업에서 고쳤다. 또 그 턴은 `Stop` hook도 `turn_duration`도 없어 계속 실행 중으로 보였다. 비대화형 턴에 한해 `end_turn` 응답을 턴 끝으로 보게 했다. 대화형 턴의 동작(1.1.0)은 바꾸지 않았다.
+- 2026-11-13: 고친 뒤 다시 찍자 턴 1개, 도구 4개, 테스트 표지와 함께 지시 대조 상자에 문장 번호 ①②③과 대상 밑줄(`invoice.py`, `total`, `round`, 명령)이 보였다.
+- 2026-11-13: 비대화형 기록에 계정 식별자(`session-owner` 줄)가 들어 있는 것을 보고, 공개 전에 지우라고 실험 자료 도구 설계에 적었다.
+
+### 결정 사항
+- 지시는 원문 그대로 보이고 문장 앞에 번호만 단다. 백틱도 원문대로 남긴다.
+- 신호 목록이 비면 "규칙으로 찾은 신호가 없습니다"라고 쓰고, 그것이 잘못 없음을 뜻하지 않는다고 마우스 설명에 적는다.
+
+### 변경 파일
+- `src/agentvis/analysis/review.py`(새 파일), `src/agentvis/analysis/catalog.py`, `src/agentvis/analysis/session.py`, `src/agentvis/server.py`
+- `src/agentvis/web/review.js`(새 파일), `src/agentvis/web/app.js`, `src/agentvis/web/style.css`
+- `tests/test_review.py`(새 파일), `tests/test_analysis.py`, `tests/test_api.py`
+- `docs/design/ReviewView.md`, `docs/design/WebUI.md`, `docs/design/Analysis.md`, `docs/design/Study.md`, `docs/Issue.md`, `docs/Roadmap.md`, `docs/Ongoing.md`, `docs/Done.md`
+
+### 결과
+- 세션 상세에 지시 대조 상자가 생겼다. 고른 턴의 지시가 번호 붙은 문장과 대상 밑줄로 보이고, 문장을 누르면 신호를 거른다. API가 문장과 대상을 돌려준다.
+- 비대화형 실행(`claude -p`) 기록이 턴으로 보이고 끝난 턴으로 표시된다(H8). 실험 자료가 화면에 제대로 나온다.
+
+### 검증
+- check_docs, check_pointers, check_tasks, check_commits, check_web, 단위 테스트 통과(새 테스트 5개). 연습 과제의 실제 기록을 실험 모드로 열어 헤드리스 Chrome으로 확인했다.
+
 ## M10-T1 화면 재설계 문서
 
 - 시작일: 2026-11-13

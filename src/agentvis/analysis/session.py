@@ -179,8 +179,14 @@ def _notification_detail(text: str) -> dict:
 def _is_human_prompt(record: dict) -> bool:
     if record.get("type") != "user" or record.get("isMeta"):
         return False
+    if _block(record).get("type") == "tool_result":
+        return False
     origin = record.get("origin")
-    return isinstance(origin, dict) and origin.get("kind") == "human" and _block(record).get("type") != "tool_result"
+    if isinstance(origin, dict):
+        return origin.get("kind") == "human"
+    # Non-interactive runs (`claude -p`, the SDK) record the prompt without an origin (Analysis.md section 3, H8).
+    entrypoint = record.get("entrypoint")
+    return origin is None and isinstance(entrypoint, str) and entrypoint.startswith("sdk-") and isinstance(record.get("promptId"), str)
 
 
 class _Builder:
@@ -195,6 +201,7 @@ class _Builder:
         self.uuid_turn: dict[str, str] = {}
         self.thinking_messages: set[str] = set()
         self.turn_ends: dict[str, datetime] = {}
+        self.sdk_turns: set[str] = set()
 
     def turn_of(self, record: dict, at: datetime) -> str | None:
         prompt_id = record.get("promptId")
@@ -214,11 +221,17 @@ class _Builder:
         if _is_human_prompt(record) and isinstance(record.get("promptId"), str):
             prompt_id = record["promptId"]
             self.turns.setdefault(prompt_id, Turn(prompt_id, _content_text(record["message"].get("content")), event.occurred_at))
+            if not isinstance(record.get("origin"), dict):
+                self.sdk_turns.add(prompt_id)
         turn_id = self.turn_of(record, event.occurred_at)
         if isinstance(record.get("uuid"), str) and turn_id is not None:
             self.uuid_turn[record["uuid"]] = turn_id
         # The transcript's turn_duration record marks the turn's end even when the Stop hook was lost (H6).
         if record.get("type") == "system" and record.get("subtype") == "turn_duration" and turn_id is not None:
+            self.turn_ends[turn_id] = max(event.occurred_at, self.turn_ends.get(turn_id, event.occurred_at))
+        # Non-interactive runs have no Stop hook or turn_duration; the final message's end_turn ends the turn (H8).
+        message = record.get("message") if isinstance(record.get("message"), dict) else {}
+        if record.get("type") == "assistant" and message.get("stop_reason") == "end_turn" and turn_id in self.sdk_turns:
             self.turn_ends[turn_id] = max(event.occurred_at, self.turn_ends.get(turn_id, event.occurred_at))
         step = self._record_step(event, record)
         if step is not None:
