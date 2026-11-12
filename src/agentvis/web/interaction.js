@@ -2,6 +2,7 @@
 // Spec: docs/design/WebUI.md section 9. Text from the page goes to this server only.
 
 const FLUSH_MS = 2000;
+const SCROLL_MS = 2000;
 const TEXT_CHARS = 60;
 const TARGETS = "button, a, summary, select, input, li, [role=button], .g-node, .ov-turn, .ov-list-row";
 
@@ -50,11 +51,21 @@ export async function startInteractionLog() {
   const badge = document.getElementById("experiment");
   badge.textContent = `실험 모드 · ${info.participant}`;
   badge.hidden = false;
-  record("open", { hash: location.hash, width: window.innerWidth, height: window.innerHeight });
+  record("open", { hash: location.hash, path: location.pathname, width: window.innerWidth, height: window.innerHeight });
+  // Where the reader is and how often they search: the baseline's main ways to look around (WebUI.md section 9.4).
+  let lastScroll = 0;
+  window.addEventListener("scroll", () => {
+    const now = Date.now();
+    if (now - lastScroll < SCROLL_MS) return;
+    lastScroll = now;
+    const height = document.documentElement.scrollHeight || 1;
+    record("scroll", { y: Math.round(window.scrollY), ratio: Math.round((window.scrollY / height) * 1000) / 1000 });
+  }, { passive: true });
   window.addEventListener("hashchange", () => record("hash", { hash: location.hash }));
   document.addEventListener("click", (event) => record("click", describe(event.target)), true);
   document.addEventListener("change", (event) => record("change", { ...describe(event.target), value: String(event.target.value ?? "").slice(0, TEXT_CHARS) }), true);
   document.addEventListener("keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "f") record("find");
     if (event.ctrlKey || event.metaKey || event.altKey) return;
     if (event.target.closest && event.target.closest("input, textarea, select")) return;
     record("key", { key: event.key });

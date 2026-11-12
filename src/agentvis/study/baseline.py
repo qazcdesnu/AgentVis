@@ -24,7 +24,14 @@ h1 { font-size: 15px; }
 .error .head { color: var(--error); }
 pre { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 summary { cursor: pointer; color: var(--muted); }
+.top { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.top .experiment, .top .trial { font-size: 12px; }
 """
+_EXPERIMENT_HEADER = (
+    '<div class="top"><span id="experiment" class="experiment" hidden></span>'
+    '<button id="trial" type="button" class="trial" hidden>시행 1 시작</button></div>'
+    '<script type="module">import { startInteractionLog } from "/interaction.js"; startInteractionLog();</script>'
+)
 
 
 def _time(record: dict) -> str:
@@ -62,7 +69,7 @@ def _result_text(block: dict) -> str:
     return content if isinstance(content, str) else ""
 
 
-def render_transcript(records: list[dict], title: str) -> str:
+def render_transcript(records: list[dict], title: str, experiment: bool = False) -> str:
     """One self-contained HTML page showing the transcript in order, every text escaped.
 
     @doc: docs/design/Study.md#4-기준선-텍스트-기록-보기-m9-t4
@@ -92,9 +99,21 @@ def render_transcript(records: list[dict], title: str) -> str:
                 head = "⎿ 오류" if error else "⎿ 결과"
                 fold = lines > FOLD_LINES
                 items.append(_item(head, text, time, "error" if error else "", fold, f"{lines}줄 펼치기"))
+    # Served by the experiment server as the baseline condition: the same header and usage log as AgentVis (M11-T1).
+    header = _EXPERIMENT_HEADER if experiment else ""
     return (f'<!doctype html><html lang="ko"><head><meta charset="utf-8">'
             f'<meta name="viewport" content="width=device-width, initial-scale=1"><title>{escape(title)}</title>'
-            f"<style>{_STYLE}</style></head><body><h1>{escape(title)}</h1>{''.join(items)}</body></html>\n")
+            f"<style>{_STYLE}</style></head><body>{header}<h1>{escape(title)}</h1>{''.join(items)}</body></html>\n")
+
+
+def render_index(sessions: list[str]) -> str:
+    """The baseline condition's list of transcripts, named only by their order.
+
+    @doc: docs/design/WebUI.md#94-기준선-조건-m11-t1
+    """
+    links = "".join(f'<li><a href="/baseline/{escape(session)}">기록 {number}</a></li>' for number, session in enumerate(sessions, 1))
+    return (f'<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>실행 기록</title><style>{_STYLE}</style></head>'
+            f"<body>{_EXPERIMENT_HEADER}<h1>실행 기록</h1><ul>{links}</ul></body></html>\n")
 
 
 def write_baseline(folder: Path, out: Path) -> list[Path]:

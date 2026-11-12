@@ -17,6 +17,37 @@
 
 
 
+
+## M11-T1 기준선 조건의 실험 서버
+
+- 시작일: 2026-11-13
+- 완료일: 2026-11-13
+- 근거 문서: [웹 UI 설계 9.4 기준선 조건](design/WebUI.md#94-기준선-조건-m11-t1), [CLI 설계의 experiment](design/Cli.md#22-experiment)
+- 관련 이슈: I64
+
+### 계획
+- `agentvis experiment … --baseline`으로 기준선 텍스트 보기를 실험 서버가 주게 하고, AgentVis 조건과 같은 머리줄(실험 모드 표시, 시행 단추)과 화면 사용 기록을 붙인다.
+- 두 조건 모두에서 스크롤과 찾기(Ctrl+F·⌘F)를 기록한다. 기록 파일의 서버 시작 줄과 `/api/experiment`에 조건을 남긴다.
+- I64 브랜치 위에 쌓은 `m11-t1-baseline-server`에서 진행한다.
+
+### 진행 기록
+- 2026-11-13: 연습 과제 기록으로 `--baseline` 서버를 띄워 헤드리스 Chrome으로 기록을 열고, 시행 단추를 두 번, 스크롤, ⌘F를 눌렀다. 기록 파일에 `server_start`(조건 `baseline`), `open`(경로 `/baseline/…`), `trial_start`, `scroll`, `find`, `trial_end`가 남았다.
+- 2026-11-13: 자료 묶음과 진행 대본을 2.1.0부터 기준선 블록도 실험 서버로 진행하도록 고쳤다. 2.0.x로 진행할 때의 방법(HTML 파일, 손으로 시간 재기)도 남겼다.
+
+### 결정 사항
+- 기준선 목록은 `기록 n`으로만 이름 붙인다. 변형 이름이 보이면 오류 유형을 짐작할 수 있다.
+
+### 변경 파일
+- `src/agentvis/study/baseline.py`, `src/agentvis/server.py`, `src/agentvis/cli.py`, `src/agentvis/interaction.py`, `src/agentvis/web/interaction.js`
+- `tests/test_interaction.py`, `tests/test_cli.py`
+- `docs/design/WebUI.md`, `docs/design/Cli.md`, `docs/design/Study.md`, `docs/study/Kit.md`, `docs/study/Protocol.md`, `docs/Roadmap.md`, `docs/Ongoing.md`, `docs/Done.md`
+
+### 결과
+- 기준선 조건도 실험 서버(`--baseline`)로 진행해, 두 조건의 시간과 화면 사용(시행, 스크롤, 찾기 포함)이 같은 방식으로 기록된다.
+
+### 검증
+- check_docs, check_pointers, check_tasks, check_commits, check_web, 단위 테스트 통과(새 테스트 4개). 헤드리스 Chrome으로 기준선 조건의 기록을 확인했다. CI 세 OS는 PR에서 확인한다.
+
 ## I64 2.1.0 로드맵
 
 - 시작일: 2026-11-13

@@ -82,10 +82,10 @@ blocks/
   setA/<변형>/<세션 ID>.jsonl   (기록 2개)
   setB/<변형>/<세션 ID>.jsonl   (기록 2개)
   u3/<변형>/<세션 ID>.jsonl
-baseline/<세션 ID>.html          (study baseline으로 만든 것)
+baseline/<세션 ID>.html          (2.0.x에서만 필요: study baseline으로 만든 것)
 ```
 
 - 폴더의 `<변형>` 이름은 화면에 보이지 않지만, 혹시 모르니 `t1`, `t2`처럼 중립적인 이름으로 복사한다.
 - AgentVis 블록은 `uv run agentvis experiment <참가자>-<블록> --transcripts blocks/<블록>`으로 띄운다(예: `P03-setB`). 화면 사용 기록이 블록마다 따로 남는다.
-- 기준선 블록은 해당 세트의 HTML 두 개를 브라우저 탭에 미리 열어 둔다.
+- 기준선 블록은 `uv run agentvis experiment <참가자>-<블록> --transcripts blocks/<블록> --baseline`으로 띄운다(2.1.0부터). 같은 시행 단추와 화면 사용 기록이 남아 두 조건을 같은 방식으로 잰다. 2.0.x로 진행하면 `study baseline`으로 만든 HTML 두 개를 브라우저 탭에 미리 열어 두고 시간은 손으로 잰다.
 - `key.json`, `runs.jsonl`, `.diff`는 블록 폴더에 넣지 않는다.

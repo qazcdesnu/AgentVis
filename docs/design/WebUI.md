@@ -331,12 +331,14 @@ I60에서 만든다. [실험 모드](Cli.md#22-experiment)(`agentvis experiment`
 
 | 종류(`type`) | 언제 | `detail` |
 | --- | --- | --- |
-| `open` | 화면을 열 때 | `hash`, 창 크기(`width`, `height`) |
+| `open` | 화면을 열 때 | `hash`, `path`(주소의 경로), 창 크기(`width`, `height`) |
 | `hash` | 해시가 바뀔 때(세션·턴·단계 선택, 보기 전환, 배지 이동, 목록 줄 누름이 모두 여기에 남는다) | `hash` |
 | `click` | 누를 때 | 누른 요소의 설명: 태그, `id`, 앞 두 개의 클래스, 글자 앞 60자 |
 | `change` | 선택 상자(턴 고르기 등)를 바꿀 때 | 요소 설명, 고른 값 |
 | `key` | 입력 칸 밖에서 수정 키 없이 키를 누를 때(배지 단축키 등) | `key` |
 | `visibility` | 탭을 떠나거나 돌아올 때 | `state`(`hidden`·`visible`) |
+| `scroll` | 화면을 굴릴 때, 2초에 한 번(M11-T1) | `y`(세로 위치), `ratio`(문서 높이에 대한 비율) |
+| `find` | Ctrl+F·⌘F를 누를 때(M11-T1) | 없음 |
 | `trial_start`, `trial_end` | 머리줄의 `시행 시작`·`시행 끝` 단추를 누를 때(M10-T6) | `trial`(1부터 세는 시행 번호) |
 
 - 모든 항목에 브라우저 시각 `at`(ISO 8601)을 붙인다.
@@ -349,7 +351,7 @@ I60에서 만든다. [실험 모드](Cli.md#22-experiment)(`agentvis experiment`
 
 | 경로 | 동작 | 응답 |
 | --- | --- | --- |
-| `GET /api/experiment` | 실험 모드인지 알려 준다. | `{"participant": "<번호>" 또는 null, "version": "<AgentVis 버전>"}` |
+| `GET /api/experiment` | 실험 모드인지 알려 준다. | `{"participant": "<번호>" 또는 null, "version": "<AgentVis 버전>", "condition": "agentvis" \| "baseline" \| null}` |
 | `POST /api/interactions` | 본문 `{"events": [{"at", "type", "detail"}, …]}`를 기록 파일에 한 줄씩 덧붙인다. | 성공: `{"stored": N}`. 실험 모드가 아니면 `404`. 검증 실패는 아래 표 |
 
 요청 검증은 [수집기의 요청 검증](Collector.md#21-요청-검증) `Host` 검사 뒤에 다음을 본다. 다른 웹 페이지가 참가자 브라우저를 통해 기록을 오염시키지 못하게 하기 위해서다.
@@ -364,7 +366,7 @@ I60에서 만든다. [실험 모드](Cli.md#22-experiment)(`agentvis experiment`
 
 [InteractionLog](../../src/agentvis/interaction.py#InteractionLog)`(path, participant)`가 기록 파일 `<실험 데이터 디렉터리>/interactions.jsonl`에 쓴다.
 
-- 서버가 시작할 때 `{"type": "server_start", "participant", "version", "received_at"}` 한 줄을 쓴다. 같은 참가자로 다시 띄우면 이어 쓰므로, 이 줄이 실행 구간을 나눈다. 버전은 [유저 스터디 기준판 규칙](../PullRequestRule.md#6-릴리스)대로 참가자가 쓴 버전을 남기기 위해서다.
+- 서버가 시작할 때 `{"type": "server_start", "participant", "version", "condition", "received_at"}` 한 줄을 쓴다. 같은 참가자로 다시 띄우면 이어 쓰므로, 이 줄이 실행 구간을 나눈다. 버전은 [유저 스터디 기준판 규칙](../PullRequestRule.md#6-릴리스)대로 참가자가 쓴 버전을 남기기 위해서다.
 - 항목마다 `{"received_at", "participant", "at", "type", "detail"}` 한 줄을 쓴다. `received_at`은 서버 시각이다.
 - 여러 요청이 동시에 와도 줄이 섞이지 않게 잠금 안에서 쓴다.
 
@@ -376,3 +378,18 @@ I60에서 만든다. [실험 모드](Cli.md#22-experiment)(`agentvis experiment`
   - 시행 표시 단추를 두 번 누르면 `trial_start`(시행 1)와 `trial_end`(시행 1)가 남고 단추가 `시행 2 시작`이 된다(헤드리스 Chrome으로 확인).
   - `Origin`이 없거나 다르면 `403`, `Content-Type`이 다르면 `415`, 형식이 틀린 본문(목록이 아님, 너무 많은 항목, 잘못된 `type`, 너무 긴 `detail`, 너무 큰 본문)은 `400`이고 아무것도 저장하지 않는다. 평소 앱에서는 `404`다.
 - 화면의 기록 전송은 실험 모드 서버를 띄워 브라우저로 누르고, 기록 파일을 확인한 결과를 완료 기록에 남긴다.
+- [tests/test_interaction.py](../../tests/test_interaction.py) (M11-T1): 기준선 앱의 `/`가 기록을 `기록 n`으로 나열하고 세션 ID 말고는 이름을 보이지 않으며, `/baseline/{세션}`이 머리줄·스크립트와 이스케이프된 기록을 돌려주고, 폴더에 없는 세션은 `404`다. 평소 앱에는 `/baseline/…`이 없다. `/api/experiment`의 조건이 맞다.
+
+### 9.4 기준선 조건 (M11-T1)
+
+`agentvis experiment … --baseline`으로 띄운 서버는 AgentVis 화면 대신 기준선 텍스트 기록 보기를 준다.
+
+| 경로 | 내용 |
+| --- | --- |
+| `GET /` | 기록 목록([render_index](../../src/agentvis/study/baseline.py#render_index)). 기록마다 `기록 1`, `기록 2`…(세션 ID 순서)로 링크한다. 변형 이름이나 세션 ID의 뜻을 보이지 않는다 |
+| `GET /baseline/{세션 ID}` | 그 기록의 텍스트 보기([실험 자료 도구 설계의 기준선](Study.md#4-기준선-텍스트-기록-보기-m9-t4), `experiment=True`). 시나리오 폴더에 있는 세션만 열고, 없으면 `404` |
+
+- 텍스트 보기 위쪽에 AgentVis 조건과 같은 머리줄(실험 모드 표시, `시행 n 시작`·`끝` 단추)을 두고, 같은 [interaction.js](../../src/agentvis/web/interaction.js)로 화면 사용을 남긴다. 주소 해시가 없으므로 `hash` 대신 `open`이 어느 기록을 열었는지(`path`)를 남긴다.
+- 두 조건 모두에서 `scroll`(2초에 한 번, 세로 위치와 문서 높이에 대한 비율)과 `find`(Ctrl+F·⌘F를 누름)를 남긴다. 기준선에서는 브라우저 찾기가 주된 탐색 수단이라, 찾기를 몇 번 썼는지가 비교 지표가 된다.
+- `GET /api/experiment`는 조건(`condition`: `agentvis`·`baseline`)도 돌려준다.
+- 기준선 조건에서도 AgentVis의 API와 정적 파일 경로는 그대로 있지만, 참가자에게는 `/`만 연다.

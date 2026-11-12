@@ -155,6 +155,13 @@ class ExperimentTest(RepoTestCase):
         self.assertEqual(json.loads(log.read_text(encoding="utf-8").splitlines()[0])["type"], "server_start")
         self.assertFalse((self.root / "home" / "agentvis.db").exists())
 
+    def test_baseline_condition(self) -> None:
+        code, output, _ = self.run_main("experiment", "P01", "--transcripts", str(self.scenario), "--baseline")
+        self.assertEqual(code, 0)
+        self.assertIn("조건: 기준선 텍스트 보기", output)
+        start = json.loads((self.database.parent / "interactions.jsonl").read_text(encoding="utf-8").splitlines()[0])
+        self.assertEqual(start["condition"], "baseline")
+
     def test_participant_numbers_cannot_leave_the_directory(self) -> None:
         for participant in ("../P01", "a/b", "P 01", "x" * 33, ""):
             with self.subTest(participant=participant), self.assertRaises(SystemExit) as exit_info:
