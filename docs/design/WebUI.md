@@ -157,7 +157,7 @@
 ## 4. 보안
 
 - 세션 기록의 모든 텍스트는 신뢰할 수 없는 데이터다(다른 웹 페이지 내용, 명령 출력 등이 들어 있다). 화면에 넣을 때는 항상 `textContent`로 넣고 `innerHTML`을 쓰지 않는다. 저장된 텍스트가 스크립트로 실행되는 것(XSS)을 막기 위해서다.
-- 화면은 같은 서버의 조회 API와 정적 파일만 `GET`으로 부른다. 외부 주소로 요청하지 않는다(외부 CDN, 글꼴 포함). 라이브러리는 [1.1절](#11-저장소에-넣은-라이브러리)대로 저장소에 넣어 쓴다.
+- 화면은 같은 서버의 조회 API와 정적 파일만 `GET`으로 부른다. 예외는 실험 모드의 화면 사용 기록 전송(`POST /api/interactions`, [9절](#9-실험-모드))뿐이며, 같은 서버로만 보낸다. 외부 주소로 요청하지 않는다(외부 CDN, 글꼴 포함). 라이브러리는 [1.1절](#11-저장소에-넣은-라이브러리)대로 저장소에 넣어 쓴다.
 - 모든 요청은 서버의 [요청 검증](Collector.md#21-요청-검증) `Host` 검사를 받는다. 화면은 `http://127.0.0.1:<포트>/` 또는 `http://localhost:<포트>/`로 연다.
 
 ## 5. 파일 구성
@@ -169,13 +169,14 @@
 | [src/agentvis/web/style.css](../../src/agentvis/web/style.css) | 배치, 단계 종류·상태 색, 밝은·어두운 테마(`prefers-color-scheme`) |
 | `src/agentvis/web/overview.js` | 세션 개요 띠와 이동 배지([7절](#7-세션-개요-띠와-이동-배지)) |
 | `src/agentvis/web/graph.js` | 작업 흐름 그래프 그리기([작업 흐름 그래프 설계의 화면](FlowGraph.md#6-화면)) |
+| `src/agentvis/web/interaction.js` | 실험 모드의 화면 사용 기록([9절](#9-실험-모드)) |
 | `src/agentvis/web/vendor/` | 저장소에 넣은 외부 라이브러리([1.1절](#11-저장소에-넣은-라이브러리)) |
 
 [서버 앱](../../src/agentvis/server.py#create_app)은 조회 API 경로를 먼저 등록하고 마지막에 `web/`를 `/`에 정적 파일로 연결한다. 정적 파일 연결은 [수집기 설계의 서버 앱](Collector.md#2-http-엔드포인트)에 더한다. 화면 코드는 Python이 아니므로 포인터 커버리지 검사 대상이 아니며, 이 문서가 파일 단위로 가리킨다.
 
 ## 6. 테스트
 
-- [tests/test_api.py](../../tests/test_api.py)에서 `TestClient`로 `GET /`가 `index.html`을, `/app.js`·`/style.css`·`/graph.js`·`/overview.js`·저장소에 넣은 D3가 정적 파일을 돌려주고, 그 응답에 `Cache-Control: no-cache`가 있으며 같은 파일을 `If-None-Match`로 다시 물으면 `304`이고(H5), 조회 API 경로가 정적 파일 연결에 가려지지 않음을 확인한다.
+- [tests/test_api.py](../../tests/test_api.py)에서 `TestClient`로 `GET /`가 `index.html`을, `/app.js`·`/style.css`·`/graph.js`·`/overview.js`·`/interaction.js`·저장소에 넣은 D3가 정적 파일을 돌려주고, 그 응답에 `Cache-Control: no-cache`가 있으며 같은 파일을 `If-None-Match`로 다시 물으면 `304`이고(H5), 조회 API 경로가 정적 파일 연결에 가려지지 않음을 확인한다.
 - 화면 동작(그리기, 접고 펴기, 해시 상태)은 자동 테스트 도구를 두지 않고, 실제 서버를 띄워 브라우저로 확인한 결과를 완료 기록에 남긴다. 화면이 커지면 브라우저 자동 테스트를 설계한다.
 
 ## 7. 세션 개요 띠와 이동 배지
@@ -318,3 +319,55 @@
 - [tests/test_api.py](../../tests/test_api.py): `stream_changes`가 새 이벤트가 들어오면 바뀐 세션을 담은 `change` 알림을, 새 이벤트가 없으면 연결 유지 줄을 내보내고, 연결이 끊기거나 서버가 종료 중이면 끝난다. 시간 간격은 테스트에서 줄인다.
 - 화면 동작은 실제 서버와 진행 중인 세션으로 확인한다.
 
+## 9. 실험 모드
+
+I60에서 만든다. [실험 모드](Cli.md#22-experiment)(`agentvis experiment`)로 띄운 서버에서만 화면 사용 기록을 남긴다. 평소의 `serve`에서는 아무것도 기록하지 않는다. 기록은 참가자 컴퓨터의 [실험 데이터 디렉터리](Store.md#1-데이터-디렉터리)에만 남고, 연구자가 실험 뒤 그 파일을 받는다. 정량 분석(과업마다 걸린 시간, 어디를 거쳐 답에 닿았나)에 쓴다.
+
+### 9.1 무엇을 남기나
+
+화면 상태는 주소의 해시(프로젝트, 세션, 턴, 단계, 보기)에 있으므로, 해시가 바뀔 때마다 남기면 고른 세션·턴·노드가 모두 남는다. 여기에 사용자의 입력 자체를 더한다.
+
+| 종류(`type`) | 언제 | `detail` |
+| --- | --- | --- |
+| `open` | 화면을 열 때 | `hash`, 창 크기(`width`, `height`) |
+| `hash` | 해시가 바뀔 때(세션·턴·단계 선택, 보기 전환, 배지 이동, 목록 줄 누름이 모두 여기에 남는다) | `hash` |
+| `click` | 누를 때 | 누른 요소의 설명: 태그, `id`, 앞 두 개의 클래스, 글자 앞 60자 |
+| `change` | 선택 상자(턴 고르기 등)를 바꿀 때 | 요소 설명, 고른 값 |
+| `key` | 입력 칸 밖에서 수정 키 없이 키를 누를 때(배지 단축키 등) | `key` |
+| `visibility` | 탭을 떠나거나 돌아올 때 | `state`(`hidden`·`visible`) |
+
+- 모든 항목에 브라우저 시각 `at`(ISO 8601)을 붙인다.
+- 화면은 항목을 모아 두었다가 2초마다, 그리고 탭을 떠날 때(`fetch`의 `keepalive`) 보낸다([interaction.js](../../src/agentvis/web/interaction.js)). 보내기에 실패한 항목은 다음에 다시 보낸다.
+- 실험 모드이면 머리줄에 `실험 모드 · <참가자>`를 보인다. 연구자가 실험 전에 바른 모드로 띄웠는지 확인하기 위해서다.
+- 글자 앞 60자에는 시나리오 세션의 내용이 들어갈 수 있다. 시나리오 세션은 실험용으로 만든 자료라 개인정보가 없다(I26).
+
+### 9.2 API와 기록 파일
+
+| 경로 | 동작 | 응답 |
+| --- | --- | --- |
+| `GET /api/experiment` | 실험 모드인지 알려 준다. | `{"participant": "<번호>" 또는 null, "version": "<AgentVis 버전>"}` |
+| `POST /api/interactions` | 본문 `{"events": [{"at", "type", "detail"}, …]}`를 기록 파일에 한 줄씩 덧붙인다. | 성공: `{"stored": N}`. 실험 모드가 아니면 `404`. 검증 실패는 아래 표 |
+
+요청 검증은 [수집기의 요청 검증](Collector.md#21-요청-검증) `Host` 검사 뒤에 다음을 본다. 다른 웹 페이지가 참가자 브라우저를 통해 기록을 오염시키지 못하게 하기 위해서다.
+
+| 조건 | 실패 응답 |
+| --- | --- |
+| `Origin`이 `http://<Host 헤더 값>`과 같다(같은 출처의 화면에서 보낸 요청). | `403` |
+| `Content-Type`의 미디어 타입이 `application/json`이다. | `415` |
+| 본문이 [MAX_BODY_BYTES](../../src/agentvis/interaction.py#MAX_BODY_BYTES)(64KB) 이하의 JSON 객체이고 `events`가 [MAX_EVENTS](../../src/agentvis/interaction.py#MAX_EVENTS)(200개) 이하의 목록이다. 각 항목의 `type`은 영문 소문자·`_` 1\~32자, `at`은 40자 이하 문자열, `detail`은 JSON으로 2,000자 이하의 객체다. | `400`, 아무것도 저장하지 않음 |
+
+본문 검사는 [parse_events](../../src/agentvis/interaction.py#parse_events)가 하고, 틀리면 [InvalidInteractions](../../src/agentvis/interaction.py#InvalidInteractions)를 낸다.
+
+[InteractionLog](../../src/agentvis/interaction.py#InteractionLog)`(path, participant)`가 기록 파일 `<실험 데이터 디렉터리>/interactions.jsonl`에 쓴다.
+
+- 서버가 시작할 때 `{"type": "server_start", "participant", "version", "received_at"}` 한 줄을 쓴다. 같은 참가자로 다시 띄우면 이어 쓰므로, 이 줄이 실행 구간을 나눈다. 버전은 [유저 스터디 기준판 규칙](../PullRequestRule.md#6-릴리스)대로 참가자가 쓴 버전을 남기기 위해서다.
+- 항목마다 `{"received_at", "participant", "at", "type", "detail"}` 한 줄을 쓴다. `received_at`은 서버 시각이다.
+- 여러 요청이 동시에 와도 줄이 섞이지 않게 잠금 안에서 쓴다.
+
+### 9.3 테스트
+
+- [tests/test_interaction.py](../../tests/test_interaction.py)
+  - 실험 모드 앱에서 `GET /api/experiment`가 참가자와 버전을, 평소 앱에서는 `participant: null`을 돌려준다.
+  - 같은 출처의 올바른 요청이 기록 파일에 항목마다 한 줄로 남고, 서버 시작 줄이 맨 앞에 있다.
+  - `Origin`이 없거나 다르면 `403`, `Content-Type`이 다르면 `415`, 형식이 틀린 본문(목록이 아님, 너무 많은 항목, 잘못된 `type`, 너무 긴 `detail`, 너무 큰 본문)은 `400`이고 아무것도 저장하지 않는다. 평소 앱에서는 `404`다.
+- 화면의 기록 전송은 실험 모드 서버를 띄워 브라우저로 누르고, 기록 파일을 확인한 결과를 완료 기록에 남긴다.

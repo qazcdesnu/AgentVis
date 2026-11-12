@@ -25,6 +25,7 @@ from agentvis.hook_settings import (
     save_settings,
     uninstall_hooks,
 )
+from agentvis.interaction import InteractionLog
 from agentvis.server import create_app
 from agentvis.store import EventStore, data_dir, default_db_path, experiment_dir
 from agentvis.transcript import TranscriptReader, default_projects_dir, find_unread_transcripts
@@ -119,9 +120,11 @@ def _experiment(args: argparse.Namespace) -> int:
             print(f"AgentVis 실험 모드: 참가자 {args.participant}")
             print(f"AgentVis 서버: http://{_HOST}:{args.port}")
             print(f"시나리오 세션 기록: {len(files)}개 파일")
+            log = InteractionLog(directory / "interactions.jsonl", args.participant)
             print(f"데이터 디렉터리: {directory}")
+            print(f"화면 사용 기록: {log.path}")
             print(f"AgentVis 버전: {__version__}", flush=True)
-            _run_server(create_app(store, reader, collect_hooks=False), _HOST, args.port)
+            _run_server(create_app(store, reader, collect_hooks=False, interaction_log=log), _HOST, args.port)
         finally:
             reader.stop()
     return 0

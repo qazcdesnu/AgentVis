@@ -2,6 +2,40 @@
 
 이 문서는 끝난 작업의 상세 기록이다. 최신 기록이 맨 위에 온다. 기록 형식은 [작업 관리 규칙](TaskRule.md#5-기록-형식)을 따르며, 할 일 목록은 [로드맵](Roadmap.md)과 [이슈](Issue.md)에 있다. 전체 문서 목록은 [문서 인덱스](index.md)에서 확인한다.
 
+## I60 화면 사용 기록
+
+- 시작일: 2026-11-12
+- 완료일: 2026-11-12
+- 근거 문서: [웹 UI 설계 9절 실험 모드](design/WebUI.md#9-실험-모드), [CLI 설계의 experiment](design/Cli.md#22-experiment)
+- 관련 이슈: I26, I59, I61
+
+### 계획
+- 실험 모드에서만 화면 사용 기록을 남긴다. 무엇을 남길지, API와 요청 검증, 기록 파일 형식을 웹 UI 설계 9절에 먼저 적는다.
+- 서버: `GET /api/experiment`, `POST /api/interactions`, 기록 파일 모듈(`interaction.py`). 화면: `interaction.js`와 머리줄의 실험 모드 표시.
+- I59 브랜치 위에 쌓은 `i60-interaction-log`에서 진행한다.
+
+### 진행 기록
+- 2026-11-12: 화면 상태가 주소 해시에 있어, 해시 변화만 남겨도 세션·턴·단계 선택, 보기 전환, 배지 이동이 모두 남는다. 여기에 누름, 선택 상자, 키, 탭 이동을 더했다. 화면 코드 여러 곳에 기록 호출을 넣지 않아도 된다.
+- 2026-11-12: Chrome 확장 도구가 없어, 헤드리스 Chrome을 DevTools 프로토콜로 움직이는 스크립트로 확인했다. 실험 모드 서버에서 화면을 열고 프로젝트와 세션을 누르고 키를 누르자, 기록 파일에 `server_start`, `open`, `click`, `hash`, `click`, `hash`, `key`가 차례로 남았고 머리줄에 `실험 모드 · P01`이 보였다. `--dump-dom`은 실시간 갱신 스트림 때문에 끝나지 않아 쓰지 않았다.
+
+### 결정 사항
+- 기록은 실험 모드에서만 남긴다. 평소 사용자의 화면 사용은 남기지 않는다.
+- 같은 출처(`Origin`이 `http://<Host>`)의 요청만 받는다. 다른 웹 페이지가 참가자의 브라우저를 통해 기록을 오염시키지 못하게 하기 위해서다.
+- 누른 요소의 글자는 앞 60자만 남긴다. 무엇을 눌렀는지 알아보는 데 충분하고, 시나리오 세션이라 개인정보가 없다.
+- 서버 시작 줄에 도구 버전을 남겨, 참가자가 쓴 버전을 기록에서 바로 알 수 있게 했다.
+
+### 변경 파일
+- `src/agentvis/interaction.py`(새 파일), `src/agentvis/server.py`, `src/agentvis/cli.py`
+- `src/agentvis/web/interaction.js`(새 파일), `src/agentvis/web/app.js`, `src/agentvis/web/index.html`, `src/agentvis/web/style.css`
+- `tests/test_interaction.py`(새 파일), `tests/test_cli.py`, `tests/test_api.py`
+- `docs/design/WebUI.md`, `docs/design/Cli.md`, `docs/design/Store.md`, `docs/design/Collector.md`, `docs/Issue.md`, `docs/Done.md`
+
+### 결과
+- 실험 모드로 띄운 서버에서 참가자의 화면 사용이 `<실험 데이터 디렉터리>/interactions.jsonl`에 시각과 함께 남는다. 실험 뒤 이 파일로 과업마다 걸린 시간과 거쳐 간 화면을 분석할 수 있다.
+
+### 검증
+- `check_docs`, `check_pointers`, `check_tasks`, `check_commits`, `check_web`, 단위 테스트 통과. 헤드리스 Chrome으로 실제 화면에서 기록이 남는 것을 확인했다.
+
 ## I59 실험 모드: 시나리오 세션 기록만 읽고 참가자별로 저장
 
 - 시작일: 2026-11-12

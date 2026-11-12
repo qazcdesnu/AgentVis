@@ -5,6 +5,7 @@
 @doc: docs/design/Analysis.md#8-조회-api
 @doc: docs/design/WebUI.md#5-파일-구성
 @doc: docs/design/WebUI.md#81-변경-알림-스트림
+@doc: docs/design/WebUI.md#92-api와-기록-파일
 """
 
 import asyncio
@@ -22,8 +23,10 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.responses import Response
 from starlette.types import Scope
 
+from agentvis import __version__
 from agentvis.analysis.catalog import get_session, get_tool_output, get_turn_graph, list_projects, list_sessions
 from agentvis.collector import InvalidHookEvent, hook_event_to_raw
+from agentvis.interaction import InteractionLog, InvalidInteractions, parse_events
 from agentvis.store import EventStore
 from agentvis.transcript import TranscriptReader, paths_to_read
 
@@ -81,7 +84,22 @@ def _rejection(request: Request) -> JSONResponse | None:
     return None
 
 
-def create_app(store: EventStore, reader: TranscriptReader | None = None, collect_hooks: bool = True) -> FastAPI:
+def _same_origin_rejection(request: Request) -> JSONResponse | None:
+    # Only the screen served by this server may write the usage log (WebUI.md section 9.2).
+    if request.headers.get("origin") != f"http://{request.headers.get('host', '')}":
+        return JSONResponse({"error": "같은 출처의 화면에서 보낸 요청이 아님"}, status_code=403)
+    media_type = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+    if media_type != "application/json":
+        return JSONResponse({"error": "Content-Type이 application/json이 아님"}, status_code=415)
+    return None
+
+
+def create_app(
+    store: EventStore,
+    reader: TranscriptReader | None = None,
+    collect_hooks: bool = True,
+    interaction_log: InteractionLog | None = None,
+) -> FastAPI:
     """Build the FastAPI app that stores hook events in the given store, unless collect_hooks is off.
 
     @doc: docs/design/Collector.md#2-http-엔드포인트
@@ -116,6 +134,24 @@ def create_app(store: EventStore, reader: TranscriptReader | None = None, collec
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/api/experiment")
+    def experiment() -> dict:
+        return {"participant": interaction_log.participant if interaction_log else None, "version": __version__}
+
+    @app.post("/api/interactions")
+    async def interactions(request: Request) -> JSONResponse:
+        if interaction_log is None:
+            return JSONResponse({"error": "실험 모드가 아님"}, status_code=404)
+        rejection = _same_origin_rejection(request)
+        if rejection is not None:
+            return rejection
+        try:
+            events = parse_events(await request.body())
+        except InvalidInteractions as error:
+            return JSONResponse({"error": str(error)}, status_code=400)
+        stored = await run_in_threadpool(interaction_log.append, events)
+        return JSONResponse({"stored": stored})
 
     @app.get("/api/projects")
     def projects() -> dict:

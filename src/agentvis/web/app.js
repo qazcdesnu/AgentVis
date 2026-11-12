@@ -2,6 +2,7 @@
 // Spec: docs/design/WebUI.md, docs/design/FlowGraph.md. All session text is untrusted: only ever use textContent.
 
 import { renderGraph } from "./graph.js";
+import { startInteractionLog } from "./interaction.js";
 import { promptLine, renderOverview, summarizeTurns } from "./overview.js";
 
 const STATUS = {
@@ -834,3 +835,4 @@ document.getElementById("refresh").addEventListener("click", () => render(true))
 document.getElementById("live").addEventListener("click", toggleLive);
 render();
 connectStream();
+startInteractionLog();
