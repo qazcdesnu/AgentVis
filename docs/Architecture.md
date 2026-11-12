@@ -146,6 +146,7 @@ CLI의 hook 설치 명령이 Claude Code 사용자 설정(`~/.claude/settings.js
 | `agentvis/store.py` | 이벤트 저장소 | [이벤트 저장소 설계](design/Store.md) |
 | `agentvis/analysis/` | 분석기 (모델 구성, 신호 규칙) | [분석기 설계](design/Analysis.md) |
 | `agentvis/web/` | 웹 UI 정적 파일 | [웹 UI 설계](design/WebUI.md) |
+| `agentvis/study/` | 연구 설계 2의 실험 자료 도구(실행 기록 생성, 정답표 검사, 기준선 텍스트 보기) | [실험 자료 도구 설계](design/Study.md) |
 
 각 구성 요소는 구현에 들어가기 전에 상세 설계 문서를 먼저 작성하고, 그 문서에서 [포인터 규약](Traceability.md)에 따라 구현할 심볼을 가리킨다. 이 문서는 구조만 정하므로 코드 포인터를 두지 않는다.
 

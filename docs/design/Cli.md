@@ -20,6 +20,7 @@ M1-T1에서 만든다.
 | --- | --- |
 | `agentvis serve [--port N]` | 기본 경로의 이벤트 저장소로 서버 앱을 만들어 `127.0.0.1:N`에서 실행한다. 기본 포트는 `8765`. |
 | `agentvis experiment <참가자> --transcripts DIR [--port N]` | 실험 모드로 서버를 실행한다. `DIR`의 세션 기록만 읽고, 참가자별 데이터 디렉터리에 저장하며, hook 이벤트는 저장하지 않는다([2.2](#22-experiment)). |
+| `agentvis study run …` | 연구 설계 2의 실험 자료를 만든다([2.3](#23-study)). |
 | `agentvis hooks install [--port N] [--settings PATH]` | Claude Code 설정 파일에 AgentVis hook을 추가한다. 기본 설정 파일은 `~/.claude/settings.json`. |
 | `agentvis hooks uninstall [--settings PATH]` | 설정 파일에서 AgentVis hook만 제거한다. |
 
@@ -53,6 +54,13 @@ I59에서 만든다. 유저 스터디에서 참가자에게 실험용 시나리�
 - **출력**: `AgentVis 실험 모드: 참가자 <번호>`, `AgentVis 서버: http://127.0.0.1:<포트>`, `시나리오 세션 기록: N개 파일`, `데이터 디렉터리: <경로>`, `AgentVis 버전: <버전>`을 출력한다. 버전은 실험 기록에 적기 위해서다([PR 규칙의 유저 스터디 기준판](../PullRequestRule.md#6-릴리스)).
 - **화면 사용 기록**(I60): 데이터 디렉터리의 `interactions.jsonl`에 [웹 UI 설계 9절](WebUI.md#9-실험-모드)의 기록을 남긴다. 시작할 때 `화면 사용 기록: <경로>`를 출력한다.
 - 서버 실행과 종료 처리는 `serve`와 같다([_run_server](../../src/agentvis/cli.py#_run_server)).
+
+### 2.3 study
+
+M9에서 만든다. 연구자가 실험 자료를 만들 때 쓰는 명령이다. 참가자는 쓰지 않는다. 동작과 출력 형식은 [실험 자료 도구 설계](Study.md)에 있다.
+
+- `study`만 입력하면 도움말을 출력하고 종료 코드 0이다.
+- `study run`: [실행 기록 생성](Study.md#2-실행-기록-생성-m9-t2). 회차마다 `<변형> #<회차>: <기록 경로> (종료 코드, 비용)`을 출력하고, 마지막에 실행 회수와 기록이 없는 회차 수를 출력한다. 기록이 없는 회차가 있거나 지시 파일을 읽을 수 없거나 변형 이름이 틀리거나 git 명령이 실패하면 종료 코드 1이다.
 
 ## 3. hook 설정 편집
 

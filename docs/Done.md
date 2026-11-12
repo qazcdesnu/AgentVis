@@ -4,6 +4,38 @@
 
 
 
+
+## M9-T2 실행 기록 생성 도구
+
+- 시작일: 2026-11-13
+- 완료일: 2026-11-13
+- 근거 문서: [실험 자료 도구 설계](design/Study.md#2-실행-기록-생성-m9-t2), [CLI 설계의 study](design/Cli.md#23-study)
+- 관련 이슈: I62
+
+### 계획
+- 실험 자료 도구 설계 문서를 새로 쓰고, `agentvis study run`으로 지시 변형마다 Claude Code를 비대화형으로 여러 번 실행해 기록을 시나리오 폴더로 모은다.
+- 사용자 설정(hook, MCP, 개인 규칙)을 읽지 않게 격리하고, 기록은 `~/.claude/projects`에서 옮겨 평소 데이터베이스에 섞이지 않게 한다.
+- M9-T1 브랜치 위에 쌓은 `m9-t2-trace-runner`에서 진행한다.
+
+### 진행 기록
+- 2026-11-13: 실험 자료 도구를 `agentvis/study/` 하위 패키지와 `agentvis study` 하위 명령으로 두기로 하고 시스템 구조 7절에 더했다.
+- 2026-11-13: 가짜 Claude Code 호출로 단위 테스트를 만들고, 실제로도 확인했다. 할인 코드의 대소문자 버그가 있는 작은 저장소를 만들고, 원인을 `invoice.py`의 `round`로 오도하는 지시(E2)로 `claude-haiku-5-5`를 한 번 돌렸다. 기록 66줄이 결과 폴더로 옮겨졌고 `~/.claude/projects`에는 남지 않았다. 비용은 0.006달러였다. 에이전트는 "`round`가 원인이 아니다"라고 말하고 `discount.py`를 고쳤다(대응 범주: 알아채고 우회). `.diff`에 `__pycache__` 바이너리가 섞여 빌드 부산물을 빼게 고쳤다.
+
+### 결정 사항
+- 편집은 `acceptEdits`, Bash는 `--allowedTools`로 허용한다. Bash가 제한 없이 실행되므로 신뢰할 수 있는 저장소의 작업 사본에서만 돌리라고 문서에 적었다.
+- 기록은 복사하지 않고 옮긴다. 남기면 평소 서버가 다음 시작 때 읽기 때문이다.
+
+### 변경 파일
+- `src/agentvis/study/__init__.py`, `src/agentvis/study/runner.py`(새 파일), `src/agentvis/cli.py`
+- `tests/test_study_runner.py`(새 파일)
+- `docs/design/Study.md`(새 파일), `docs/design/Cli.md`, `docs/Architecture.md`, `docs/index.md`, `docs/Roadmap.md`, `docs/Ongoing.md`, `docs/Done.md`
+
+### 결과
+- `agentvis study run`으로 지시 변형마다 Claude Code를 같은 버전·모델로 여러 번 돌려, 실험 모드에 바로 넣을 수 있는 시나리오 폴더(기록, 변경 diff, 실행 정보)를 만들 수 있다.
+
+### 검증
+- check_docs, check_pointers, check_tasks, check_commits, check_web, 단위 테스트 통과(새 테스트 4개). 작은 저장소에서 실제 Claude Code(claude-haiku-5-5)로 한 번 실행해 확인했다.
+
 ## M9-T1 과업·데이터 추상화 2
 
 - 시작일: 2026-11-13
