@@ -16,7 +16,8 @@ function record(type, detail = {}) {
 function describe(element) {
   const target = element.closest ? element.closest(TARGETS) || element : element;
   const text = (target.textContent || "").replace(/\s+/g, " ").trim().slice(0, TEXT_CHARS);
-  const classes = typeof target.className === "string" ? target.className.split(/\s+/).filter(Boolean).slice(0, 2) : [];
+  // SVG elements expose className as an object, so read the attribute (M11-T4).
+  const classes = (target.getAttribute ? target.getAttribute("class") || "" : "").split(/\s+/).filter(Boolean).slice(0, 2);
   return { tag: (target.tagName || "").toLowerCase(), id: target.id || null, classes, text };
 }
 

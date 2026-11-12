@@ -20,6 +20,35 @@
 
 
 
+
+## M11-T4 화면 사용 기록 요약
+
+- 시작일: 2026-11-13
+- 완료일: 2026-11-13
+- 근거 문서: [실험 자료 도구 설계의 화면 사용 기록 요약](design/Study.md#7-화면-사용-기록-요약-m11-t4), [웹 UI 설계 9절](design/WebUI.md#9-실험-모드)
+- 관련 이슈: I64
+
+### 계획
+- `agentvis study log-summary`로 실험 서버의 화면 사용 기록을 시행마다 한 줄(걸린 초, 누름·키·찾기·스크롤·화면 바뀜 수, 누른 화면 요소의 종류별 수)로 요약하고 CSV로 쓴다.
+- M11-T3 브랜치 위에 쌓은 `m11-t4-log-summary`에서 진행한다.
+
+### 진행 기록
+- 2026-11-13: 실제 기록으로 확인했다. 기준선 조건 기록은 시행 1개(0.3초, 찾기 1, 스크롤 1)로 요약되었다. AgentVis 조건에서 시행 안에 지시 문장, 신호 줄, 그래프 노드를 누르자 그래프 노드가 `<g>`로 나왔다. 화면 사용 기록이 SVG 요소의 클래스를 남기지 않는 결함(SVG의 `className`은 문자열이 아님)이었다. `class` 속성을 읽게 고치고, 고치기 전 기록은 SVG 태그로 그래프 노드를 알아보게 했다. 다시 돌리자 `지시 문장 1; 신호 목록 1; 그래프 노드 1`로 나왔다.
+
+### 결정 사항
+- 시행 단추 누름과 시행 밖 사건은 세지 않는다. 과업 수행만 재기 위해서다.
+
+### 변경 파일
+- `src/agentvis/study/logs.py`(새 파일), `src/agentvis/cli.py`, `src/agentvis/web/interaction.js`
+- `tests/test_study_logs.py`(새 파일)
+- `docs/design/Study.md`, `docs/design/Cli.md`, `docs/design/WebUI.md`, `docs/Roadmap.md`, `docs/Ongoing.md`, `docs/Done.md`
+
+### 결과
+- `agentvis study log-summary`로 화면 사용 기록을 시행마다 요약(시간, 상호작용 수, 거친 화면 요소)하고 CSV로 쓸 수 있다. 화면 사용 기록이 SVG 요소(그래프 노드)의 클래스도 남긴다.
+
+### 검증
+- check_docs, check_pointers, check_tasks, check_commits, check_web, 단위 테스트 통과(새 테스트 3개). 헤드리스 Chrome으로 만든 실제 기록으로 확인했다. CI 세 OS는 PR에서 확인한다.
+
 ## M11-T3 신호 규칙 정확도 측정
 
 - 시작일: 2026-11-13
