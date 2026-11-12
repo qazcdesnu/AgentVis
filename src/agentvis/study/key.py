@@ -17,7 +17,11 @@ USES = ("practice", "trial", "u3")
 _ID = re.compile(r"[A-Za-z0-9_-]{1,64}")
 
 
-def _records(path: Path) -> list[dict]:
+def read_records(path: Path) -> list[dict]:
+    """The JSON object lines of a transcript file, skipping lines that are not.
+
+    @doc: docs/design/Study.md#3-정답표-m9-t3
+    """
     records = []
     for line in path.read_text(encoding="utf-8").splitlines():
         try:
@@ -66,7 +70,7 @@ def _check_trial(folder: Path, trial: dict, label: str) -> list[str]:
     path = folder / variant / f"{session}.jsonl"
     if not path.is_file():
         return problems + [f"{label}: 기록 파일 없음: {variant}/{session}.jsonl"]
-    records = _records(path)
+    records = read_records(path)
     instruction = instruction_text(records)
     original, perturbed = trial.get("original_text"), trial.get("perturbed_text")
     if trial.get("error_type") == "none":

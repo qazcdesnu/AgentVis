@@ -132,7 +132,8 @@ def run_variant(
     out.mkdir(parents=True, exist_ok=True)
     records = []
     for run in range(1, runs + 1):
-        work = workdir / f"{spec.name}-{run}"
+        # One neutral path per task: the working directory shows in the transcript (Study.md section 2).
+        work = workdir / (Path(spec.repo.rstrip("/")).name.removesuffix(".git") or "repo")
         if work.exists():
             shutil.rmtree(work)
         work.parent.mkdir(parents=True, exist_ok=True)
