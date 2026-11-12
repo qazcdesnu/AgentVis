@@ -26,7 +26,7 @@
 - `pyproject.toml`, `uv.lock`, `README.md`, `docs/Issue.md`, `docs/Done.md`
 
 ### 결과
-- 유저 스터디 기준판 1.1.0이 준비되었다. 병합 뒤 `main`의 릴리스 병합 커밋에 태그 `v1.1.0`을 달고 GitHub 릴리스에 노트를 둔다.
+- 1.1.0이 릴리스되었다. `main`의 릴리스 병합 커밋(`49dc63d`)에 태그 `v1.1.0`이 있고, GitHub 릴리스 https://github.com/qazcdesnu/AgentVis/releases/tag/v1.1.0 에 노트가 있다. 같은 날 연구 설계를 바꾸기로 해(I62), 노트에는 이 판이 처음 설계(T1\~T6)의 고정판이고 새 설계는 2.0.0부터라고 적었다.
 
 ### 검증
 - `check_docs`, `check_pointers`, `check_tasks`, `check_commits`, `check_web`, 단위 테스트 통과.
