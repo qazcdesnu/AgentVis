@@ -113,4 +113,4 @@
 - [x] M11-T2 실험 자료 익명화 (`agentvis study scrub`: 계정 식별자 줄 제거, 개인 경로 검사)
 - [x] M11-T3 신호 규칙 정확도 측정 (`agentvis study score`: 정답표 대비 오류 유형별 증거 신호의 적중·오경보, 처음 알아챈 단계와 첫 신호의 거리)
 - [x] M11-T4 화면 사용 기록 요약 (`agentvis study log-summary`: 참가자·블록·시행별 걸린 시간, 상호작용 수, 거친 화면 요소)
-- [ ] M11-T5 다른 코딩 에이전트 기록과 정보 항목 대응표 (Codex CLI, Cursor 에이전트, OpenHands, SWE-agent)
+- [x] M11-T5 다른 코딩 에이전트 기록과 정보 항목 대응표 (Codex CLI, Cursor 에이전트, OpenHands, SWE-agent)
