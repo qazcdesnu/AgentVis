@@ -19,6 +19,36 @@
 
 
 
+
+## M11-T3 신호 규칙 정확도 측정
+
+- 시작일: 2026-11-13
+- 완료일: 2026-11-13
+- 근거 문서: [실험 자료 도구 설계의 신호 규칙 정확도](design/Study.md#31-신호-규칙-정확도-m11-t3), [과업과 데이터 추상화 2의 검증](design/TaskAbstraction2.md#43-검증)
+- 관련 이슈: I64
+
+### 계획
+- `agentvis study score`로 정답표의 시행마다 지시 대조 신호를 정답과 맞춰, 오류 유형별 적중, 오경보, 처음 알아챈 단계와 첫 신호의 거리, 대응 구분을 낸다.
+- M11-T2 브랜치 위에 쌓은 `m11-t3-score`에서 진행한다.
+
+### 진행 기록
+- 2026-11-13: 연습 과제의 실제 기록과 정답표에 돌렸다. E2 시행은 유형 적중(지시 밖 신호), 처음 알아챈 단계와 첫 신호의 거리 0(주석한 단계가 `discount.py`를 읽은 Bash이고 그 단계에 지시 밖 신호가 있음), 통제 시행은 오경보 0이었다. 시행이 둘뿐이라 정확도 자체는 팀의 자극으로 다시 잰다.
+- 2026-11-13: 신호 계산이 쓰는 단계 순회를 공개 함수(`walk_steps`)로 바꿨다.
+
+### 결정 사항
+- 재현 신호 가운데 `재현됨`은 증거로 세지 않는다. 오류가 없어도 테스트가 처음에 실패하는 것은 정상이기 때문이다(원본 기록에도 나온다).
+
+### 변경 파일
+- `src/agentvis/study/score.py`(새 파일), `src/agentvis/analysis/review.py`, `src/agentvis/cli.py`
+- `tests/test_study_score.py`(새 파일)
+- `docs/design/Study.md`, `docs/design/Cli.md`, `docs/design/ReviewView.md`, `docs/Roadmap.md`, `docs/Ongoing.md`, `docs/Done.md`
+
+### 결과
+- `agentvis study score`로 신호 규칙의 정확도(유형 적중, 오경보, 알아챔 거리, 대응 구분)를 정답표에 맞춰 잰다. 논문의 규칙 정확도 보고에 쓴다.
+
+### 검증
+- check_docs, check_pointers, check_tasks, check_commits, check_web, 단위 테스트 통과(새 테스트 2개). 연습 과제의 실제 기록과 정답표로 확인했다. CI 세 OS는 PR에서 확인한다.
+
 ## M11-T2 실험 자료 익명화
 
 - 시작일: 2026-11-13
