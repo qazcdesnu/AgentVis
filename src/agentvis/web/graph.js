@@ -32,16 +32,56 @@ const MARK_TITLE = {
 
 for (const [kind, [, name]] of Object.entries(SIGNAL_KIND)) MARK_TITLE[`signal_${kind}`] = `지시 대조 신호(추정): ${name}`;
 
+const RUN_SYMBOL = { test_pass: "✓", test_fail: "✕", test_unknown: "?" };
+// Gap kept between two mark labels in one row, and the narrowest cut label worth showing (H9).
+const MARK_GAP = 4;
+const MARK_MIN_WIDTH = 8;
+
 // Task mark text above a node (FlowGraph.md section 6.3, M8-T6), then instruction review signals (ReviewView.md 3.3).
-function markText(marks) {
+// The compact form keeps only symbols, for nodes too close to the next labelled node (H9).
+function markText(marks, compact = false) {
   const parts = [];
   const run = marks.find((mark) => RUN_MARK[mark]);
-  if (run) parts.push(RUN_MARK[run] + (marks.includes("clipped") ? " · 출력 자름" : ""));
-  if (marks.includes("test_edit")) parts.push(marks.includes("test_edit_estimated") ? "[테스트?]" : "[테스트]");
+  if (run && compact) parts.push(RUN_SYMBOL[run] + (marks.includes("clipped") ? "✂" : ""));
+  else if (run) parts.push(RUN_MARK[run] + (marks.includes("clipped") ? " · 출력 자름" : ""));
+  if (marks.includes("test_edit")) parts.push(compact ? (marks.includes("test_edit_estimated") ? "[T?]" : "[T]") : marks.includes("test_edit_estimated") ? "[테스트?]" : "[테스트]");
   if (marks.includes("completion")) parts.push("⚑");
   const signals = Object.entries(SIGNAL_KIND).filter(([kind]) => marks.includes(`signal_${kind}`)).map(([, [symbol]]) => symbol);
   if (signals.length) parts.push(signals.join(""));
-  return parts.join(" ");
+  return parts.join(compact ? "" : " ");
+}
+
+// Width of a mark label: measured when the SVG is laid out, otherwise estimated from the 9px font.
+function textWidth(element, text) {
+  const measured = element.node().getComputedTextLength ? element.node().getComputedTextLength() : 0;
+  if (measured > 0) return measured;
+  let width = 0;
+  for (const char of text) width += char.codePointAt(0) > 0x1100 ? 9 : 5.5;
+  return width;
+}
+
+// Keeps mark labels in one row from running into each other (FlowGraph.md section 6.3, H9): a label gets the room up to
+// the next label in its row; it uses the full text if that fits, the compact symbols if those fit, else the symbols cut short.
+function fitMarks(labels) {
+  const rows = new Map();
+  for (const label of labels) {
+    const key = Math.round(label.y);
+    if (!rows.has(key)) rows.set(key, []);
+    rows.get(key).push(label);
+  }
+  for (const row of rows.values()) {
+    row.sort((a, b) => a.x - b.x);
+    row.forEach((label, index) => {
+      const room = index + 1 < row.length ? row[index + 1].x - label.x - MARK_GAP : Infinity;
+      if (textWidth(label.element, label.full) <= room) return;
+      const compact = markText(label.marks, true);
+      label.element.text(compact);
+      if (textWidth(label.element, compact) <= room) return;
+      let cut = [...compact];
+      while (cut.length > 1 && textWidth(label.element.text(`${cut.join("")}…`), `${cut.join("")}…`) > room) cut = cut.slice(0, -1);
+      label.element.text(room < MARK_MIN_WIDTH ? "" : `${cut.join("")}…`);
+    });
+  }
 }
 
 function time(value) {
@@ -205,13 +245,17 @@ function drawBarCuts(content, placed, breaks) {
 
 function drawNodes(content, placed, height, onSelect) {
   const group = content.append("g").attr("class", "g-nodes");
+  const labels = [];
   for (const item of placed.values()) {
     const { node } = item;
     const marks = node.marks || [];
     const element = group.append("g").attr("class", `g-node kind-${node.kind} status-${node.status || "none"}${node.approximate ? " approximate" : ""}${item.open ? " open" : ""}${marks.includes("after_failure") ? " after-failure" : ""}${node.quiet && !item.open ? " quiet" : ""}`).attr("data-id", node.id);
     if (marks.length) {
       const top = item.isBar ? item.y - BAR_HEIGHT / 2 - 2 : item.y - POINT_RADIUS - 3;
-      element.append("text").attr("class", `g-mark${marks.includes("test_fail") ? " fail" : ""}`).attr("x", item.isBar ? item.x0 : item.x0 - POINT_RADIUS).attr("y", top).text(markText(marks));
+      const x = item.isBar ? item.x0 : item.x0 - POINT_RADIUS;
+      const full = markText(marks);
+      const label = element.append("text").attr("class", `g-mark${marks.includes("test_fail") ? " fail" : ""}`).attr("x", x).attr("y", top).text(full);
+      labels.push({ element: label, x, y: top, marks, full });
     }
     if (node.kind === "user_message") {
       content.insert("line", ".g-edges").attr("class", "g-guide").attr("x1", item.x0).attr("x2", item.x0).attr("y1", TOP_MARGIN).attr("y2", height);
@@ -240,6 +284,7 @@ function drawNodes(content, placed, height, onSelect) {
     element.append("title").text(nodeTitle(node));
     element.on("click", () => onSelect(node));
   }
+  fitMarks(labels);
 }
 
 // Diagonal hatch for the writing part of a model bar, shared by the graph and the legend swatch.
