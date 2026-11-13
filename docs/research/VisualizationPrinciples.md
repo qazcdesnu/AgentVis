@@ -6,8 +6,9 @@
 - 좋은 시각화 원칙
 - 같은 분야의 시스템과 연구
 - 시각화·HCI 논문(목표: IEEE VIS/TVCG, [목표 학회 비교](TargetVenues.md))의 유저 스터디 설계
+- 2.0.0 화면을 다시 따져 본 2차 조사: 설계 기초와 설계 연구 방법론, 지시와 행동의 비교, 이벤트 시퀀스와 트레이스, 자동 추정 신호의 표시, 평가 보강, 그리고 [2.0.0 화면에 적용할 지침](#13-200-화면에-적용할-지침-i66)
 
-[제품 비전의 연구 목적](../ProductVision.md#1-목적) 가운데 "시각화가 필요한 이유", "이해하기 쉬운 시각화", "유저 스터디"에 대응한다. 사용자가 실제로 겪는 고충은 [Claude Code 바이브 코딩 실무 고충 조사](ClaudeCodePainPoints.md)에 있다. 관련 작업은 이슈 I25다. 전체 문서 목록은 [문서 인덱스](../index.md)에서 확인한다.
+[제품 비전의 연구 목적](../ProductVision.md#1-목적) 가운데 "시각화가 필요한 이유", "이해하기 쉬운 시각화", "유저 스터디"에 대응한다. 사용자가 실제로 겪는 고충은 [Claude Code 바이브 코딩 실무 고충 조사](ClaudeCodePainPoints.md)에 있다. 관련 작업은 이슈 I25(1차 조사)와 I66(2차 조사)이다. 전체 문서 목록은 [문서 인덱스](../index.md)에서 확인한다.
 
 ## 1. 조사 방법과 한계
 
@@ -17,6 +18,7 @@
   - **초록·서지 확인:** 나머지 출처.
 - 확인하지 못한 세부에는 **[불확실]**을 붙였다. 논문에 인용하기 전에 원문으로 다시 확인한다.
 - 같은 이름의 논문이 없어 인용하지 않은 것: "Watch Me Think".
+- **2차 조사(I66, 2026-11-13).** 1차 조사가 1.x 화면의 근거였다면, 2차 조사는 2.0.0 화면([지시 대조 보기](../design/ReviewView.md))을 다시 따져 보려고 했다. 1차에서 다루지 않은 다섯 영역을 조사 서브에이전트 다섯이 나눠 맡았다: 설계 기초와 설계 연구 방법론, 지시와 행동의 비교·연결, 이벤트 시퀀스·타임라인·트레이스, 자동 추정 신호의 표시와 신뢰, 평가. 출처마다 웹 검색으로 존재를 확인하고 [본문]·[초록]·[서지]로 확인 수준을 적었다. 찾지 못한 것은 넣지 않았다(Bergel의 트레이스 시각화 서베이, Prompt Middleware, Spellburst 등). 2026년 arXiv 논문 몇 편은 동료 심사 전이라 [불확실]로 표시했다.
 
 ## 2. 시각화가 필요한 이유
 
@@ -182,6 +184,8 @@ Munzner의 중첩 모델과 과업 추상화([4.2절](#42-중첩-모델과-과�
 
 ## 6. AgentVis 설계 지침
 
+이 절은 1.x 화면(T1\~T6)을 위한 지침이다. 2.0.0 화면의 지침은 [13절](#13-200-화면에-적용할-지침-i66)에 있다.
+
 조사 보고가 제안한 순서다. 화면 개선 설계에서 [고충 조사의 우선순위](ClaudeCodePainPoints.md#4-시각화와-유저-스터디에-맞는-우선순위)와 함께 확정한다.
 
 1. **질문과 화면 요소의 짝짓기 표를 먼저 만든다**(Munzner). 어떤 질문에도 답하지 않는 요소는 상세 보기로 옮긴다. 이 표가 유저 스터디 과업 목록이 된다.
@@ -278,7 +282,389 @@ Munzner의 중첩 모델과 과업 추상화([4.2절](#42-중첩-모델과-과�
   - H2: Q1 이해 과업에서는 차이가 작다.
   - H3: AgentVis는 작업 부하를 낮춘다.
 
-## 8. 출처
+## 8. 설계 기초와 설계 연구 방법론 (2차 조사)
+
+2절\~7절은 1.x 화면(T1\~T6)을 위해 2026-10-31에 모은 것이다. 8절\~13절은 2.0.0 화면([지시 대조 보기](../design/ReviewView.md))을 다시 따져 보려고 2026-11-13에 더한 2차 조사다(I66). 출처마다 확인 수준을 [본문], [초록], [서지]로 적었다. [본문]은 전문이나 해당 절을 읽은 것, [초록]은 초록·요약·2차 해설을 읽은 것, [서지]는 서지만 확인한 것이다.
+
+### 8.1 범주 인코딩: 신호 종류 여섯을 무엇으로 구분하나
+
+- **모양은 고르기에 약하다.** Bertin은 모양을 "연합적이지만 선택적이지 않은" 변수로 보았다. 같은 모양만 한눈에 골라내기 어렵다는 뜻이다. 색상은 선택적이다(Bertin 1967) [초록].
+- **표현성과 효과성.** 인코딩은 데이터의 사실만, 그리고 그 사실을 모두 보여야 한다(표현성). 같은 사실이면 더 빨리 읽히는 채널을 고른다(효과성). 명목 자료에서는 색상이 모양보다 앞선다(Mackinlay 1986) [초록].
+- **범주 채널의 순위는 공간 영역 > 색상 > 움직임 > 모양이다.** 범주 색의 실용 상한은 6\~12개다. 색각 이상을 위해 색만 쓰지 말고 모양이나 명도로 중복 인코딩한다(Munzner 2014) [초록].
+- **모양 팔레트의 실측.** 범주 수가 늘면 모양 구별 정확도가 크게 떨어진다. 실험 4에서는 약 96%에서 40%까지 내려갔다. 3\~7범주에서는 채움형, 외곽형, 속빈형을 섞은 팔레트가 가장 좋았다(87.7%)(Tseng et al., TVCG 2025) [본문 일부]. 다만 산점도 과제의 결과다.
+- **중복 인코딩의 이득은 5\~8범주에서 가장 크다.** 정확도는 색과 모양을 함께 쓰면 76.9%, 색만 쓰면 72.9%, 모양만 쓰면 67.0%였다(n=100). 6범주에서 차이가 유의했다(Tseng et al., CHI 2026, 조건부 채택) [본문 일부, 게재 확정 [불확실]].
+- **채널 순위를 절대 규칙으로 쓰지 말라는 비판.** 순위는 정량 판독의 정밀도 기준이다. 목적이 다르면 다른 선택이 옳을 수 있다(Bertini, Correll & Franconeri 2020) [초록]. 실무 지침 390개와 실증 연구 235편을 대조한 연구도 있다. 실증 근거가 지침을 반박하거나 일부만 지지하는 경우가 많았다(Kim et al., arXiv 2310.09614) [초록, 게재처 [불확실]].
+
+**2.0.0에 주는 의미.** 신호 종류를 기호와 단어로 구분하고 색을 쓰지 않은 결정은 방어할 수 있다. 그래프의 색은 이미 도구 상태(실패)에 쓰고, 색만 쓰는 인코딩은 접근성에 어긋나기 때문이다. 하지만 종류를 훑어 고르기에는 최선이 아니다.
+- 논문에서는 이 결정을 "읽기 정확성을 얻고 훑기 속도를 내준 의식적 맞바꿈"으로 쓴다.
+- 최상위 범주 채널인 공간을 보완으로 쓴다. 종류별 필터나 종류별 고정 열을 둔다.
+- 기호 여섯은 채움형, 외곽형, 속빈형이 섞이도록 고른다.
+- 신호 목록에 한해, 낮은 채도의 중복 색을 넣을지 검토한다. 그래프에는 넣지 않는다.
+
+### 8.2 강조와 흐림: 정상 구간을 0.35로 흐리는 것
+
+- **불투명도 강조의 실측.** 방해 요소의 불투명도를 0.85에서 0.1까지 6단계로 낮춘 실험이 있다. 낮은 강도에서는 강조가 거의 지각되지 않았다. 주관 평점(1\~7)은 1단계에서 2 미만, 6단계에서 5 초과였다(Mairena, Gutwin & Cockburn 2022) [본문 일부]. 0.35는 선형으로 보면 4\~5단계, 곧 지각되는 쪽이다. 다만 이것은 추정이라 파일럿에서 확인한다.
+- **강조는 상대적이다.** 강조는 시각적 두드러짐의 차이로 정의된다. 흐림, 실패 색, 표지 글자가 겹쳐 두드러짐이 이중으로 쌓이는지 점검한다(Hall et al. 2016) [초록].
+- **임의의 선택이 그림을 바꾸면 안 된다.** 의미 있는 데이터 차이는 그림의 차이로 보여야 한다(Kindlmann & Scheidegger 2014) [초록]. "정상"은 규칙의 판정이다. 규칙이 놓친 단계는 흐려지거나 접힌다. 그러면 에이전트가 실제로 알아챈 단계가 덜 보이고, U1("처음 알아챈 단계")의 답이 한쪽으로 치우칠 수 있다. **현재 설계에 대한 반론이다.**
+- **게슈탈트.** 같은 문장 번호를 신호 행에 되풀이하면 유사성으로 묶인다. 문장을 골랐을 때 같은 문장의 행과 노드를 같은 테두리로 감싸면 공통 영역으로 더 강하게 묶인다(Wagemans et al. 2012) [초록].
+
+### 8.3 상호작용과 과업의 어휘
+
+- **상호작용 과업 12개.** 세 범주로 나뉜다(Heer & Shneiderman 2012) [초록]. 데이터·보기 지정은 visualize, filter, sort, derive다. 보기 조작은 select, navigate, coordinate, organize다. 과정·출처는 record, annotate, share, guide다. U3(다음 지시 정하기)에 맞는 annotate와 record를 지금 화면은 지원하지 않는다.
+- **상호작용 의도 7개.** Select, Explore, Reconfigure, Encode, Abstract/Elaborate, Filter, Connect가 있다(Yi et al. 2007) [초록]. 2.0.0의 상호작용은 이 어휘로 정리된다.
+  - 문장 칩으로 거르기: Filter
+  - 문장, 신호, 노드 잇기: Connect
+  - 정상 구간 접기와 펴기: Abstract/Elaborate
+  - 노드 상세: Elaborate
+  - **신호 종류로 거르기는 빠져 있다.**
+- **저수준 분석 과업 10개**(Amar, Eagan & Stasko 2005) [초록]. U1은 이상 찾기(find anomalies)와 시간축의 최솟값 찾기("처음")다. U2는 상관 찾기(correlate: 신호와 문장)다. 측정 항목을 이 어휘로 나눌 수 있다.
+
+### 8.4 설계 연구(design study) 방법론
+
+- **9단계와 함정 32개**(Sedlmair, Meyer & Munzner 2012) [본문]. 9단계는 learn, winnow, cast, discover, design, implement, deploy, reflect, write다. 우리에게 위험한 함정은 다음과 같다.
+  - PF-14: 동료 도구 제작자를 실제 사용자로 착각한다. 설계자가 곧 Claude Code 사용자인 우리 경우다.
+  - PF-20: 고려한 설계 공간이 너무 좁다.
+  - PF-25: 개발자가 직접 시연한 것을 사례 연구라고 부른다. "사용 시나리오"라고 써야 한다.
+  - PF-26: "좋아했다"는 필요조건일 뿐이다.
+  - PF-27: 기존 지침을 확인, 정제, 기각, 제안하지 않는다.
+  - PF-31: 연대기식으로 서술한다.
+- **자료에서 출발하는 설계 연구**(Oppermann & Munzner 2020) [초록]. 실제 자료를 얻는 데서 출발하는 변형이다. acquire 단계를 더하고 discover를 elicit로 바꾼다. 세션 기록에서 출발한 이 연구의 서술 틀로 맞다.
+- **엄밀성 기준 6가지**(Meyer & Dykes 2019) [본문].
+  - INFORMED: 설계 결정을 기존 지식으로 정당화한다.
+  - REFLEXIVE: 성찰과 그 기록을 남긴다.
+  - ABUNDANT: 증거가 풍부하다.
+  - PLAUSIBLE: 막다른 길과 실패까지 보고한다.
+  - RESONANT: 결과물의 암묵지를 전한다.
+  - TRANSPARENT: 이 모두를 감사 추적으로 남긴다.
+
+  이 저장소의 문서 우선 방식은 그 자체로 감사 추적이다. 문서, 작업 ID, 커밋 규칙이 모두 남는다. 처음 설계(1.x)에서 연구 설계 2(2.0.0)로 바꾼 일은 실패와 방향 전환으로 보고한다.
+- **설계 활동 틀**(McKenna et al. 2014) [초록]. understand, ideate, make, deploy의 겹치는 네 활동을 중첩 모델에 잇는다. 마일스톤을 이 네 활동에 대응시킨 과정 그림 하나로 보일 수 있다.
+- **블록과 지침 모델**(Meyer et al. 2015) [초록]. 수준마다 설계 결정 단위인 블록이 있다. 같은 수준의 블록을 비교하는 within-level 지침과, 인접 수준을 잇는 between-level 지침이 있다. 예를 들면 "기호 대 색"은 within-level 비교이고, "명목 신호 여섯 → 기호와 단어"는 between-level 지침이다. 설계 결정 표를 이 틀로 만든다.
+
+## 9. 지시와 행동의 비교와 연결
+
+U2는 지시(글)와 에이전트가 한 일(사건 시퀀스)을 대조하는 과업이다. 그래서 비교 설계의 문헌이 직접 쓰인다.
+
+### 9.1 비교 설계
+
+- **비교 설계는 세 가지의 조합이다.** 나란히 놓기(juxtaposition), 겹치기(superposition), 관계를 직접 그리기(explicit encoding)다. 나란히 놓기는 관계 파악을 보는 사람의 기억에 맡긴다(Gleicher et al. 2011) [초록].
+- **설계는 마지막에 고른다**(Gleicher 2018) [본문]. 순서는 무엇을 비교하나, 왜 어려운가, 규모를 다루는 전략(scan, subset, summarize), 설계다.
+  - 관계를 직접 그리려면 관계를 미리 알아야 한다. 또 관계를 원래 맥락에서 떼어 내는 경우가 많다.
+  - 연결선은 항목이 많아지면 뭉개진다.
+  - 계산 결과로 "볼 만한 곳의 순회"를 만들면 순차 탐색(scan)이 구조화된다.
+
+  신호 목록이 바로 계산이 이끄는 scan이다. 반면 지시와 행동의 관계는 규칙이 추정한 것이다. 그래서 관계가 확정됐다고 전제하는 직접 그리기는 지금의 근거 수준과 맞지 않는다.
+- **비교 배치 연구 127편의 종합**(L'Yi, Jo & Seo 2021) [본문 일부].
+  - G1: 국소 비교에서 그림별로 나란히 놓기는 다른 배치를 거의 이기지 못했다.
+  - G2: 나란히 놓기를 피할 수 없으면 기준점이나 대상 강조를 둔다.
+  - G5: 직접 그리기만 쓰지 않는다.
+  - G6: 직접 그리기를 쓰려면 혼합 배치로 쓴다. 혼합 배치를 쓴 연구 4편은 모두 우월했다.
+
+  2.0.0의 ①②③ 번호와 칩은 G2의 기준점이다. 그러나 "이 신호가 어느 문장의 것인가" 같은 국소 대응에는 더 강한 단서가 필요하다(G1).
+
+### 9.2 연결선과 다중 보기
+
+- **맥락을 지키는 연결선**(Steinberger et al. 2011) [본문]. 18명 피험자 내 실험의 결과는 다음과 같다.
+  - 걸린 시간은 강조만 쓰면 4897ms, 직선 연결은 4176ms, 맥락 보존 연결은 4024ms였다. 연결 쪽이 15\~18% 빨랐고 유의했다.
+  - 오류율 차이는 유의하지 않았다.
+  - 과제는 강조된 요소 세기였다. 관계 판단 과제가 아니다.
+  - 저자들도 선이 화면을 가리고 어지럽힌다고 인정했다.
+- **고를 때만 잠깐 나타나는 선**(Waldner et al. 2010) [초록]. 선택 상태를 여러 창에 동기화하고, 선택했을 때만 선을 그린다.
+- **다중 보기 지침**(Wang Baldonado et al. 2000) [본문].
+  - 상보성: 기억에 기대는 비교보다 시각적 비교가 쉽다.
+  - 자명성: 정렬, 강조, 연동 같은 지각 단서로 보기 사이의 대응을 "인지에서 지각으로" 옮긴다.
+  - 주의 관리: 지금 중요한 보기로 주의를 이끈다.
+
+  지금은 칩을 누르면 신호 목록이 걸러지는 한 방향 연동뿐이다. 신호 행이나 노드에서 문장으로 가는 역방향 단서가 없어 자명성에 못 미친다.
+- 다중 보기 연동 연구의 개관(Roberts 2007) [초록]은 배경 인용으로 쓴다.
+
+### 9.3 원문 위에 표시하기
+
+- **원문에 바로 닿는 것이 핵심이다.** 사용자는 추상 개요보다 실제 단어를 보기를 원했다(Jänicke et al. 2017) [본문 일부].
+  - 두 글을 나란히 놓고 선으로 잇는 방식은 순서가 대체로 보존되는 글과 글의 정렬에서 쓰인다.
+  - 지시 문장과 실행 사건은 다대다로, 시간 순서가 엇갈려 대응한다. 2.0.0에서 버린 대안(좌우 배치와 연결선)이 맞지 않는 근거가 된다.
+- **글 속의 작은 그래픽은 놓는 위치에 따라 읽기가 달라진다**(Goffin et al. 2014) [초록]. 문장 끝의 `신호 n` 칩은 단어 옆 배치에 해당한다. 칩을 문장 중간에 넣지 않는다.
+- **글 위의 색 농도 강조는 잘못 읽힌다.** 단어 길이 같은 무관한 특징에 끌린다. 막대로 바꾸면 왜곡이 줄었다(Schuff et al. 2022) [초록]. 문장 배경을 신호 수만큼 칠하지 말고 숫자 칩을 유지한다.
+- 텍스트 시각화의 분류(Kucher & Kerren 2015, Liu et al. 2019) [초록]는 관련 연구의 분류 근거로만 쓴다.
+
+### 9.4 소프트웨어 공학과 LLM 시대 도구
+
+- **추적성 시각화의 비교**(Li & Maalej 2012) [초록]. 24명을 대상으로 했다. 개요·관리 과업에서는 행렬과 그래프를, 구현·테스트 과업에서는 하이퍼링크를 선호했다. 목록은 가장 덜 선호됐다. 문장 × 시간의 작은 행렬은 지시와 행동의 관계를 직접 그리는 후보다.
+- **목록의 뒤에 있으면 덜 본다**(Fregnan et al. 2022) [초록]. 코드 리뷰 실험(N=106)에서, 결함 파일이 목록 끝에 있으면 결함을 찾을 오즈가 64% 낮았다(결함 유형 하나). 신호가 0개인 문장과 접힌 정상 구간도 덜 보일 위험이 있다. E1(재현 조건 누락)은 행동이 "없는" 것으로 드러나 특히 취약하다.
+- **프롬프트와 출력을 비교하는 도구.**
+  - 출력끼리 나란히 놓는 격자: ChainForge(CHI 2024) [초록]
+  - 쌍 비교: LLM Comparator(CHI EA 2024) [초록]
+  - 반복되는 부분을 회색으로 흐림: Gero et al.(CHI 2024) [초록]. 정상 구간 흐림과 같은 계열의 선례다.
+- **기준이 떠돈다.** 출력을 채점하다 보면 기준 자체가 바뀌어 앞의 채점까지 고친다(Shankar et al., EvalGen, UIST 2024) [초록]. U2 응답에서 참가자가 고른 문장을 바꾼 이력을 기록할 이유다.
+- **목표와 응답의 정렬을 보여 주는 가장 가까운 사례**(Coscia et al., OnGoal, UIST 2025) [초록]. 사용자 목표와 LLM 응답의 정렬을 보여 줘 20명의 시간과 노력이 줄었다. 다만 LLM이 판정한다. AgentVis는 판정 대신 증거를 보인다는 점에서 다르다.
+- **귀속(attribution)으로 보여 주는 방식**(Tenney et al. 2024, Sequence Salience; Cohen-Wang et al., ContextCite, NeurIPS 2024) [초록]. 프롬프트의 어느 부분이 출력에 기여했는지 보인다. 모델 내부 접근이나 재실행이 필요해 지금은 해당하지 않는다.
+
+### 9.5 버린 대안의 재평가
+
+- **좌우 배치와 상시 연결선은 버린 것이 맞다.** 연결된 것을 찾는 속도는 빨라질 수 있다(Steinberger). 하지만 버릴 이유가 더 많다.
+  - 다대다이고 순서가 엇갈려 선이 꼬인다.
+  - 신호가 늘면 선이 뭉개진다(Gleicher 2018).
+  - 스크롤하면 선 끝이 사라진다.
+  - 추정한 관계를 확정된 사실처럼 보이게 해 과신을 부른다(11절의 Bansal, Kim 2025).
+  - 직접 그리기만 쓰지 말라는 G5에 걸린다.
+- **번호 문장, 칩, 거르기 방식은 맞는 방향이다.** G2의 기준점과 Gleicher의 계산이 이끄는 scan에 맞는다. 약점은 한 방향 연동뿐이라는 것이다.
+- **보완은 혼합 배치(G6)로 한다.**
+  - (가) 마우스를 올리거나 고를 때만 나타나는 양방향 강조. 필요하면 고른 한 쌍만 잠깐 선으로 잇는다.
+  - (나) 흐름 그래프 위에 문장 수만큼의 얇은 줄을 두고, 신호가 난 시점에 기호를 찍는 "문장 레인".
+
+## 10. 이벤트 시퀀스, 타임라인, 실행 트레이스
+
+### 10.1 이벤트 시퀀스와 타임라인
+
+- **사건 시퀀스 시각 분석의 서베이**(Guo et al., TVCG 2022) [본문 일부].
+  - 과업은 요약, 예측, 이상 탐지, 비교, 인과 분석의 다섯이다.
+  - 표현은 차트, 타임라인, 계층, Sankey, 행렬의 다섯 계열이다.
+  - 시퀀스 하나에는 타임라인이 가장 직관적이다. 노드-링크와 Sankey는 여러 시퀀스의 전이를 모으는 용도다.
+
+  한 턴은 시퀀스 하나이므로, 흐름 그래프에서 정보를 주는 것은 시간 순서와 병렬 줄이다. 노드 사이의 선은 정보를 거의 더하지 않는다. U1은 이상 탐지 과업이다.
+- **타임라인 설계 공간**(Brehmer et al. 2017) [초록].
+  - 타임라인 263개를 분석해, 표현·축척·배치 세 차원의 선택 14개와 실현 가능한 조합 20개를 정리했다.
+  - 시간 비례 축척은 시점과 길이를 비교하는 데 맞고, 순서 축척은 시퀀스의 길이와 다양성을 비교하는 데 맞다.
+  - 여러 면에서 동시에 일어난 사건에는 다면 배치가 맞다.
+
+  흐름 그래프의 병렬 줄은 "선형, 순서 축척, 다면 배치"로 정당화된다. 순서 축척에서는 긴 실행이나 대기가 사라지므로 간격 표시를 더한다.
+- **LifeLines와 표 형식의 비교**(Plaisant et al. 1996; Alonso et al. 1998) [초록]. 36명 비교에서 그래픽 쪽 응답이 훨씬 빨랐다. 이득은 구간 비교와 범주 사이를 잇는 질문에서 나왔다. 회상도 유의하게 높았다(p<.004). 텍스트 기준선과 비교하는 실험에서 이득이 날 곳을 예측하는 근거다. 지시 문장, 신호, 단계를 잇는 질문이 그런 곳이다.
+- **사용자가 거는 단순화**(Monroe et al. 2013) [본문].
+  - 범주 거르기, 합치기, 정렬로 시각 요소를 2724개에서 492개로 줄였다(약 80%).
+  - 복잡도는 "요소 수와 요소당 평균 높이"로 쟀다.
+  - 모든 단순화는 사용자가 걸고 되돌릴 수 있다.
+
+  정상 구간 접기를 지지한다. 다만 사용자가 펴고 끌 수 있어야 한다. 같은 지표로 접기 전후의 요소 수를 보고할 수 있다.
+- **초점을 좁히는 전략 15개**(Du et al., TVCG 2017) [초록]. 4절 4.8의 Malik et al.(IUI 2015)을 확장한 판이다. 정상 구간 접기는 "패턴 단순화"의 사례다.
+- **관심도로 맥락을 보인다**(van Ham & Perer 2009) [초록]. 속성과 구조로 관심도를 계산해 관심 노드 주변을 뽑고, 요청할 때 넓힌다. 2.0.0의 흐림은 관심도를 0과 1로만 나눈 셈이다. 신호 단계의 바로 앞뒤(예: 신호 직전의 Read)는 맥락으로 남기는 등급형이 낫다.
+- **다층 인터페이스 지침**(Lam & Munzner 2010) [초록]. 실증 연구 22편을 종합했다.
+  - 위층에는 과업에 필요한 정보만 둔다.
+  - 여러 층의 답이 함께 필요한 과업에는 층을 동시에 보인다.
+  - 층이 너무 많으면 해롭다.
+
+  개요를 둔다면 신호 위치만 보이고, 층은 개요, 흐름, 상세의 셋을 넘지 않는다.
+- **개요+상세, 확대, 초점+맥락의 리뷰**(Cockburn, Karlson & Bederson 2009) [본문].
+  - 개요+상세는 여러 연구에서 선호됐다. 문서 이해 과업에서는 이보다 나은 대안이 없었다.
+  - 상세 보기의 변화는 개요에 즉시 반영돼야 한다.
+  - 스크롤바 위에 검색 결과나 편집 위치를 표시한 선례가 있다.
+  - 텍스트를 줄이고 접는 피시아이는 읽기를 빠르게 했지만 이해도를 낮췄다(Hornbæk & Frøkjær의 결과). 반면 코드 접기와 관심도 기반 피시아이는 평면 목록보다 대체로 나쁘지 않거나 나았다.
+
+  목록의 "정상 작업 n단계" 접기는 이해형 과업(U2)에서 이해를 해칠 수 있다. **현재 설계에 대한 반론이다.** 그래프의 흐림은 지우지 않으므로 문제가 적다.
+- **시간 지향 자료 시각화의 교과서**(Aigner et al., 2판 2023) [서지]. 시간 모델(순서 대 시각, 점 대 구간)의 용어 출처로 쓴다.
+
+### 10.2 소프트웨어 실행 트레이스
+
+- **조절할 수 있는 시간 압축**(Trümper, Bohnet & Döllner 2010) [초록]. 비선형 시간 변환으로 압축 강도를 연속으로 조절하고, 스레드별 보기를 동기화한다. 정상 구간을 접는 대신 폭을 줄여 "압축"하는 대안이 된다.
+- **대규모 트레이스의 다중 축척 탐색 서베이**(Ezzati-Jivan & Dagenais) [초록]. 대부분의 트레이스 도구가 한 층의 표현에 머문다. 문장, 신호, 단계, 원문으로 이어지는 다층 구조를 기여로 주장할 근거다.
+- **사용자 정의 추상화**(Reiss) [서지]. 범용 트레이스 보기는 사용자가 관심 있는 행동을 이해하기 어렵다. 지시를 축으로 한 과업 특화 추상화를 지지한다.
+
+### 10.3 개발자의 정보 요구
+
+과업 추상화의 근거다.
+
+- **소프트웨어 변경 중 개발자가 묻는 질문 44종**(Sillito, Murphy & De Volder 2006) [초록]. 질문은 네 단계로 나뉜다: 초점 찾기, 초점 넓히기, 부분 그래프 이해, 여러 부분 그래프에 걸친 질문. U1은 초점 찾기(처음 알아챈 단계)이고, U2는 넓히기와 이해다. 신호 목록이 초점 찾기를, 노드 상세가 넓히기를 맡는다.
+- **함께 일하는 개발자의 정보 요구 21종**(Ko, DeLine & Venolia 2007) [본문]. 17명을 관찰했다. 가장 자주 채워지지 않은 요구는 다음과 같다.
+  - 어떤 코드가 이 상태를 만들었나
+  - 왜 이렇게 구현했나
+  - 이 실패는 어떤 상황에서 나나
+  - 프로그램이 원래 무엇을 해야 하나
+
+  U2(지시의 의도와 오류)는 실증적으로 가장 채우기 어려운 요구에 속한다. 재현 신호는 "어떤 상황에서 실패하나"에 답한다.
+- **답하기 어려운 코드 질문**(LaToza & Myers 2010) [본문(발표 자료)]. 179명이 질문 371개를 냈다. 범주별로 근거 42, 의도와 구현 32, 디버깅 26, 이력 23이었고 "왜 이건 일어나지 않았나"도 있었다. "에이전트가 왜 지시를 벗어났나"는 근거 질문이라, 에이전트의 글을 원문 그대로 보이는 설계가 맞다. 일어나지 않은 일(묻지 않음, 재현하지 않음)도 표시할 가치가 있다.
+
+### 10.4 최근의 에이전트 궤적 연구
+
+4절에 없는 것만 적는다.
+
+| 연구 | 내용 | 확인 수준 | AgentVis에 주는 것 |
+| --- | --- | --- | --- |
+| AgentDiagnose (EMNLP 2025 Demos) | 에이전트 역량 다섯을 자동 채점하고 궤적을 시각화. 사람 채점과의 상관 평균 r=0.57(과제 분해 0.78) | [본문] | 자동 판정은 사람과 중간 정도만 일치한다. "추정" 표지와 "판정하지 않는다"의 근거. 규칙 정확도를 같은 방식으로 보고한다 |
+| AgentGUI (arXiv 2607.26300, EMNLP 2026 Demos 채택) | 오래 도는 에이전트를 관찰·조종하는 화면. 통제 실험에서 핵심 요소를 찾는 시간 38% 단축(p=.023) | [초록], 게재 [불확실] | "핵심 단계 식별 시간"을 지표로 쓴 선례(U1) |
+| Agent ATO (VISSOFT 2026 NIER, arXiv 2609.08301) | 코딩 에이전트 기록으로 전체 타임라인과 종류별(탐색·읽기·편집·실행) 거른 타임라인. 평가 없음 | [초록] | 가장 가까운 경쟁 작업. 타임라인을 택했다. 차별점은 지시 축, 신호, 오류 진단 과업 |
+| Bouzenia & Pradel (ASE 2025) | 소프트웨어 에이전트 궤적 120개 분석. 실패 궤적의 반복 수는 평균 40으로 성공(22)보다 많고, 같은 행동의 반복이 몇 배 많다 | [본문] | 정상으로 보이는 반복 자체가 실패의 신호다. 접힌 줄이 반복 고리를 숨길 수 있다(반론) |
+| LEDGER (arXiv 2608.18398) | 에이전트의 주장을 뒷받침하는 행동·결과·검사와 잇는 그래프. 정량 평가 없음 | [초록] | 에이전트의 "고쳤다"는 주장과 남은 실패 신호를 잇는 방향 |
+| Illuminating LLM Coding Agents (arXiv 2508.12555), Agent Trajectory Explorer (AAAI 2025 Demo) | 트리 보기, 생각·행동·관찰 배치. 사용자 평가 없음 | [초록] | 설계 근거로는 약하다 |
+
+### 10.5 종합
+
+- **흐름 그래프는 "시간 순서의 병렬 줄 타임라인"으로 서술한다.** 시퀀스 하나에는 타임라인이 표준이다(Guo, Brehmer, LifeLines, Agent ATO). 병렬 줄은 다면 배치로 정당화되지만, 노드 사이의 선은 정보가 적다. 그래프 문법(화살표)은 줄이고 간격 표시를 더한다.
+- **흐림은 근거가 충분하고, 목록 접기는 조건부다.** 사용자가 되돌릴 수 있는 단순화와 코드 접기 연구는 접기를 지지한다. 그러나 이해형 과업에서는 접기형 피시아이가 이해도를 낮췄고, 접힌 줄이 반복 고리를 숨길 수 있다. 접힌 줄에 내용 요약을 넣고, 끄는 스위치를 둔다.
+- **신호만 표시한 개요 띠(미니맵)는 근거가 강하다**(Cockburn, Lam & Munzner).
+
+## 11. 자동으로 추정한 신호를 사람에게 보여 주는 법
+
+신호는 규칙으로 찾은 추정이고, 팀은 LLM 판정도 검토하고 있다. 불완전한 자동 탐지를 어떻게 보여 줘야 사람이 이득을 보면서 과신하지 않는지, 그리고 그것을 실험으로 어떻게 재는지를 정리한다. 이 절의 출처는 모두 [초록] 수준이다. Schemmer et al.만 [본문]이다.
+
+### 11.1 혼합 주도와 인간-AI 상호작용 지침
+
+- **혼합 주도 원칙**(Horvitz 1999). 시스템은 자기 판단의 불확실성을 고려한다. 추측이 틀렸을 때의 비용을 줄이고, 자동 서비스를 바로 부르거나 끌 수 있게 한다. 확신이 낮으면 덜 구체적으로 개입한다. 흐림과 접기도 자동 판단이므로 끄는 스위치가 늘 보여야 한다.
+- **자동화와 사람의 주도**(Heer 2019, PNAS). 완전 자동화보다, 사람이 검토하고 고칠 수 있는 공유 표현 안에 예측을 넣는 설계를 권한다. "판정하지 않고 근거를 보인다"는 2.0.0 원칙을 지지한다. 한 걸음 더 가면 사용자가 신호를 "맞음/틀림"으로 표시할 수 있게 한다.
+- **인간-AI 상호작용 지침 18개**(Amershi et al. 2019). 관련 지침은 다음과 같다.
+  - G2: 시스템이 얼마나 잘하는지 알린다.
+  - G8·G9: 쉽게 무시하고 쉽게 고칠 수 있게 한다.
+  - G11: 왜 그렇게 했는지 알린다.
+
+  근거 발췌와 규칙 이름은 G11을 채운다. **G2는 채우지 못한다.** "추정" 표지 하나로는 신호가 얼마나 맞는지 알 수 없다.
+
+### 11.2 자동화 편향과 의존
+
+- **적절한 신뢰의 세 성질**(Lee & See 2004).
+  - 보정: 신뢰가 실제 능력과 맞는다.
+  - 해상도: 능력 차이를 신뢰 차이로 가린다.
+  - 특정성: 기능마다 따로 신뢰한다.
+
+  목록 전체에 "추정" 표지 하나를 붙이면 해상도와 특정성이 없다. 재현, 남은 실패, 충돌은 테스트 출력에서 나와 관찰에 가깝다. 해석은 낱말 규칙이라 약하다. **현재 설계에 대한 반론이다.**
+- **두 종류의 오류**(Parasuraman & Manzey 2010). 불완전한 보조는 누락 오류와 실행 오류를 낳는다. 누락 오류는 보조가 놓친 것을 사람도 놓치는 것이고, 실행 오류는 틀린 신호를 따르는 것이다. 이 편향은 훈련이나 지시로 없어지지 않고 전문가에게도 나타난다.
+- **자동화 편향의 체계적 문헌 검토**(Goddard et al. 2012). 논문 74편을 검토했다.
+  - 작업량, 과업 복잡도, 시간 압박이 편향을 키운다.
+  - 권고 대신 정보를 주는 설계가 편향을 줄인다. "판정하지 않는다"를 직접 지지한다.
+  - 실험에서 시간 압박을 주면 편향이 커지므로, 시간 제한은 통제하고 보고한다.
+- **오경보와 놓침**(Dixon, Wickens & McCarley 2007). 오경보가 잦은 자동화는 놓침이 잦은 자동화보다 수행을 더 해친다. 신호는 재현율보다 정밀도를 앞세운다. 해석 신호가 오류 없는 대조 시행에서 자주 뜨면 목록 전체를 불신하게 된다.
+- **불완전한 진단 자동화의 종합**(Wickens & Dixon 2007). 신뢰도가 약 0.70보다 낮으면 자동화가 없는 편이 낫다. `study score`로 신호 종류별 정밀도를 재고, 0.7 아래인 종류는 기본으로 약하게 보인다. LLM 신호에도 같은 기준을 쓴다.
+
+### 11.3 설명, 신뢰도 표시, 먼저 생각하게 하기
+
+- **설명은 맞든 틀리든 수용을 늘린다**(Bansal et al. 2021). 설명을 보여 주면 AI 권고를 받아들이는 비율이 맞을 때도 틀릴 때도 올랐다. 신뢰도만 보이는 것보다 낫지 않았다. 근거 발췌 한 줄도 일종의 설명이라 틀린 신호를 그럴듯하게 만들 수 있다.
+- **신뢰도 표시는 보정만 돕는다**(Zhang, Liao & Bellamy 2020). 신뢰도를 보이면 신뢰 보정은 나아졌지만 결정 정확도는 오르지 않았다. 사람이 AI의 오류를 메울 고유 지식을 가졌는지가 중요했다.
+- **먼저 생각하게 하는 장치**(Buçinca, Malaya & Gajos 2021). 199명이 참여했다. 먼저 스스로 판단하게 하거나 요청할 때만 AI를 보이는 장치는 과신을 유의하게 줄였다. 하지만 과신을 가장 많이 줄인 설계가 주관 평가는 가장 나빴다.
+- **설명은 검증 비용을 낮출 때만 과신을 줄인다**(Vasconcelos et al. 2023). 연구 다섯 개에 731명이 참여했다. 같은 결론으로, 설명은 검증을 가능하게 할 때만 사람과 AI가 함께 더 잘한다(Fok & Weld 2024, AI Magazine, 권호 [불확실]). 따라서 근거 발췌의 가치는 원문을 확인하는 비용을 얼마나 줄이느냐에 달렸다. 발췌를 누르면 노드 상세의 원문이 열리고, 해당 줄이 강조돼야 한다.
+
+### 11.4 불확실성과 프레이밍
+
+- **불확실성 시각화**(Padilla, Kay & Hullman 2022, 핸드북 장) [서지, 최종 출판 정보 [불확실]]. 모든 경우에 맞는 방법은 없다. 신뢰도를 보인다면 "0.62" 같은 숫자보다 "예비 측정에서 10건 중 6건 맞음" 같은 빈도 문구가 일반적으로 권해진다. 이 권고는 이 장에서 직접 확인하지 못했다 [불확실].
+- **저자들이 불확실성을 그리지 않는 이유**(Hullman 2020, TVCG). 저자 90명을 설문하고 13명을 인터뷰했다. 가치를 인정하면서도 습관적으로 빼는데, 독자에게 어렵다고 여기고 확신 있어 보이고 싶어 해서다.
+- **시각화의 수사**(Hullman & Diakopoulos 2011). 강조, 생략, 주석은 해석을 바꾸는 수사다. 정상 구간을 흐리고 접는 것 자체가 "여기는 중요하지 않다"는 판단이다. 흐림과 접기도 "추정"으로 밝혀야 한다. **"판정하지 않는다"는 원칙과 일부 충돌한다.**
+- **시각 분석의 불확실성, 인지, 신뢰**(Sacha et al. 2016). 시스템이 만든 불확실성은 처리 단계를 거치며 쌓인다. 문장 나누기, 대상 뽑기, 신호와 문장 잇기가 모두 추정이다. 특히 `신호 n` 칩은 연결 자체가 추정인데 지금은 확정처럼 보인다.
+
+### 11.5 LLM 출력의 불확실성과 출처
+
+- **생성 확률로 강조하면 이득이 없다**(Vasconcelos et al., TOCHI, arXiv 2302.07248). 사전 등록 실험에 프로그래머 30명이 참여했다. 생성 확률로 코드 토큰을 강조하면 이득이 없었다. 따로 예측한 "고쳐질 가능성"으로 강조하면 더 빨랐다. LLM 신호를 넣는다면 LLM이 스스로 말한 확신도를 보이지 말고, 실제 정답률로 보정한 값만 보인다.
+- **1인칭 불확실성 표현**(Kim et al., FAccT 2024). 404명이 참여했다. "저는 확실하지 않지만" 같은 1인칭 표현은 틀린 답에 대한 과신을 줄였다. 일반 표현은 효과가 없었다. "추정"이라는 낱말의 선택도 행동에 영향을 준다.
+- **설명과 출처**(Kim et al., CHI 2025). 308명이 참여했다. 설명은 틀린 답에 대한 의존도 높였고, 출처는 틀린 답에 대한 의존을 줄였다. 원본 기록 위치를 가리키는 근거 발췌(출처형)가 LLM이 쓴 설명문보다 낫다.
+- **생성 검색의 인용 검증**(Liu, Zhang & Liang, EMNLP Findings 2023). 생성 문장 가운데 인용으로 충분히 뒷받침된 것은 평균 51.5%였다. 붙은 인용 중 약 1/4은 문장을 뒷받침하지 않았다. LLM이 낸 근거 발췌는 기록에 글자 그대로 있는지 기계로 검사하고, 없으면 버린다.
+
+### 11.6 종합: 규칙 신호와 LLM 신호
+
+- **"추정" 표지와 근거 발췌는 맞는 방향이다.** 권고 대신 정보를 주고(Goddard), 고칠 수 있는 공유 표현이며(Heer), 출처형이다(Kim 2025). 부족한 것은 두 가지다.
+  - 종류 사이의 신뢰 해상도가 없다(Lee & See).
+  - 발췌가 검증 비용을 실제로 낮추는지는 아직 근거가 없다(Vasconcelos, Fok & Weld).
+- **규칙 신호에는 개별 확신도 숫자를 붙이지 않는다.** 보정된 확률이 없기 때문이다. 대신 신호 종류마다 잰 정밀도를 빈도 문구로 보인다.
+- **LLM 신호는 조건을 지킬 때만 넣는다.**
+  - 측정한 정밀도가 기준(0.7) 이상이다.
+  - 발췌가 기록에 글자 그대로 있는지 검사한다.
+  - 출처(규칙/LLM)를 구분해 보인다.
+  - 자기 보고 확신도와 생성 설명문은 쓰지 않는다.
+- **신호가 과업을 쉽게 만드는 것 자체는 목적에 맞다.** 다만 논문은 효과가 시각화에서 왔는지 신호(판정기)에서 왔는지 나눠 보여야 한다(12.5). 또 틀린 신호를 사람이 걸러 내는지를 재야 한다(12.3).
+
+## 12. 평가 보강
+
+### 12.1 사전 점검: 휴리스틱과 비평
+
+- **평가 관행의 체계적 검토**(Isenberg et al. 2013) [초록]. IEEE Vis 논문 581편을 7가지 시나리오로 분류했다. 사람이 참여하는 평가는 늘고 있다. 하지만 요구 분석과 작업 관행 연구는 보고가 비형식적이라 서로 비교하기 어렵다. 그래서 과업 U1\~U3, 정답 기준, 기록을 고른 절차를 재현할 수 있을 만큼 보고한다.
+- **중첩 모델의 수준별 검증**(Meyer et al. 2012, 블록과 지침) [초록]. 수준마다 위협과 맞는 검증법이 다르다.
+  - 도메인: 사용자 인터뷰
+  - 추상화: 신호 종류가 E1\~E3를 덮는지 확인(`study score`)
+  - 인코딩: 휴리스틱 평가 뒤 실험
+  - 알고리즘: 규칙 처리 시간
+- **휴리스틱 평가의 한계.**
+  - 휴리스틱 세트 셋으로 같은 시스템을 평가하면, 결과가 세트와 평가자에 크게 좌우된다(Zuk et al. 2006) [초록].
+  - 휴리스틱 63개를 사용성 문제 74개에 맞춰 설명력이 높은 10개를 골랐다(Forsell & Johansson 2010) [초록]. 그중 "자료 줄이기"는 정상 구간 접기를, "방향 잡기와 도움"은 보기 사이 이동을 점검하는 데 쓴다. 10개의 전체 목록은 확인하지 못했다 [불확실].
+  - 평가자 20명과 사용자 46명을 비교했다. 사용자 시험은 평가자가 놓친 문제를 찾았고, 휴리스틱 평가는 사용자가 겪지 않은 문제도 냈다(Santos et al.) [본문, 게재처 [불확실]]. 휴리스틱 평가는 파일럿을 대신하지 못하고 사전 거르기로만 쓴다.
+- **ICE-T**(Wall et al. 2019) [본문].
+  - 구성: 가치 요소 넷(Insight, Time, Essence, Confidence), 중간 지침 10개, 휴리스틱 21개.
+  - 채점: 7점 척도(해당 없으면 N/A)로 매기고, 평가자는 5명을 권한다. 쓸 만한 시각화는 평균 5점 이상이다.
+  - 진행: 평가 전에 대상 사용자와 과업을 알린다.
+  - U1\~U3는 정답이 있는 진단 과업이다. 그래서 우연한 발견을 묻는 Insight 항목 일부는 N/A로 둔다. Confidence의 "자료의 품질을 이해하게 돕는가"는 "추정" 표지가 신호의 오탐 가능성을 드러내는지를 직접 묻는다.
+- 사용자 경험 지표(Saket, Endert & Stasko 2016) [본문 일부]는 진단 정확도가 목표인 이 연구에는 넣지 않는다.
+- 실용 시각화 비평(Kosara 2007) [초록]은 파일럿 전에 동료 2\~3명과 "이 화면만 보고 U1에 답할 수 있나"를 묻는 비평 모임으로 쓴다.
+- **연구 윤리**(Correll 2019) [본문 일부]. 보이지 않는 것(불확실성 포함)을 보이게 하고, 민감한 자료는 공감하며 다루라고 한다. 신호의 불확실성 표시(11절)와 익명화(`study scrub`)가 여기에 대응한다.
+
+### 12.2 화면 사용 기록과 소리 내어 생각하기
+
+- **사용 기록과 통찰 지표**(Guo et al., TVCG 2016) [초록]. 통찰과 상호작용 기록을 사후에 이어, 어떤 조작 순서가 통찰로 이어졌는지 찾았다. `study log-summary`의 합계에 더해, 답 직전의 조작 순서(예: 신호 → 노드 상세 → 답)를 맞힌 시행과 틀린 시행으로 나눠 본다.
+- **탐색적 시각 분석의 특성**(Battle & Heer 2019) [초록]. 27명의 행동 그래프가 서로 많이 겹쳤다. 6\~8명이라도 두 조건의 탐색 경로가 수렴하는지는 질적으로 보고할 수 있다.
+- **말로 하는 보고의 반응성 메타분석**(Fox, Ericsson & Best 2011) [초록]. 생각을 말로 내기만 하면 정확도는 바뀌지 않는다(r≈-.03). 하지만 시간이 늘고, "설명하라"고 요구하면 수행이 바뀐다. 시간을 재는 시행에는 소리 내어 생각하기를 섞지 않는다. 진행자는 "왜요?"가 아니라 "계속 말씀해 주세요"만 쓴다(7.2의 원칙을 확인).
+
+### 12.3 의존 측정
+
+신호 목록은 사실상 자동 조언이다. 그래서 인간-AI 결정 연구의 지표를 쓸 수 있다.
+
+- **적절한 의존**(Schemmer et al. 2023) [본문]. 절차는 먼저 혼자 판단하고, 조언을 본 뒤, 최종 판단하는 순서다.
+  - RAIR: 처음 판단이 틀렸고 조언이 맞았을 때 최종에 맞힌 비율.
+  - RSR: 처음 판단이 맞았고 조언이 틀렸을 때 최종에 맞힌 비율.
+- **일치율과 전환율**(Zhang, Liao & Bellamy 2020) [초록]. 일치율은 최종 답이 조언과 같은 비율이다. 전환율은 처음에 달랐던 시행 가운데 조언 쪽으로 바꾼 비율이며, 더 엄격한 지표로 본다.
+- **의존을 결정 이론으로 측정하는 틀**(Guo, Wu, Hartline & Hullman, FAccT 2024) [초록]. 성능 손실을 "잘못 믿어서 생긴 손실"과 "신호를 잘 못 가려서 생긴 손실"로 나눈다. 오답을 "신호를 잘못 믿음"과 "신호를 잘못 읽음"으로 나눠 코딩한다.
+- **신호에 기대지 않고 먼저 판단하게 하는 절차는 과신을 줄이지만 과업을 바꾼다**(Buçinca et al.). 두 단계 응답(신호를 가리고 답한 뒤 신호를 보고 최종 답)은 RAIR와 RSR을 계산하게 해 준다. 하지만 45분 미니 실험에는 시간이 모자라므로 제출용 실험의 선택지로 둔다.
+- **틀린 신호를 일부러 넣는다.** 오류 없는 대조 시행에서 규칙이 자연히 내는 오경보만으로는 실행 오류를 재기 어렵다. 제출용 실험에서는 시행 일부(약 20\~25%)에 미리 정한 틀린 신호를 넣는다. 오경보와 놓침을 하나 이상씩 넣고, 사전 등록하고, 사후 설명에서 밝힌다(Parasuraman & Manzey의 두 오류).
+
+### 12.4 재현성과 사전 등록
+
+- **경험적 컴퓨터 과학의 재현 위기 위협**(Cockburn et al., CACM 2020) [초록]. 귀무가설 검정의 남용이 주원인이다. 사전 등록, 자료와 산출물 공개, 더 엄격한 증거 기준을 권한다.
+- **시각화 연구의 재현 위기 피하기**(Kosara & Haroz 2018) [초록]. 등록 보고서, 직접 재현, 개념 재현을 권한다.
+- **열린 연구 관행**(Haroz 2018) [초록]. 자료와 재료를 공개하라고 권한다.
+- **갈림길의 정원**(Pu & Kay 2018) [초록]. 분석 경로를 사후에 고르는 것은 타당성 위협이다.
+
+수업 파일럿(6\~8명)은 가설 검정을 하지 않는다. 효과 크기와 신뢰 구간으로 기술만 하고, 실현 가능성과 분산 추정에 쓴다. 제출용 실험은 가설, 채점 규칙, 제외 기준을 사전 등록한다. 예를 들어 "처음 알아챈 단계"에 ±1 단계를 허용하는지를 미리 정한다.
+
+### 12.5 지금 실험 계획의 약점
+
+1. **효과의 원인을 나눌 수 없다.** 비교가 텍스트 대 AgentVis뿐이다. AgentVis는 규칙 신호(판정기)와 시각 인코딩을 함께 더하므로, 효과가 어디서 왔는지 모른다. 심사에서 가장 먼저 지적될 곳이다. 제출용 실험에서는 구성 요소를 빼 보는 조건을 둔다. 후보는 "텍스트 + 신호 목록" 또는 "AgentVis − 신호"다. 파일럿에서는 구성 요소별 사용 기록을 남긴다.
+2. **기록 4개는 적다.** 유형마다 하나씩이라 조건과 기록이 섞인다. 순서 배치를 반드시 맞춘다. 신호가 틀리는 시행이 없으면 의존 지표를 계산할 수 없다.
+3. **"늘 오류가 있다"는 기대.** 대조 시행이 있다는 것을 미리 알린다. 제출용 실험에서는 대조 시행을 둘 이상 둔다.
+4. **소리 내어 생각하기와 시간 측정은 함께 못 한다**(12.2).
+
+## 13. 2.0.0 화면에 적용할 지침 (I66)
+
+6절은 1.x 화면을 위한 지침이다. 아래는 8절\~12절을 2.0.0의 [지시 대조 보기](../design/ReviewView.md)에 적용한 것이다. 여러 영역의 조사가 같은 결론에 이른 것부터 적었다. "반론"은 지금 설계와 부딪치는 근거가 있다는 뜻이다. 화면을 바꾸려면 설계 문서를 먼저 고친 뒤 로드맵 작업으로 진행한다.
+
+### 13.1 설계 원칙의 보정
+
+| 2.0.0 원칙 | 조사의 판단 | 보정 |
+| --- | --- | --- |
+| 지시가 축이다 | 지지(Reiss, Ko et al., LaToza & Myers, Jänicke et al.) | 유지 |
+| 드문 사건을 앞으로 | 지지(Gleicher 2018의 계산이 이끄는 scan, Guo et al.의 이상 탐지) | 신호만 보인 개요 띠를 더한다(13.2-3) |
+| 정상 작업은 뒤로(지우지 않는다) | 흐림은 지지(Monroe et al., Gero et al.), 목록 접기는 조건부(Cockburn et al., Bouzenia & Pradel). 흐림도 판정이다(Hullman & Diakopoulos, Kindlmann & Scheidegger) | 끄는 스위치, 등급형 관심도, 접힌 줄의 내용 요약(13.2-4) |
+| 판정하지 않는다 | 방향은 지지(Goddard et al., Heer, Kim et al. 2025). "추정" 표지 하나로는 신뢰의 해상도가 없다(Lee & See, Amershi et al. G2) | 신호 종류별 근거 수준과 정밀도를 보인다(13.2-2) |
+| 1.1.0 화면을 깨지 않는다 | 해당 문헌 없음 | 유지. 그래프는 "병렬 줄 타임라인"으로 서술한다(10.5) |
+
+### 13.2 화면 개선 후보 (우선순위 순)
+
+| 순위 | 후보 | 근거 | 다루는 과업 | 시기 |
+| --- | --- | --- | --- | --- |
+| 1 | **양방향 연동.** 신호 행이나 노드에 마우스를 올리면 지시의 해당 문장과 대상이 강조되고, 문장에 올리면 해당 신호 행과 노드가 강조된다. 고른 문장의 행과 노드는 같은 테두리로 묶는다. 상시 연결선은 두지 않는다. | Wang Baldonado et al.의 자명성, L'Yi et al. G1·G2, Wagemans et al., Gleicher 2018 | U1, U2 | 파일럿 전 |
+| 2 | **신호 종류별 근거 수준.** "관찰"(재현, 남은 실패, 충돌, 질문 도구)과 "추정"(해석, 지시 밖, 글로 한 질문)으로 나눠 표시한다. `study score`로 잰 종류별 정밀도를 범례에 빈도 문구로 보인다. 정밀도 0.7 아래인 종류는 약하게 보인다. `신호 n` 칩의 연결도 추정임을 마우스 설명에 밝힌다. | Lee & See, Amershi et al. G2, Wickens & Dixon, Dixon et al., Sacha et al., Correll | U1, U2 | 정밀도는 실제 자극이 나온 뒤, 구분 표시는 파일럿 전 |
+| 3 | **신호 개요 띠(미니맵).** 흐름 위에 턴 전체 길이의 얇은 띠를 두고 신호 위치를 종류 기호로 찍는다. 색은 쓰지 않는다. 지금 보이는 범위를 즉시 반영하고, 누르면 그 위치로 간다. 전체 노드의 축소판은 넣지 않는다. | Cockburn et al., Lam & Munzner | U1 | 파일럿 전 |
+| 4 | **흐림과 접기 보정.** 흐림·접기를 끄는 스위치를 늘 보이게 둔다. 신호 단계의 바로 앞뒤 단계는 흐리지 않는다(등급형 관심도). 접힌 줄에 도구 종류별 개수와 반복(같은 명령 k번)을 적는다. | Horvitz, van Ham & Perer, Kindlmann & Scheidegger, Bouzenia & Pradel, Cockburn et al., Monroe et al. | U1 | 파일럿 전 |
+| 5 | **근거에서 원문으로 한 번에.** 신호 행을 누르면 노드 상세의 원문이 열리고, 근거가 된 줄이 강조된다. `study log-summary`에 "신호를 본 뒤 노드 상세를 연 비율"을 더한다. | Vasconcelos et al. 2023, Fok & Weld, Kim et al. 2025 | U1, U2 | 파일럿 전 |
+| 6 | **신호 종류로 거르기.** 범례의 종류를 누르면 그 종류만 보인다. 기호 여섯은 채움형·외곽형·속빈형이 섞이도록 다시 고른다. | Bertin, Munzner, Tseng et al. 2025, Yi et al.의 Filter | U1 | 파일럿 전 |
+| 7 | **없는 것을 드러낸다.** 신호가 0개인 문장에도 `신호 0`을 보인다. 어느 문장에도 이어지지 않은 신호는 "연결 문장 없음"으로 따로 묶는다. | Fregnan et al., LaToza & Myers("왜 일어나지 않았나") | U2(E1) | 파일럿 전 |
+| 8 | **문장 레인.** 흐름 그래프 위에 문장 수만큼의 얇은 줄을 두고, 신호가 난 시점에 기호를 찍는다. 관계를 직접 그리는 요소를 나란히 놓기와 섞는 혼합 배치다. | L'Yi et al. G6, Li & Maalej | U2 | 제출용 실험 전, 파일럿 의견을 본 뒤 |
+| 9 | **긴 간격 표시.** 순서 축척에서 사라지는 긴 실행이나 대기를 간격 표시로 보인다. | Brehmer et al., Trümper et al. | U1 | 제출용 실험 전 |
+| 10 | **문장에 의심 표시.** 참가자가 지시 문장에 "의심" 표시를 남길 수 있게 한다. 표시를 바꾼 이력은 기록에 남긴다. U3의 annotate를 지원하고 U2 응답 과정을 기록한다. | Heer & Shneiderman, Shankar et al. | U2, U3 | 제출용 실험 전 |
+
+### 13.3 실험과 논문에 적용할 것
+
+- **파일럿 전.**
+  - ICE-T를 평가자 5명(시각화 전공 3명, Claude Code 사용자 2명)으로 하고, Forsell & Johansson 세트로 접기와 보기 이동을 점검한다. 결과는 수정 목록으로만 쓴다(12.1).
+  - 0.35 흐림이 지각되는지 파일럿에서 확인한다(8.2).
+- **파일럿.**
+  - 기술 통계만 보고한다.
+  - 시간 측정 시행과 소리 내어 생각하기를 나눈다.
+  - 구성 요소별 사용 기록과 답 직전의 조작 순서를 분석한다(12.2, 12.4).
+- **제출용 실험.**
+  - 구성 요소를 빼 보는 조건을 둔다(12.5).
+  - 틀린 신호를 넣은 시행과 의존 지표(RAIR, RSR, 전환율, 실행·누락 오류)를 쓴다(12.3).
+  - 사전 등록한다(12.4).
+- **논문.**
+  - 자료에서 출발하는 설계 연구 틀로 쓴다.
+  - 설계 결정 표를 블록과 지침 모델로 만들고, 기존 지침을 확인·정제한 것으로 정리한다(PF-27).
+  - 개발자의 시연은 "사용 시나리오"로 쓴다.
+  - 문서·이슈·커밋 기록을 감사 추적 보충 자료로 낸다(8.4).
+  - 기호와 단어 인코딩은 의식적 맞바꿈으로 쓴다(8.1).
+  - 과업은 개발자 정보 요구 문헌에 잇는다(10.3).
+- **LLM 신호.** 11.6의 조건을 지킬 때만 넣는다.
+
+## 14. 출처
 
 **이론과 원칙**
 - Shneiderman, B. (1996). The Eyes Have It: A Task by Data Type Taxonomy for Information Visualizations. IEEE Symp. Visual Languages, 336–343. https://drum.lib.umd.edu/handle/1903/5784
@@ -328,3 +714,116 @@ Munzner의 중첩 모델과 과업 추상화([4.2절](#42-중첩-모델과-과�
 - Plaisant, C. (2004). The Challenge of Information Visualization Evaluation. AVI 2004, 109–116.
 - Greenberg, S., & Buxton, B. (2008). Usability Evaluation Considered Harmful (Some of the Time). CHI 2008, 111–120.
 - Caine, K. (2016). Local Standards for Sample Size at CHI. CHI '16, 981–992. https://core.ac.uk/download/268650359.pdf
+
+**2차 조사(I66): 설계 기초와 설계 연구 방법론**
+- Bertin, J. (1967; 영역 1983). Semiology of Graphics. University of Wisconsin Press (Esri Press 재간 2010).
+- Mackinlay, J. (1986). Automating the Design of Graphical Presentations of Relational Information. ACM TOG 5(2), 110–141. https://doi.org/10.1145/22949.22950
+- Munzner, T. (2014). Visualization Analysis and Design. CRC Press.
+- Tseng, C. et al. (2025). Shape It Up: An Empirically Grounded Approach for Designing Shape Palettes. IEEE TVCG 31(1). https://doi.org/10.1109/TVCG.2024.3456385
+- Tseng, C. et al. (2026). Redundant is Not Redundant: Unifying Color & Shape Encodings with CatPAW. CHI 2026 [게재 [불확실]]. https://arxiv.org/abs/2602.06792
+- Bertini, E., Correll, M., & Franconeri, S. (2020). Why Shouldn't All Charts Be Scatter Plots? Beyond Precision-Driven Visualizations. IEEE VIS 2020 Short Papers. https://arxiv.org/abs/2008.11310
+- Kim, N. W. et al. Understanding the Research-Practice Gap in Visualization Design Guidelines. arXiv:2310.09614 [게재처 [불확실]]. https://arxiv.org/abs/2310.09614
+- Mairena, A., Gutwin, C., & Cockburn, A. (2022). Which emphasis technique to use? Perception of emphasis techniques with varying distractors, backgrounds, and visualization types. Information Visualization 21(2), 95–129. https://doi.org/10.1177/14738716211045354
+- Hall, K. W. et al. (2016). Formalizing Emphasis in Information Visualization. CGF 35(3), 717–737. https://doi.org/10.1111/cgf.12936
+- Kindlmann, G., & Scheidegger, C. (2014). An Algebraic Process for Visualization Design. IEEE TVCG 20(12), 2181–2190.
+- Wagemans, J. et al. (2012). A Century of Gestalt Psychology in Visual Perception I. Psychological Bulletin 138(6), 1172–1217. https://doi.org/10.1037/a0029333
+- Heer, J., & Shneiderman, B. (2012). Interactive Dynamics for Visual Analysis. CACM 55(4), 45–54.
+- Yi, J. S., Kang, Y., Stasko, J., & Jacko, J. (2007). Toward a Deeper Understanding of the Role of Interaction in Information Visualization. IEEE TVCG 13(6), 1224–1231.
+- Amar, R., Eagan, J., & Stasko, J. (2005). Low-Level Components of Analytic Activity in Information Visualization. IEEE InfoVis 2005, 111–117.
+- Sedlmair, M., Meyer, M., & Munzner, T. (2012). Design Study Methodology: Reflections from the Trenches and the Stacks. IEEE TVCG 18(12), 2431–2440. https://doi.org/10.1109/TVCG.2012.213
+- Oppermann, M., & Munzner, T. (2020). Data-First Visualization Design Studies. BELIV 2020. https://arxiv.org/abs/2009.01785
+- Meyer, M., & Dykes, J. (2020). Criteria for Rigor in Visualization Design Study. IEEE TVCG 26(1), 87–97. https://doi.org/10.1109/TVCG.2019.2934539
+- McKenna, S., Mazur, D., Agutter, J., & Meyer, M. (2014). Design Activity Framework for Visualization Design. IEEE TVCG 20(12), 2191–2200. https://doi.org/10.1109/TVCG.2014.2346331
+- Meyer, M., Sedlmair, M., Quinan, P. S., & Munzner, T. (2015). The Nested Blocks and Guidelines Model. Information Visualization 14(3), 234–249. https://doi.org/10.1177/1473871613510429
+
+**2차 조사(I66): 비교와 연결**
+- Gleicher, M. et al. (2011). Visual comparison for information visualization. Information Visualization 10(4), 289–309. https://doi.org/10.1177/1473871611416549
+- Gleicher, M. (2018). Considerations for Visualizing Comparison. IEEE TVCG 24(1), 413–423. https://doi.org/10.1109/TVCG.2017.2744199
+- L'Yi, S., Jo, J., & Seo, J. (2021). Comparative Layouts Revisited: Design Space, Guidelines, and Future Directions. IEEE TVCG 27(2), 1525–1535. https://doi.org/10.1109/TVCG.2020.3030419
+- Steinberger, M. et al. (2011). Context-Preserving Visual Links. IEEE TVCG 17(12), 2249–2258. https://doi.org/10.1109/TVCG.2011.183
+- Waldner, M. et al. (2010). Visual Links across Applications. Graphics Interface 2010, 129–136.
+- Wang Baldonado, M. Q., Woodruff, A., & Kuchinsky, A. (2000). Guidelines for Using Multiple Views in Information Visualization. AVI 2000, 110–119.
+- Roberts, J. C. (2007). State of the Art: Coordinated & Multiple Views in Exploratory Visualization. CMV 2007, 61–71. https://doi.org/10.1109/CMV.2007.20
+- Jänicke, S. et al. (2017). Visual Text Analysis in Digital Humanities. CGF 36(6), 226–250. https://doi.org/10.1111/cgf.12873
+- Goffin, P. et al. (2014). Exploring the Placement and Design of Word-Scale Visualizations. IEEE TVCG 20(12), 2291–2300.
+- Kucher, K., & Kerren, A. (2015). Text Visualization Techniques: Taxonomy, Visual Survey, and Community Insights. IEEE PacificVis 2015, 117–121. https://textvis.lnu.se
+- Liu, S. et al. (2019). Bridging Text Visualization and Mining: A Task-Driven Survey. IEEE TVCG 25(7), 2482–2504. https://doi.org/10.1109/TVCG.2018.2834341
+- Schuff, H. et al. (2022). Human Interpretation of Saliency-based Explanation Over Text. FAccT 2022. https://doi.org/10.1145/3531146.3533127
+- Li, Y., & Maalej, W. (2012). Which Traceability Visualization Is Suitable in This Context? REFSQ 2012, LNCS 7195, 194–210.
+- Fregnan, E. et al. (2022). First Come First Served: The Impact of File Position on Code Review. ESEC/FSE 2022. https://doi.org/10.1145/3540250.3549177
+- Arawjo, I. et al. (2024). ChainForge. CHI 2024. https://doi.org/10.1145/3613904.3642016
+- Shankar, S. et al. (2024). Who Validates the Validators? (EvalGen). UIST 2024.
+- Coscia, A. et al. (2025). OnGoal. UIST 2025. https://doi.org/10.1145/3746059.3747746
+- Tenney, I. et al. (2024). Interactive Prompt Debugging with Sequence Salience. https://arxiv.org/abs/2404.07498
+- Cohen-Wang, B. et al. (2024). ContextCite. NeurIPS 2024.
+- Kahng, M. et al. (2024). LLM Comparator. CHI EA 2024.
+- Gero, K. et al. (2024). CHI 2024. https://doi.org/10.1145/3613904.3642139
+
+**2차 조사(I66): 이벤트 시퀀스와 트레이스**
+- Guo, Y. et al. (2022). Survey on Visual Analysis of Event Sequence Data. IEEE TVCG 28(12). https://doi.org/10.1109/TVCG.2021.3100413
+- Brehmer, M., Lee, B., Bach, B., Henry Riche, N., & Munzner, T. (2017). Timelines Revisited. IEEE TVCG 23(9), 2151–2164. https://doi.org/10.1109/TVCG.2016.2614803
+- Plaisant, C. et al. (1996). LifeLines: Visualizing Personal Histories. CHI '96, 221–227. https://doi.org/10.1145/238386.238493
+- Alonso, D. L. et al. (1998). Viewing personal history records: a comparison of tabular format and graphical presentation using LifeLines. Behaviour & IT 17(5), 249–262.
+- Monroe, M. et al. (2013). Temporal Event Sequence Simplification. IEEE TVCG 19(12), 2227–2236. https://doi.org/10.1109/TVCG.2013.200
+- Du, F., Shneiderman, B., Plaisant, C., Malik, S., & Perer, A. (2017). Coping with Volume and Variety in Temporal Event Sequences. IEEE TVCG 23(6), 1636–1649.
+- van Ham, F., & Perer, A. (2009). "Search, Show Context, Expand on Demand". IEEE TVCG 15(6), 953–960. https://doi.org/10.1109/TVCG.2009.108
+- Aigner, W., Miksch, S., Schumann, H., & Tominski, C. (2023). Visualization of Time-Oriented Data, 2nd ed. Springer. https://doi.org/10.1007/978-1-4471-7527-8
+- Lam, H., & Munzner, T. (2010). A Guide to Visual Multi-Level Interface Design From Synthesis of Empirical Study Evidence. Synthesis Lectures on Visualization.
+- Cockburn, A., Karlson, A., & Bederson, B. (2009). A Review of Overview+Detail, Zooming, and Focus+Context Interfaces. ACM Computing Surveys 41(1). https://doi.org/10.1145/1456650.1456652
+- Trümper, J., Bohnet, J., & Döllner, J. (2010). Understanding Complex Multithreaded Software Systems by Using Trace Visualization. SoftVis 2010, 133–142. https://doi.org/10.1145/1879211.1879232
+- Ezzati-Jivan, N., & Dagenais, M. R. Multi-scale navigation of large trace data: A survey. Concurrency and Computation: Practice and Experience. https://doi.org/10.1002/cpe.4068
+- Reiss, S. P. Visualizing Program Execution Using User Abstractions. [서지만]
+- Sillito, J., Murphy, G. C., & De Volder, K. (2006). Questions Programmers Ask During Software Evolution Tasks. FSE 2006, 23–34. https://doi.org/10.1145/1181775.1181779
+- Ko, A. J., DeLine, R., & Venolia, G. (2007). Information Needs in Collocated Software Development Teams. ICSE 2007, 344–353.
+- LaToza, T. D., & Myers, B. A. (2010). Hard-to-Answer Questions about Code. PLATEAU 2010. https://doi.org/10.1145/1937117.1937125
+- Ou, T. et al. (2025). AgentDiagnose: An Open Toolkit for Diagnosing LLM Agent Trajectories. EMNLP 2025 System Demonstrations, 207–215.
+- Zhao et al. AgentGUI: An Interface for Observing and Steering Long-Running AI Agents. https://arxiv.org/abs/2607.26300 [게재 [불확실]]
+- Kawamoto et al. Agent ATO: Visualizing Agent Interaction Timelines from Logs. VISSOFT 2026 NIER. https://arxiv.org/abs/2609.08301
+- Bouzenia, I., & Pradel, M. (2025). Understanding Software Engineering Agents: A Study of Thought-Action-Result Trajectories. ASE 2025. https://arxiv.org/abs/2506.18824
+- Kim, Miao, & Liu (2026). LEDGER: Claim-to-Evidence Trace Graphs for Auditing LLM Agents. https://arxiv.org/abs/2608.18398
+- Wang et al. (2025). Illuminating LLM Coding Agents. https://arxiv.org/abs/2508.12555
+- Desmond, M. et al. (2025). Agent Trajectory Explorer. AAAI 2025 Demo. https://doi.org/10.1609/aaai.v39i28.35350
+
+**2차 조사(I66): 자동 추정 신호, 신뢰, 불확실성**
+- Horvitz, E. (1999). Principles of Mixed-Initiative User Interfaces. CHI '99, 159–166. https://doi.org/10.1145/302979.303030
+- Heer, J. (2019). Agency plus automation: Designing artificial intelligence into interactive systems. PNAS 116(6), 1844–1850. https://doi.org/10.1073/pnas.1807184115
+- Amershi, S. et al. (2019). Guidelines for Human-AI Interaction. CHI '19. https://doi.org/10.1145/3290605.3300233
+- Lee, J. D., & See, K. A. (2004). Trust in Automation: Designing for Appropriate Reliance. Human Factors 46(1), 50–80. https://doi.org/10.1518/hfes.46.1.50_30392
+- Parasuraman, R., & Manzey, D. H. (2010). Complacency and Bias in Human Use of Automation. Human Factors 52(3), 381–410. https://doi.org/10.1177/0018720810376055
+- Goddard, K., Roudsari, A., & Wyatt, J. C. (2012). Automation bias: a systematic review of frequency, effect mediators, and mitigators. JAMIA 19(1), 121–127. https://doi.org/10.1136/amiajnl-2011-000089
+- Dixon, S. R., Wickens, C. D., & McCarley, J. S. (2007). On the Independence of Compliance and Reliance: Are Automation False Alarms Worse Than Misses? Human Factors 49(4), 564–572.
+- Wickens, C. D., & Dixon, S. R. (2007). The benefits of imperfect diagnostic automation: a synthesis of the literature. Theoretical Issues in Ergonomics Science 8(3), 201–212.
+- Bansal, G. et al. (2021). Does the Whole Exceed its Parts? The Effect of AI Explanations on Complementary Team Performance. CHI '21. https://doi.org/10.1145/3411764.3445717
+- Zhang, Y., Liao, Q. V., & Bellamy, R. K. E. (2020). Effect of Confidence and Explanation on Accuracy and Trust Calibration in AI-Assisted Decision Making. FAT* '20, 295–305. https://doi.org/10.1145/3351095.3372852
+- Buçinca, Z., Malaya, M. B., & Gajos, K. Z. (2021). To Trust or to Think. PACM HCI 5(CSCW1), Art. 188. https://doi.org/10.1145/3449287
+- Vasconcelos, H. et al. (2023). Explanations Can Reduce Overreliance on AI Systems During Decision-Making. PACM HCI 7(CSCW1), Art. 129. https://doi.org/10.1145/3579605
+- Fok, R., & Weld, D. S. (2024). In Search of Verifiability: Explanations Rarely Enable Complementary Performance in AI-Advised Decision Making. AI Magazine. https://doi.org/10.1002/aaai.12182
+- Padilla, L., Kay, M., & Hullman, J. Uncertainty Visualization. Handbook of Computational Statistics and Data Science [출판 정보 [불확실]].
+- Hullman, J. (2020). Why Authors Don't Visualize Uncertainty. IEEE TVCG 26(1), 130–139. https://doi.org/10.1109/TVCG.2019.2934287
+- Hullman, J., & Diakopoulos, N. (2011). Visualization Rhetoric: Framing Effects in Narrative Visualization. IEEE TVCG 17(12), 2231–2240. https://doi.org/10.1109/TVCG.2011.255
+- Sacha, D. et al. (2016). The Role of Uncertainty, Awareness, and Trust in Visual Analytics. IEEE TVCG 22(1), 240–249. https://doi.org/10.1109/TVCG.2015.2467591
+- Vasconcelos, H. et al. Generation Probabilities Are Not Enough: Uncertainty Highlighting in AI Code Completions. ACM TOCHI 32(1). https://arxiv.org/abs/2302.07248
+- Kim, S. S. Y. et al. (2024). "I'm Not Sure, But...": Examining the Impact of Large Language Models' Uncertainty Expression on User Reliance and Trust. FAccT '24. https://doi.org/10.1145/3630106.3658941
+- Kim, S. S. Y. et al. (2025). Fostering Appropriate Reliance on Large Language Models: The Role of Explanations, Sources, and Inconsistencies. CHI '25. https://doi.org/10.1145/3706598.3714020
+- Liu, N. F., Zhang, T., & Liang, P. (2023). Evaluating Verifiability in Generative Search Engines. Findings of EMNLP 2023, 7001–7025.
+
+**2차 조사(I66): 평가**
+- Isenberg, T., Isenberg, P., Chen, J., Sedlmair, M., & Möller, T. (2013). A Systematic Review on the Practice of Evaluating Visualization. IEEE TVCG 19(12), 2818–2827. https://doi.org/10.1109/TVCG.2013.126
+- Meyer, M., Sedlmair, M., & Munzner, T. (2012). The Four-Level Nested Model Revisited: Blocks and Guidelines. BELIV 2012.
+- Zuk, T. et al. (2006). Heuristics for Information Visualization Evaluation. BELIV '06. https://doi.org/10.1145/1168149.1168162
+- Forsell, C., & Johansson, J. (2010). An heuristic set for evaluation in information visualization. AVI 2010, 199–206. https://doi.org/10.1145/1842993.1843029
+- Santos, B. S., Silva, S., & Dias, P. Heuristic Evaluation in Visualization: an empirical study [게재처 [불확실]].
+- Wall, E. et al. (2019). A Heuristic Approach to Value-Driven Evaluation of Visualizations. IEEE TVCG 25(1), 491–500. https://doi.org/10.1109/TVCG.2018.2865146
+- Stasko, J. (2014). Value-Driven Evaluation of Visualizations. BELIV 2014, 46–53.
+- Saket, B., Endert, A., & Stasko, J. (2016). Beyond Usability and Performance: A Review of User Experience-focused Evaluations in Visualization. BELIV 2016. https://doi.org/10.1145/2993901.2993903
+- Kosara, R. (2007). Visualization Criticism – The Missing Link Between Information Visualization and Art. IV 2007.
+- Correll, M. (2019). Ethical Dimensions of Visualization Research. CHI 2019. https://arxiv.org/abs/1811.07271
+- Guo, H., Gomez, S. R., Ziemkiewicz, C., & Laidlaw, D. H. (2016). A Case Study Using Visualization Interaction Logs and Insight Metrics to Understand How Analysts Arrive at Insights. IEEE TVCG 22(1), 51–60. https://doi.org/10.1109/TVCG.2015.2467613
+- Battle, L., & Heer, J. (2019). Characterizing Exploratory Visual Analysis. CGF 38(3). https://doi.org/10.1111/cgf.13678
+- Fox, M. C., Ericsson, K. A., & Best, R. (2011). Do Procedures for Verbal Reporting of Thinking Have to Be Reactive? Psychological Bulletin 137(2), 316–344. https://doi.org/10.1037/a0021663
+- Schemmer, M. et al. (2023). Appropriate Reliance on AI Advice: Conceptualization and the Effect of Explanations. IUI '23, 410–422. https://doi.org/10.1145/3581641.3584066
+- Guo, Z., Wu, Y., Hartline, J., & Hullman, J. (2024). A Decision Theoretic Framework for Measuring AI Reliance. FAccT 2024. https://doi.org/10.1145/3630106.3658901
+- Cockburn, A., Dragicevic, P., Besançon, L., & Gutwin, C. (2020). Threats of a Replication Crisis in Empirical Computer Science. CACM 63(8), 70–79. https://doi.org/10.1145/3360311
+- Kosara, R., & Haroz, S. (2018). Skipping the Replication Crisis in Visualization. BELIV 2018.
+- Haroz, S. (2018). Open Practices in Visualization Research. BELIV 2018. https://doi.org/10.1109/BELIV.2018.8634427
+- Pu, X., & Kay, M. (2018). The Garden of Forking Paths in Visualization. BELIV 2018. https://doi.org/10.1109/BELIV.2018.8634103
