@@ -25,6 +25,32 @@
 
 
 
+
+## I68 AgentLens와의 차이 정리
+
+- 시작일: 2026-11-16
+- 완료일: 2026-11-16
+- 근거 문서: [관련 결과물 조사](research/RelatedWork.md), [연구 설계 2](research/StudyDesign.md), [시각화 인코딩 설계](design/VisualEncoding.md)
+- 관련 이슈: I29, I30, I62
+
+### 계획
+- AgentLens 원문(arXiv:2402.08995 HTML 본문)에서 대상 시스템, 데이터 구조, LLM의 역할, 화면 구성, 원인 추적, 유저 스터디, 저자가 밝힌 한계를 확인한다.
+- 관련 결과물 조사에 AgentLens와의 차이 절을 새로 두고(제출 점검 목록이 이 절을 가리킨다), 2.0.0 연구 설계 기준으로 비교한다.
+- 원문 확인을 미뤄 둔 시각화 인코딩 설계 6절과 연구 설계 2의 비교 표를 원문에 맞게 고친다.
+- 브랜치 `i68-agentlens-comparison`은 `i67-foundational-perception` 위에 쌓는다.
+
+### 진행 기록
+- 2026-11-16: 사용자가 AgentLens와 우리 연구의 차이 정리와 문서 반영을 지시해 I68로 등록했다.
+- 2026-11-16: 원문을 읽고 관련 결과물 조사 3.6절을 쓰고, 낡은 비교(연구 설계 2, 시각화 인코딩 설계 6절, 제출 계획의 링크)를 고쳤다.
+
+### 결과
+- [관련 결과물 조사](research/RelatedWork.md)에 3.6절 "AgentLens와의 차이"를 새로 두었다. 원문(arXiv:2402.08995 HTML 본문)에서 대상(Reverie 사회 시뮬레이션), 데이터 구조, LLM의 역할, 화면 셋, 원인 추적, 유저 스터디 수치, 저자가 밝힌 한계를 확인하고, 2.0.0 연구 설계 기준으로 비교 표, 겹치는 것과 배울 것, 논문에 쓸 차이 셋을 적었다.
+- 같은 문서의 2절 비교 기준과 3.4절 기여 공간을 2.0.0 기준으로 보강하고, 3.2절 AgentLens 행을 원문에 맞게 고쳤다.
+- [제출 계획](research/SubmissionPlan.md)의 점검 목록 링크를 3.6절로 바꾸고, [연구 설계 2](research/StudyDesign.md)의 비교 행과 [시각화 인코딩 설계](design/VisualEncoding.md) 6절의 AgentLens 열을 원문에 맞게 고쳤다. 8절의 "AgentLens 원문 확인"을 완료로 표시했다. 문서 인덱스 설명을 고쳤다.
+
+### 검증
+- check_docs, check_pointers, check_tasks, check_commits, check_web, 단위 테스트 통과
+
 ## I67 시각화 근본 연구의 실험 결과 정리
 
 - 시작일: 2026-11-13
